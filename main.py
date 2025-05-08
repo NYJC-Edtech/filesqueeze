@@ -1,7 +1,7 @@
 from typing import Mapping
 from pathlib import Path
 
-import compressor
+import filesqueeze
 import scan
 
 
@@ -27,7 +27,7 @@ def run(topdir: str):
         topdir,
         isvalid=lambda file: Path(file).suffix.lower() in EXTS,
     ):
-        outfile = compressor.make_video(filepath, on_update=display)
+        outfile = filesqueeze.make_video(filepath, on_update=display)
         print()  # Put linebreak after last display line
 
 
