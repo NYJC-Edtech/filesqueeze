@@ -1,17 +1,5 @@
-from typing import Optional, Iterable, Callable, MutableMapping
-from enum import Enum
-
-from datetime import datetime
-from pathlib import Path
-# from dataclasses import dataclass
-
-from .enums import Format, Status
-from .state import State
+from .fsm import Format, Handler, State
 from . import video, pptx
-
-
-Handler = Callable[["State"], "Handler"]
-
 
 
 def cleanupFiles(state: State) -> None:

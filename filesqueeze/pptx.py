@@ -2,13 +2,11 @@ import os, subprocess
 from pathlib import Path
 
 
-
 POWERSHELL = 'powershell.exe'
 SCRIPTPATH = str(Path(os.path.realpath(__file__)).parent.joinpath('bin', 'pptx2mp4.ps1'))  # relative path
 
 
-
-def to_mp4(infile, outfile=None):
+def to_mp4(infile: str, outfile: str = "") -> None:
     # Validation & defaults
     infile = Path(infile)
     if not infile.exists():
