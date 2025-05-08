@@ -1,13 +1,14 @@
-from typing import Tuple
 import os, subprocess
 from pathlib import Path
+from typing import Tuple
 
 FFMPEGPATH = str(Path(os.path.realpath(__file__)).parent.joinpath('bin', 'ffmpeg.exe'))
 FFPROBEPATH = str(Path(os.path.realpath(__file__)).parent.joinpath('bin', 'ffprobe.exe'))
 
 CRF = '28'
 
-def width_height(infile: str) -> Tuple[int, int]:
+
+def width_height(infile: str) -> Tuple[int, int] | None:
     cmd = [
         FFPROBEPATH, '-v', 'error',  # hide default output
         '-select_streams', 'v:0',  # hide audio stream info
@@ -26,12 +27,12 @@ def width_height(infile: str) -> Tuple[int, int]:
         raise
 
     if data and ('x' in data):
-        return map(data.split('x'), int)  # convert to int
+        return tuple(map(data.split('x'), int))  # convert to int
     return None
 
 
 
-def duration(infile):
+def duration(infile: str) -> float | None:
     cmd = [
         FFPROBEPATH, '-v', 'error',  # hide default output
         '-show_entries', 'format=duration',  # set output format to display duration
@@ -52,7 +53,7 @@ def duration(infile):
 
 
 
-def compress(infile, outfile, *, downscale=False):
+def compress(infile: str, outfile: str, *, downscale=False):
     cmd = [
         FFMPEGPATH,
         '-threads', '8',
