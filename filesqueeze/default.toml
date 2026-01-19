@@ -34,11 +34,11 @@ audio_bitrate = "96k"
 # Path to Ghostscript executable (leave empty to use system PATH)
 ghostscript_path = ""
 # PDF quality setting: screen, ebook, printer, prepress, default
-pdf_quality = "ebook"
+pdf_quality = "printer"
 # PDF compression level (0-4, higher = more compression)
 pdf_compression_level = 2
-# Image quality (1-100, higher = better quality)
-image_quality = 85
+# Image quality (1-100, higher = better quality, 90 recommended for lineart)
+image_quality = 90
 # Maximum image dimensions (images larger than this will be resized)
 max_image_width = 1920
 max_image_height = 1080

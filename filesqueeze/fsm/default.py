@@ -5,13 +5,14 @@ Default state class for the conversion pipeline.
 from datetime import datetime
 from os import PathLike
 from pathlib import Path
+from typing import Optional
 
 from .enums import Format, Status
 
 
 class State:
     __slots__ = ('__data',)
-    def __init__(self, origin: PathLike):
+    def __init__(self, origin: PathLike, output_path: Optional[PathLike] = None, config=None):
         self.__data = {
             'origin': Path(origin),
             'status': Status.PENDING,
@@ -20,6 +21,8 @@ class State:
             'format': None,
             'target': Path(origin),
             'metadata': {},
+            'output_path': Path(output_path) if output_path else None,
+            'config': config,
         }
     
     def __getattr__(self, attr):

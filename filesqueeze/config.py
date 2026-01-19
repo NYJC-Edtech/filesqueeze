@@ -38,9 +38,9 @@ class Config:
         },
         'document': {
             'ghostscript_path': '',  # empty = use PATH
-            'pdf_quality': 'ebook',  # screen, ebook, printer, prepress, default
+            'pdf_quality': 'printer',  # screen, ebook, printer, prepress, default
             'pdf_compression_level': 2,
-            'image_quality': 85,
+            'image_quality': 90,
             'max_image_width': 1920,
             'max_image_height': 1080,
             'convert_to_jpeg': False,

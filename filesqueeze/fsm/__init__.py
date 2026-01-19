@@ -18,7 +18,9 @@ StateCallback = Callable[[S], None]
 # A customisable factory function that creates a state object
 StateFactory = Callable[[PathLike], S]
 
-default_state_factory: StateFactory = lambda filepath: State(filepath)
+def default_state_factory(filepath, **kwargs):
+    """Default state factory that forwards kwargs to State constructor."""
+    return State(filepath, **kwargs)
 
 
 class StateMachine(Generic[S]):

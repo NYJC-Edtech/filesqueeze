@@ -1,6 +1,6 @@
 from .fsm import Format, Handler, State
-from .fsm.enums import Video, Slideshow
-from . import video, pptx
+from .fsm.enums import Video, Slideshow, Document
+from . import video, pptx, document
 
 
 def cleanupFiles(state: State) -> None:
@@ -39,6 +39,91 @@ def analyzeSlideshow(state: State) -> Handler:
     state.status_analyze()
     state.set_target(state.origin)
     return pptxToVideo
+
+def analyzeDocument(state: State) -> Handler:
+    """
+    Analyzes a document file (PDF or image), fills in metadata,
+    and returns an appropriate handler.
+    """
+    state.status_analyze()
+    try:
+        # Get file extension
+        ext = state.target.suffix.lower()
+
+        if ext == '.pdf':
+            # For PDFs, we could extract metadata here
+            # For now, just mark as analyzed
+            pass
+        elif ext in ['.jpg', '.jpeg', '.png']:
+            # Get image dimensions
+            width, height = document.get_image_size(
+                str(state.target),
+                ffmpeg_path=getattr(state.config, 'ffmpeg_path', '')
+            )
+            state.metadata['width'] = width
+            state.metadata['height'] = height
+    except Exception:
+        # No need to terminate; can still proceed without metadata
+        state.metadata['error'] = "Error during document analysis"
+    finally:
+        return compressDocument
+
+def compressDocument(state: State) -> Handler:
+    """
+    Compresses a document file (PDF or image).
+    """
+    state.status_compress()
+
+    # Get config if available
+    config = getattr(state, 'config', None)
+    ext = state.target.suffix.lower()
+
+    # Determine output path
+    if hasattr(state, 'output_path') and state.output_path:
+        outpath = state.output_path
+    else:
+        outpath = state.target.parent / f"compressed_{state.target.name}"
+
+    try:
+        if ext == '.pdf':
+            # Compress PDF
+            quality = config.get('document.pdf_quality', 'ebook') if config else 'ebook'
+            compression_level = config.get('document.pdf_compression_level', 2) if config else 2
+            gs_path = config.ghostscript_path if config else ''
+
+            document.compress_pdf(
+                str(state.target),
+                str(outpath),
+                quality=quality,
+                compression_level=compression_level,
+                ghostscript_path=gs_path
+            )
+        elif ext in ['.jpg', '.jpeg', '.png']:
+            # Compress image
+            img_quality = config.get('document.image_quality', 85) if config else 85
+            max_width = config.get('document.max_image_width', None) if config else None
+            max_height = config.get('document.max_image_height', None) if config else None
+            convert_to_jpeg = config.get('document.convert_to_jpeg', False) if config else False
+            ffmpeg_path = config.ffmpeg_path if config else ''
+
+            document.compress_image(
+                str(state.target),
+                str(outpath),
+                quality=img_quality,
+                max_width=max_width,
+                max_height=max_height,
+                convert_to_jpeg=convert_to_jpeg,
+                ffmpeg_path=ffmpeg_path
+            )
+        else:
+            state.error(f"Unsupported document format: {ext}")
+            return cleanupFiles
+    except Exception as e:
+        state.error(f"Error compressing document: {e}")
+    else:
+        state.set_target(outpath)
+    finally:
+        return cleanupFiles
 
 def pptxToVideo(state: State) -> Handler:
     """
@@ -82,6 +167,7 @@ def selectAnalyzer(
     handler={
         Video: analyzeVideo,
         Slideshow: analyzeSlideshow,
+        Document: analyzeDocument,
     },
 ) -> Handler:
     """
@@ -90,11 +176,12 @@ def selectAnalyzer(
     """
     # Map format enums to their handlers
     suffix = state.target.suffix.lstrip('.').upper()  # Enums store file extension in uppercase
-    for format in Format:
-        format = format.value  # format is an Enum within the Format enum
-        if suffix in format.__members__:
-            state.set_format(format[suffix])  # get Enum member using suffix
-            return handler[type(format[suffix])]
+    for format_enum in Format:
+        # format_enum is now the Video/Slideshow/Document class
+        if suffix in format_enum.__dict__:
+            # Store the format string value directly
+            state._State__data['format'] = format_enum.__dict__[suffix]
+            return handler[format_enum]
 
     # No matching target format found
     state.error("File type cannot be handled")
