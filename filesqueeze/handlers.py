@@ -1,4 +1,5 @@
 from .fsm import Format, Handler, State
+from .fsm.enums import Video, Slideshow
 from . import video, pptx
 
 
@@ -79,8 +80,8 @@ def compressVideo(state: State) -> Handler:
 def selectAnalyzer(
     state: State,
     handler={
-        Format.Video.value: analyzeVideo,
-        Format.Slideshow.value: analyzeSlideshow,
+        Video: analyzeVideo,
+        Slideshow: analyzeSlideshow,
     },
 ) -> Handler:
     """

@@ -6,6 +6,7 @@ from os import PathLike
 from typing import Generic, Callable, TypeVar
 
 from .default import State
+from .enums import Format
 
 # Generic type for state object
 S = TypeVar("S")

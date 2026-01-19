@@ -1,0 +1,78 @@
+# FileSqueeze Configuration File
+# Copy this file to your project directory and customize as needed
+# User config location: ~/.config/filesqueeze/config.toml
+
+[directories]
+# Input directory for files to process
+input = "G:/Shared drives/compressor/upload"
+# Output directory for compressed files
+output = "G:/Shared drives/compressor/compressed"
+
+[file_detection]
+# File extensions to process (case-insensitive)
+extensions = ["mp4", "avi", "wmv", "pptx", "pdf", "jpg", "jpeg", "png"]
+# Minimum file age in seconds before processing (prevents processing incomplete files)
+min_age_seconds = 60
+# Minimum file size in bytes (files smaller than this are skipped)
+min_size_bytes = 1024
+
+[ffmpeg]
+# Path to FFmpeg executable (leave empty to use system PATH)
+path = ""
+# Constant Rate Factor - lower = better quality, larger file (18-28 recommended)
+crf = 28
+# Number of threads for video processing
+threads = 8
+# Encoding speed: ultrafast, superfast, veryfast, faster, fast, medium, slow, slower, veryslow
+preset = "veryfast"
+# Maximum video height (videos taller than this will be downscaled)
+max_height = 720
+# Audio bitrate for compressed videos
+audio_bitrate = "96k"
+
+[document]
+# Path to Ghostscript executable (leave empty to use system PATH)
+ghostscript_path = ""
+# PDF quality setting: screen, ebook, printer, prepress, default
+pdf_quality = "ebook"
+# PDF compression level (0-4, higher = more compression)
+pdf_compression_level = 2
+# Image quality (1-100, higher = better quality)
+image_quality = 85
+# Maximum image dimensions (images larger than this will be resized)
+max_image_width = 1920
+max_image_height = 1080
+# Convert PNG images to JPEG (JPEG is smaller but lossy)
+convert_to_jpeg = false
+
+[processing]
+# Maximum time in seconds to wait for a compression task
+timeout_seconds = 1800
+# Maximum time in seconds to wait for a file lock
+lock_timeout_seconds = 300
+# Maximum number of retry attempts for failed tasks
+max_retries = 2
+
+[logging]
+# Log level: DEBUG, INFO, WARNING, ERROR, CRITICAL
+level = "INFO"
+# Log file path (relative to working directory or absolute)
+file = "filesqueeze.log"
+# Maximum size of each log file in bytes (default: 10MB)
+max_bytes = 10485760
+# Number of backup log files to keep
+backup_count = 5
+# Log format: simple, detailed, json
+format = "detailed"
+
+[output]
+# Output directory structure: flat, by_type, by_date, mirror
+# - flat: All files in output root
+# - by_type: Organized by file type (video/, document/, slideshow/)
+# - by_date: Organized by date (YYYY-MM-DD/)
+# - mirror: Preserve source directory structure
+structure = "flat"
+# Preserve original file timestamps
+preserve_timestamps = true
+# Save metadata as JSON alongside compressed files
+save_metadata = false
