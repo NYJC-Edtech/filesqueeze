@@ -146,12 +146,18 @@ def compressVideo(state: State) -> Handler:
     Compresses a video file.
     """
     state.status_compress()
-    outfile = state.target.parent.joinpath('compressed_' + state.target.name)  # TODO: generate temp folder
-    # import pdb; pdb.set_trace()
+
+    # Determine output path
+    if hasattr(state, 'output_path') and state.output_path:
+        outfile = state.output_path
+    else:
+        outfile = state.target.parent.joinpath('compressed_' + state.target.name)
+
     try:
         video.compress(
             str(state.target),
             str(outfile),
+            config=state.config if hasattr(state, 'config') else None,
             downscale=(True if state.metadata.get('height', 0) > 720 else False),
         )
     except Exception:

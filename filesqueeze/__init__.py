@@ -14,13 +14,14 @@ start = handlers.selectAnalyzer
 
 StateMachine(start=handlers.selectAnalyzer)
 
-def make_video(filepath: str, callback: Optional[Callable] = None, config: Optional[Config] = None) -> str:
+def make_video(filepath: str, callback: Optional[Callable] = None, config: Optional[Config] = None, output_path: Optional[str] = None) -> str:
     """Entry point to the compression pipeline for video files.
 
     Args:
         filepath: Path to the video file to compress.
         callback: Optional callback function for state updates.
         config: Optional Config object for compression settings.
+        output_path: Optional output path for compressed file.
 
     Returns:
         Path to the final compressed file.
@@ -28,16 +29,17 @@ def make_video(filepath: str, callback: Optional[Callable] = None, config: Optio
     sm = StateMachine(start=handlers.selectAnalyzer)
     if callback:
         sm.onupdate = callback
-    final = sm.run(filepath, config=config)
+    final = sm.run(filepath, config=config, output_path=output_path)
     return final.target
 
-def make_pdf(filepath: str, callback: Optional[Callable] = None, config: Optional[Config] = None) -> str:
+def make_pdf(filepath: str, callback: Optional[Callable] = None, config: Optional[Config] = None, output_path: Optional[str] = None) -> str:
     """Entry point to the compression pipeline for PDF files.
 
     Args:
         filepath: Path to the PDF file to compress.
         callback: Optional callback function for state updates.
         config: Optional Config object for compression settings.
+        output_path: Optional output path for compressed file.
 
     Returns:
         Path to the final compressed file.
@@ -45,16 +47,17 @@ def make_pdf(filepath: str, callback: Optional[Callable] = None, config: Optiona
     sm = StateMachine(start=handlers.selectAnalyzer)
     if callback:
         sm.onupdate = callback
-    final = sm.run(filepath, config=config)
+    final = sm.run(filepath, config=config, output_path=output_path)
     return final.target
 
-def make_image(filepath: str, callback: Optional[Callable] = None, config: Optional[Config] = None) -> str:
+def make_image(filepath: str, callback: Optional[Callable] = None, config: Optional[Config] = None, output_path: Optional[str] = None) -> str:
     """Entry point to the compression pipeline for image files.
 
     Args:
         filepath: Path to the image file to compress.
         callback: Optional callback function for state updates.
         config: Optional Config object for compression settings.
+        output_path: Optional output path for compressed file.
 
     Returns:
         Path to the final compressed file.
@@ -62,5 +65,5 @@ def make_image(filepath: str, callback: Optional[Callable] = None, config: Optio
     sm = StateMachine(start=handlers.selectAnalyzer)
     if callback:
         sm.onupdate = callback
-    final = sm.run(filepath, config=config)
+    final = sm.run(filepath, config=config, output_path=output_path)
     return final.target

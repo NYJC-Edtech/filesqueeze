@@ -64,20 +64,25 @@ class Config:
         },
     }
 
-    def __init__(self, config_path: Optional[str | Path] = None):
+    def __init__(self, config_path: Optional[str | Path | dict] = None):
         """Initialize configuration.
 
         Args:
-            config_path: Optional path to a specific config file.
+            config_path: Optional path to a specific config file, or a dict with config values.
                         If not provided, will search for config files.
         """
         self._config = {}
         self._load_configs(config_path)
 
-    def _load_configs(self, config_path: Optional[str | Path]) -> None:
+    def _load_configs(self, config_path: Optional[str | Path | dict]) -> None:
         """Load configurations from all sources in priority order."""
         # Start with defaults
         self._config = self._deep_copy(self.DEFAULTS)
+
+        # If config_path is a dict, merge it directly (for testing)
+        if isinstance(config_path, dict):
+            self._merge_dict(config_path)
+            return
 
         # Load user config
         user_config_path = Path.home() / '.config' / 'filesqueeze' / 'config.toml'
@@ -101,6 +106,10 @@ class Config:
             self._deep_merge(self._config, data)
         except Exception as e:
             print(f"Warning: Failed to load config from {path}: {e}")
+
+    def _merge_dict(self, data: dict) -> None:
+        """Merge dict directly into current config (for testing)."""
+        self._deep_merge(self._config, data)
 
     def _deep_merge(self, base: dict, update: dict) -> None:
         """Deep merge update dict into base dict."""

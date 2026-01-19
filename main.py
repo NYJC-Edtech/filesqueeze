@@ -41,8 +41,119 @@ def cmd_init_config(args):
     print(f"Configuration file created at: {output_path}")
     print("\nNext steps:")
     print("1. Edit the configuration file to customize your settings")
-    print("2. Run 'python -m filesqueeze --scan' to process files")
+    print("2. Run 'python -m filesqueeze scan' to process files")
     print("\nFor more information, see the README.md file")
+
+
+def cmd_scan(args):
+    """Scan input directory and process files."""
+    # Import here to avoid issues if modules have errors
+    from filesqueeze.config import Config
+    from filesqueeze.scanner import FileScanner
+    from filesqueeze.output import (
+        generate_output_path,
+        ensure_output_dir,
+        save_metadata,
+        preserve_timestamps,
+        get_unique_output_path
+    )
+    from filesqueeze import make_video, make_pdf, make_image
+    import filesqueeze
+
+    # Load config
+    config = Config()
+
+    # Override config with CLI args if specified
+    input_dir = Path(args.input) if args.input else Path(config.get('directories.input', 'upload'))
+    output_dir = Path(args.output) if args.output else Path(config.get('directories.output', 'compressed'))
+
+    # Validate directories
+    if not input_dir.exists():
+        print(f"Error: Input directory does not exist: {input_dir}")
+        sys.exit(1)
+
+    # Create output directory if it doesn't exist
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    # Create scanner
+    scanner = FileScanner(config)
+
+    # Scan for files
+    print(f"Scanning directory: {input_dir}")
+    print(f"Output directory: {output_dir}")
+    print("-" * 60)
+
+    file_count = 0
+    success_count = 0
+    error_count = 0
+
+    for filepath in scanner.scan(input_dir):
+        file_count += 1
+        print(f"\n[{file_count}] Processing: {filepath.name}")
+
+        try:
+            # Determine file type
+            ext = filepath.suffix.lstrip('.').lower()
+
+            # Generate output path
+            output_path = generate_output_path(
+                filepath,
+                output_dir,
+                structure=config.get('output.structure', 'flat'),
+                config=config
+            )
+
+            # Ensure output directory exists
+            ensure_output_dir(output_path)
+
+            # Get unique output path if file exists
+            output_path = get_unique_output_path(output_path)
+
+            # Process file based on type
+            if ext in ['mp4', 'wmv', 'avi']:
+                print(f"  Type: Video")
+                print(f"  Output: {output_path}")
+                result_path = make_video(str(filepath), config=config, output_path=str(output_path))
+            elif ext == 'pdf':
+                print(f"  Type: PDF")
+                print(f"  Output: {output_path}")
+                result_path = make_pdf(str(filepath), config=config, output_path=str(output_path))
+            elif ext in ['jpg', 'jpeg', 'png']:
+                print(f"  Type: Image")
+                print(f"  Output: {output_path}")
+                result_path = make_image(str(filepath), config=config, output_path=str(output_path))
+            elif ext == 'pptx':
+                print(f"  Type: PowerPoint (not yet supported)")
+                print(f"  Skipping...")
+                continue
+            else:
+                print(f"  Type: Unknown ({ext})")
+                print(f"  Skipping...")
+                continue
+
+            # Save metadata if enabled
+            from datetime import datetime
+            save_metadata(output_path, {
+                'source': str(filepath),
+                'processed_at': str(datetime.now()),
+            }, config=config)
+
+            # Preserve timestamps if enabled
+            preserve_timestamps(filepath, output_path, config=config)
+
+            print(f"  ✓ Success")
+            success_count += 1
+
+        except Exception as e:
+            print(f"  ✗ Error: {e}")
+            error_count += 1
+
+    print("\n" + "=" * 60)
+    print(f"Scan complete!")
+    print(f"  Total files found: {file_count}")
+    print(f"  Successfully processed: {success_count}")
+    print(f"  Errors: {error_count}")
+    print("=" * 60)
 
 
 def main():
@@ -63,7 +174,7 @@ Examples:
 
     subparsers = parser.add_subparsers(dest='command', help='Available commands')
 
-    # --init-config command
+    # init-config command
     init_parser = subparsers.add_parser(
         'init-config',
         help='Generate an example configuration file'
@@ -76,6 +187,20 @@ Examples:
         '--force', '-f',
         action='store_true',
         help='Overwrite existing configuration file'
+    )
+
+    # scan command
+    scan_parser = subparsers.add_parser(
+        'scan',
+        help='Process files in input directory'
+    )
+    scan_parser.add_argument(
+        '--input', '-i',
+        help='Input directory to scan (default: from config or ./upload)'
+    )
+    scan_parser.add_argument(
+        '--output', '-o',
+        help='Output directory for compressed files (default: from config or ./compressed)'
     )
 
     # For backward compatibility, also support --init-config as a flag
@@ -124,6 +249,9 @@ Examples:
     # Handle commands
     if args.command == 'init-config':
         return cmd_init_config(args)
+
+    if args.command == 'scan':
+        return cmd_scan(args)
 
     # Legacy mode: if infile is specified, use old behavior
     if args.infile:
