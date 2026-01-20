@@ -6,9 +6,10 @@ from pathlib import Path
 
 
 def cmd_init_config(args):
-    """Generate an example configuration file."""
+    """Generate an example configuration file with auto-detected binaries."""
     # Import here to avoid issues if config module has errors
     from filesqueeze.config import Config
+    from filesqueeze.binaries import detect_binaries
 
     output_path = Path(args.output) if args.output else Path.cwd() / 'filesqueeze.toml'
 
@@ -34,13 +35,48 @@ def cmd_init_config(args):
         print(f"Searched in: {script_dir} and package directory")
         sys.exit(1)
 
-    # Copy example config to output location
-    import shutil
-    shutil.copy(example_config, output_path)
+    # Detect binaries
+    print("Detecting FFmpeg and Ghostscript...")
+    detection = detect_binaries()
+
+    # Read example config
+    try:
+        import tomllib
+    except ImportError:
+        import tomli as tomllib
+
+    with open(example_config, 'rb') as f:
+        config_data = tomllib.load(f)
+
+    # Update config with detected binary paths
+    if detection['ffmpeg']['found'] and detection['ffmpeg']['path']:
+        config_data['ffmpeg']['path'] = detection['ffmpeg']['path']
+        print(f"  [OK] FFmpeg detected: {detection['ffmpeg']['path']}")
+    else:
+        print(f"  [X] FFmpeg not found - using default (PATH)")
+
+    if detection['ghostscript']['found'] and detection['ghostscript']['path']:
+        config_data['document']['ghostscript_path'] = detection['ghostscript']['path']
+        print(f"  [OK] Ghostscript detected: {detection['ghostscript']['path']}")
+    else:
+        print(f"  [X] Ghostscript not found - using default (PATH)")
+    print()
+
+    # Write updated config to output location
+    try:
+        import tomli_w
+    except ImportError:
+        # If tomli_w is not available, just copy the example config
+        import shutil
+        shutil.copy(example_config, output_path)
+        print(f"Note: tomli_w not installed, using default config without auto-detected paths")
+    else:
+        with open(output_path, 'wb') as f:
+            tomli_w.dump(config_data, f)
 
     print(f"Configuration file created at: {output_path}")
     print("\nNext steps:")
-    print("1. Edit the configuration file to customize your settings")
+    print("1. Review and edit the configuration file if needed")
     print("2. Run 'python -m filesqueeze scan' to process files")
     print("\nFor more information, see the README.md file")
 
@@ -141,11 +177,11 @@ def cmd_scan(args):
             # Preserve timestamps if enabled
             preserve_timestamps(filepath, output_path, config=config)
 
-            print(f"  ✓ Success")
+            print(f"  [OK] Success")
             success_count += 1
 
         except Exception as e:
-            print(f"  ✗ Error: {e}")
+            print(f"  [X] Error: {e}")
             error_count += 1
 
     print("\n" + "=" * 60)
@@ -156,6 +192,19 @@ def cmd_scan(args):
     print("=" * 60)
 
 
+def cmd_detect(args):
+    """Detect FFmpeg and Ghostscript binaries."""
+    from filesqueeze.binaries import print_detection_results
+
+    if args.json:
+        import json
+        from filesqueeze.binaries import detect_binaries
+        results = detect_binaries()
+        print(json.dumps(results, indent=2))
+    else:
+        print_detection_results()
+
+
 def main():
     """Main entry point for FileSqueeze CLI."""
     parser = argparse.ArgumentParser(
@@ -163,12 +212,13 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  python -m filesqueeze --init-config           Create example config file
-  python -m filesqueeze --scan                  Process all files
-  python -m filesqueeze --scan --input . --output ./compressed
-  python -m filesqueeze --watch                 Monitor directory for new files
-  python -m filesqueeze --service               Run with system tray icon
-  python -m filesqueeze --status                Show queue status
+  python -m filesqueeze init-config             Create example config file
+  python -m filesqueeze detect                  Detect FFmpeg and Ghostscript binaries
+  python -m filesqueeze scan                    Process all files
+  python -m filesqueeze scan --input . --output ./compressed
+  python -m filesqueeze watch                   Monitor directory for new files
+  python -m filesqueeze service                 Run with system tray icon
+  python -m filesqueeze status                  Show queue status
         """
     )
 
@@ -201,6 +251,17 @@ Examples:
     scan_parser.add_argument(
         '--output', '-o',
         help='Output directory for compressed files (default: from config or ./compressed)'
+    )
+
+    # detect command
+    detect_parser = subparsers.add_parser(
+        'detect',
+        help='Detect FFmpeg and Ghostscript binaries'
+    )
+    detect_parser.add_argument(
+        '--json',
+        action='store_true',
+        help='Output detection results as JSON'
     )
 
     # For backward compatibility, also support --init-config as a flag
@@ -252,6 +313,9 @@ Examples:
 
     if args.command == 'scan':
         return cmd_scan(args)
+
+    if args.command == 'detect':
+        return cmd_detect(args)
 
     # Legacy mode: if infile is specified, use old behavior
     if args.infile:
