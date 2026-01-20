@@ -45,6 +45,22 @@ max_image_height = 1080
 # Convert PNG images to JPEG (JPEG is smaller but lossy)
 convert_to_jpeg = false
 
+[ocr]
+# Path to Tesseract OCR executable (leave empty to use system PATH)
+tesseract_path = ""
+# OCR language data (eng=English, chi_sim= Simplified Chinese)
+# Install language packs from https://github.com/tesseract-ocr/tessdata
+language = "eng"
+# OCR engine mode: 0=Legacy, 1=Neural nets LSTM, 2=Legacy+LSTM, 3=Default
+oem = 3
+# Page segmentation mode: 0=OSD only, 1=Auto+OSD, 2=Auto, 3=Fully auto, 4=Column
+# 5=Vertical text, 6=Single block, 7=Single line, 8=Single word, 9=Single char
+psm = 3
+# Enable OCR for scanned PDFs (adds invisible text layer)
+enable_ocr = true
+# DPI for rendering PDF pages before OCR (higher = better accuracy, slower)
+ocr_dpi = 300
+
 [processing]
 # Maximum time in seconds to wait for a compression task
 timeout_seconds = 1800

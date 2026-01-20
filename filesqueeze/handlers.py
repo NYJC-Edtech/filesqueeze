@@ -1,6 +1,8 @@
 from .fsm import Format, Handler, State
 from .fsm.enums import Video, Slideshow, Document
-from . import video, pptx, document
+from . import video, pptx, document, ocr
+import tempfile
+from pathlib import Path
 
 
 def cleanupFiles(state: State) -> None:
@@ -51,6 +53,14 @@ def analyzeDocument(state: State) -> Handler:
         ext = state.target.suffix.lower()
 
         if ext == '.pdf':
+            # Check if PDF needs OCR
+            config = getattr(state, 'config', None)
+            if config and ocr.needs_ocr(str(state.target), config):
+                state.metadata['needs_ocr'] = True
+                print(f"  PDF appears to be scanned (no text layer)")
+            else:
+                state.metadata['needs_ocr'] = False
+
             # For PDFs, we could extract metadata here
             # For now, just mark as analyzed
             pass
@@ -86,18 +96,76 @@ def compressDocument(state: State) -> Handler:
 
     try:
         if ext == '.pdf':
-            # Compress PDF
-            quality = config.get('document.pdf_quality', 'ebook') if config else 'ebook'
-            compression_level = config.get('document.pdf_compression_level', 2) if config else 2
-            gs_path = config.ghostscript_path if config else ''
+            # Check if PDF needs OCR
+            needs_ocr = state.metadata.get('needs_ocr', False)
 
-            document.compress_pdf(
-                str(state.target),
-                str(outpath),
-                quality=quality,
-                compression_level=compression_level,
-                ghostscript_path=gs_path
-            )
+            if needs_ocr and config and config.get('ocr', {}).get('enable_ocr', True):
+                # For scanned PDFs: OCR first, then compress
+                print(f"  Processing scanned PDF with OCR...")
+
+                # Create temporary file for OCR'd PDF
+                with tempfile.NamedTemporaryFile(suffix='.pdf', delete=False) as tmp:
+                    tmp_ocr_path = tmp.name
+
+                try:
+                    # Step 1: Run OCR
+                    ocr_success, ocr_msg = ocr.process_pdf_with_ocr(
+                        str(state.target),
+                        tmp_ocr_path,
+                        config=config,
+                        ocr_only=True
+                    )
+
+                    if ocr_success:
+                        print(f"  {ocr_msg}")
+
+                        # Step 2: Compress the OCR'd PDF
+                        # Use 'ebook' quality for scanned PDFs (better compression)
+                        quality = 'ebook'
+                        compression_level = config.get('document.pdf_compression_level', 2)
+                        gs_path = config.ghostscript_path if config else ''
+
+                        document.compress_pdf(
+                            tmp_ocr_path,
+                            str(outpath),
+                            quality=quality,
+                            compression_level=compression_level,
+                            ghostscript_path=gs_path
+                        )
+                    else:
+                        print(f"  OCR failed, compressing original...")
+                        # Fallback: compress original PDF without OCR
+                        quality = config.get('document.pdf_quality', 'ebook')
+                        compression_level = config.get('document.pdf_compression_level', 2)
+                        gs_path = config.ghostscript_path if config else ''
+
+                        document.compress_pdf(
+                            str(state.target),
+                            str(outpath),
+                            quality=quality,
+                            compression_level=compression_level,
+                            ghostscript_path=gs_path
+                        )
+                finally:
+                    # Clean up temporary OCR file
+                    try:
+                        Path(tmp_ocr_path).unlink(missing_ok=True)
+                    except Exception:
+                        pass
+            else:
+                # For generated PDFs or OCR disabled: compress directly
+                quality = config.get('document.pdf_quality', 'ebook') if config else 'ebook'
+                compression_level = config.get('document.pdf_compression_level', 2) if config else 2
+                gs_path = config.ghostscript_path if config else ''
+
+                document.compress_pdf(
+                    str(state.target),
+                    str(outpath),
+                    quality=quality,
+                    compression_level=compression_level,
+                    ghostscript_path=gs_path
+                )
+
         elif ext in ['.jpg', '.jpeg', '.png']:
             # Compress image
             img_quality = config.get('document.image_quality', 85) if config else 85

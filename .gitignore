@@ -172,3 +172,8 @@ cython_debug/
 
 # PyPI configuration file
 .pypirc
+
+# FileSqueeze specific
+filesqueeze.toml
+filesqueeze.log
+tests/fixtures/

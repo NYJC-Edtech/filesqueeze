@@ -6,7 +6,10 @@ Utility package for compressing various file types including videos, PDFs, and i
 
 - Video compression using FFmpeg
 - PDF compression using Ghostscript
+- OCR (Optical Character Recognition) for scanned PDFs using Tesseract
 - Image compression and resizing
+- Automatic binary detection (FFmpeg, Ghostscript, Tesseract)
+- Intelligent PDF processing (detects scanned vs generated PDFs)
 - Batch processing
 - File watching mode
 - Background service with tray icon
@@ -25,6 +28,11 @@ Utility package for compressing various file types including videos, PDFs, and i
 3. **Download and install Ghostscript** (for PDF processing)
    - Windows: Download from [ghostscript.com](https://www.ghostscript.com/releases/gsdnld.html)
    - Add Ghostscript to your system PATH (the installer usually does this automatically)
+
+4. **Download and install Tesseract OCR** (optional, for scanned PDFs)
+   - Windows: Download from [UB-Mannheim/tesseract](https://github.com/UB-Mannheim/tesseract/wiki)
+   - Add Tesseract to your system PATH
+   - For Chinese text, download language data from [tessdata](https://github.com/tesseract-ocr/tessdata)
 
 4. **Install FileSqueeze**
    ```bash
@@ -52,10 +60,20 @@ FileSqueeze uses configuration files to control how files are processed. You can
 The easiest way to get started is to generate an example configuration file:
 
 ```bash
-python -m filesqueeze --init-config
+python -m filesqueeze init-config
 ```
 
-This creates a `filesqueeze.toml` file in your current directory with all default settings and helpful comments.
+This creates a `filesqueeze.toml` file in your current directory with auto-detected binary paths and all default settings.
+
+### Detecting Binaries
+
+To check if FileSqueeze can detect your installed binaries:
+
+```bash
+python -m filesqueeze detect
+```
+
+This will show you the detected paths for FFmpeg, Ghostscript, and Tesseract.
 
 ### Configuration File Locations
 
@@ -89,10 +107,19 @@ crf = 28
 
 [document]
 # PDF quality: "screen" (smallest), "ebook", "printer", "prepress" (largest)
-pdf_quality = "ebook"
+pdf_quality = "printer"
+
+# For generated PDFs: "printer" quality (readable, good compression)
+# For scanned PDFs: automatically uses "ebook" quality (better compression)
 
 # Image quality: 1-100 (higher = better quality)
 image_quality = 85
+
+[ocr]
+# Enable automatic OCR for scanned PDFs (adds searchable text layer)
+enable_ocr = true
+# OCR language
+language = "eng"
 ```
 
 #### Choosing Output Organization
@@ -107,9 +134,9 @@ image_quality = 85
 structure = "flat"
 ```
 
-### Custom Paths for FFmpeg/Ghostscript
+### Custom Paths for FFmpeg/Ghostscript/Tesseract
 
-If FileSqueeze can't find FFmpeg or Ghostscript automatically, you can specify their locations:
+If FileSqueeze can't detect your binaries automatically, you can specify their locations:
 
 ```toml
 [ffmpeg]
@@ -119,6 +146,14 @@ path = "C:/path/to/ffmpeg.exe"
 [document]
 # Full path to gswin64c.exe (Ghostscript for Windows)
 ghostscript_path = "C:/path/to/gswin64c.exe"
+
+[ocr]
+# Full path to tesseract.exe (leave empty if in PATH)
+tesseract_path = "C:/Program Files/Tesseract-OCR/tesseract.exe"
+# OCR language (eng=English, chi_sim=Simplified Chinese)
+language = "eng"
+# Enable OCR for scanned PDFs
+enable_ocr = true
 ```
 
 ## Usage
@@ -168,11 +203,22 @@ See the generated `filesqueeze.toml` file (run `--init-config`) for a complete l
 
 ### "FFmpeg not found" Error
 
-**Solution**: Install FFmpeg and ensure it's in your system PATH, or set the `ffmpeg.path` in your config file.
+**Solution**: Run `python -m filesqueeze detect` to see if FFmpeg is detected. If not:
+- Install FFmpeg and ensure it's in your system PATH
+- Or set `ffmpeg.path` in your config file to the full path
 
 ### "Ghostscript not found" Error
 
-**Solution**: Install Ghostscript and ensure it's in your system PATH, or set the `document.ghostscript_path` in your config file.
+**Solution**: Run `python -m filesqueeze detect` to see if Ghostscript is detected. If not:
+- Install Ghostscript and ensure it's in your system PATH
+- Or set `document.ghostscript_path` in your config file
+
+### "Tesseract not found" Warning
+
+**Solution**: This is optional - only needed for OCR on scanned PDFs:
+- Install Tesseract OCR from [UB-Mannheim/tesseract](https://github.com/UB-Mannheim/tesseract/wiki)
+- Ensure it's in your system PATH
+- Or set `ocr.tesseract_path` in your config file
 
 ### Files Not Being Processed
 
@@ -180,6 +226,21 @@ See the generated `filesqueeze.toml` file (run `--init-config`) for a complete l
 - File extensions are in the `file_detection.extensions` list
 - Files meet minimum age requirement (`file_detection.min_age_seconds`)
 - Files meet minimum size requirement (`file_detection.min_size_bytes`)
+
+### Scanned PDFs Not Compressing Well
+
+**Cause**: "Printer" quality preserves high-resolution images in scanned PDFs
+
+**Solution**: FileSqueeze automatically detects scanned vs generated PDFs and uses appropriate compression:
+- Generated PDFs: "printer" quality (readable text)
+- Scanned PDFs: "ebook" quality (downsamples images for compression)
+
+### OCR is Slow
+
+**Solution**: OCR is computationally intensive:
+- Reduce OCR DPI: set `ocr.ocr_dpi = 200` (default is 300)
+- Disable OCR for scanned PDFs: set `ocr.enable_ocr = false`
+- Process files in smaller batches
 
 ## Development
 

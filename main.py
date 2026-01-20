@@ -36,7 +36,7 @@ def cmd_init_config(args):
         sys.exit(1)
 
     # Detect binaries
-    print("Detecting FFmpeg and Ghostscript...")
+    print("Detecting FFmpeg, Ghostscript, and Tesseract...")
     detection = detect_binaries()
 
     # Read example config
@@ -60,6 +60,12 @@ def cmd_init_config(args):
         print(f"  [OK] Ghostscript detected: {detection['ghostscript']['path']}")
     else:
         print(f"  [X] Ghostscript not found - using default (PATH)")
+
+    if detection['tesseract']['found'] and detection['tesseract']['path']:
+        config_data['ocr']['tesseract_path'] = detection['tesseract']['path']
+        print(f"  [OK] Tesseract detected: {detection['tesseract']['path']}")
+    else:
+        print(f"  [X] Tesseract not found - using default (PATH)")
     print()
 
     # Write updated config to output location

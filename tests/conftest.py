@@ -8,6 +8,45 @@ from pathlib import Path
 # Add parent directory to path so we can import filesqueeze
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+# Path to test fixtures
+FIXTURES_DIR = Path(__file__).parent / "fixtures"
+
+
+@pytest.fixture
+def sample_video():
+    """Path to sample video file for testing."""
+    video_path = FIXTURES_DIR / "testvideo61.mp4"
+    if video_path.exists():
+        return str(video_path)
+    pytest.skip(f"Sample video not found: {video_path}")
+
+
+@pytest.fixture
+def sample_image():
+    """Path to sample image file for testing."""
+    image_path = FIXTURES_DIR / "TDD080.jpg"
+    if image_path.exists():
+        return str(image_path)
+    pytest.skip(f"Sample image not found: {image_path}")
+
+
+@pytest.fixture
+def sample_generated_pdf():
+    """Path to sample generated PDF for testing."""
+    pdf_path = FIXTURES_DIR / "generated_pdf.pdf"
+    if pdf_path.exists():
+        return str(pdf_path)
+    pytest.skip(f"Sample PDF not found: {pdf_path}")
+
+
+@pytest.fixture
+def sample_scanned_pdf():
+    """Path to sample scanned PDF for testing."""
+    pdf_path = FIXTURES_DIR / "scanned_pdf.pdf"
+    if pdf_path.exists():
+        return str(pdf_path)
+    pytest.skip(f"Sample PDF not found: {pdf_path}")
+
 
 def pytest_configure(config):
     """Configure pytest with custom markers."""

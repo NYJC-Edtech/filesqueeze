@@ -11,7 +11,7 @@ import subprocess
 
 
 class BinaryDetector:
-    """Detect FFmpeg and Ghostscript installation paths."""
+    """Detect FFmpeg, Ghostscript, and Tesseract installation paths."""
 
     # Common installation directories
     WINDOWS_FFMPEG_PATHS = [
@@ -26,6 +26,12 @@ class BinaryDetector:
         Path("C:/Program Files (x86)/gs"),
     ]
 
+    WINDOWS_TESSERACT_PATHS = [
+        Path("C:/Program Files/Tesseract-OCR"),
+        Path("C:/Program Files (x86)/Tesseract-OCR"),
+        Path("C:/Tesseract-OCR"),
+    ]
+
     LINUX_FFMPEG_PATHS = [
         Path("/usr/bin"),
         Path("/usr/local/bin"),
@@ -36,6 +42,12 @@ class BinaryDetector:
         Path("/usr/bin"),
         Path("/usr/local/bin"),
         Path("/opt/gs/bin"),
+    ]
+
+    LINUX_TESSERACT_PATHS = [
+        Path("/usr/bin"),
+        Path("/usr/local/bin"),
+        Path("/opt/tesseract/bin"),
     ]
 
     def __init__(self):
@@ -75,6 +87,22 @@ class BinaryDetector:
         else:
             return self._find_ghostscript_linux()
 
+    def find_tesseract(self) -> Tuple[Optional[str], str]:
+        """Find Tesseract OCR executable.
+
+        Returns:
+            Tuple of (path to tesseract, status message).
+        """
+        # First, check if tesseract is in PATH
+        if self._check_command("tesseract"):
+            return "tesseract", "Found in PATH"
+
+        # If not in PATH, search common installation directories
+        if self.system == "Windows":
+            return self._find_tesseract_windows()
+        else:
+            return self._find_tesseract_linux()
+
     def detect_all(self) -> dict:
         """Detect all required binaries.
 
@@ -85,6 +113,7 @@ class BinaryDetector:
             "system": f"{self.system} {self.machine}",
             "ffmpeg": None,
             "ghostscript": None,
+            "tesseract": None,
         }
 
         ffmpeg_path, ffmpeg_msg = self.find_ffmpeg()
@@ -99,6 +128,13 @@ class BinaryDetector:
             "path": gs_path,
             "message": gs_msg,
             "found": gs_path is not None
+        }
+
+        tesseract_path, tesseract_msg = self.find_tesseract()
+        result["tesseract"] = {
+            "path": tesseract_path,
+            "message": tesseract_msg,
+            "found": tesseract_path is not None
         }
 
         return result
@@ -199,6 +235,35 @@ class BinaryDetector:
 
         return None, "Not found in common locations"
 
+    def _find_tesseract_windows(self) -> Tuple[Optional[str], str]:
+        """Find Tesseract on Windows.
+
+        Returns:
+            Tuple of (path to tesseract, status message).
+        """
+        for base_path in self.WINDOWS_TESSERACT_PATHS:
+            if base_path.exists():
+                # Try tesseract.exe in base directory
+                tesseract_exe = base_path / "tesseract.exe"
+                if tesseract_exe.exists():
+                    return str(tesseract_exe), f"Found at {tesseract_exe}"
+
+        return None, "Not found in common locations"
+
+    def _find_tesseract_linux(self) -> Tuple[Optional[str], str]:
+        """Find Tesseract on Linux.
+
+        Returns:
+            Tuple of (path to tesseract, status message).
+        """
+        for base_path in self.LINUX_TESSERACT_PATHS:
+            if base_path.exists():
+                tesseract_bin = base_path / "tesseract"
+                if tesseract_bin.exists() and os.access(tesseract_bin, os.X_OK):
+                    return str(tesseract_bin), f"Found at {tesseract_bin}"
+
+        return None, "Not found in common locations"
+
 
 def detect_binaries() -> dict:
     """Convenience function to detect all binaries.
@@ -240,8 +305,18 @@ def print_detection_results():
         print(f"    {gs['message']}")
     print()
 
+    # Tesseract
+    tesseract = results['tesseract']
+    if tesseract['found']:
+        print(f"[OK] Tesseract OCR: {tesseract['path']}")
+        print(f"     {tesseract['message']}")
+    else:
+        print(f"[X] Tesseract OCR: Not found")
+        print(f"    {tesseract['message']}")
+    print()
+
     # Summary
-    if ffmpeg['found'] and gs['found']:
+    if ffmpeg['found'] and gs['found'] and tesseract['found']:
         print("[OK] All binaries found! FileSqueeze is ready to use.")
         print()
         print("To use these paths, add to your filesqueeze.toml:")
@@ -250,12 +325,17 @@ def print_detection_results():
         print()
         print(f"[document]")
         print(f"ghostscript_path = \"{gs['path']}\"")
+        print()
+        print(f"[ocr]")
+        print(f"tesseract_path = \"{tesseract['path']}\"")
     else:
         print("[X] Some binaries are missing. Please install:")
         if not ffmpeg['found']:
             print("  - FFmpeg: https://ffmpeg.org/download.html")
         if not gs['found']:
             print("  - Ghostscript: https://www.ghostscript.com/download.html")
+        if not tesseract['found']:
+            print("  - Tesseract OCR: https://github.com/UB-Mannheim/tesseract/wiki")
 
     print("=" * 60)
 
