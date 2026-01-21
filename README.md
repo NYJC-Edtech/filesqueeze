@@ -16,34 +16,83 @@ Utility package for compressing various file types including videos, PDFs, and i
 
 ## Installation
 
-### Quick Start (For Non-Technical Users)
+FileSqueeze supports three installation methods:
 
-1. **Download and install Python 3.11+** from [python.org](https://www.python.org/downloads/)
-   - During installation, check "Add Python to PATH"
+### 🚀 Method 1: One-Click Installer (Recommended for Non-Technical Users)
 
-2. **Download and install FFmpeg** (for video/image processing)
-   - Windows: Download from [ffmpeg.org](https://ffmpeg.org/download.html#build-windows) or use `winget install ffmpeg`
-   - Add FFmpeg to your system PATH (the installer usually does this automatically)
+**Windows:**
+```powershell
+# Download and run installer
+irm https://nyjc.app/filesqueeze/install | iex
+```
 
-3. **Download and install Ghostscript** (for PDF processing)
-   - Windows: Download from [ghostscript.com](https://www.ghostscript.com/releases/gsdnld.html)
-   - Add Ghostscript to your system PATH (the installer usually does this automatically)
+**Linux:**
+```bash
+# Download and run installer
+curl -sSL https://nyjc.app/filesqueeze/install | bash
+```
 
-4. **Download and install Tesseract OCR** (optional, for scanned PDFs)
-   - Windows: Download from [UB-Mannheim/tesseract](https://github.com/UB-Mannheim/tesseract/wiki)
-   - Add Tesseract to your system PATH
-   - For Chinese text, download language data from [tessdata](https://github.com/tesseract-ocr/tessdata)
+The installer will:
+- ✅ Check for Python 3.11+
+- ✅ Install Poetry (dependency manager)
+- ✅ Clone FileSqueeze repository
+- ✅ Install all dependencies
+- ✅ Detect FFmpeg, Ghostscript, Tesseract
+- ✅ Generate configuration file
+- ✅ Create desktop shortcut
 
-4. **Install FileSqueeze**
-   ```bash
-   poetry install
-   ```
+For detailed instructions, see [INSTALL.md](INSTALL.md)
 
-### For Developers
+### 📦 Method 2: PyPI Package (Recommended for Python Users)
 
 ```bash
-poetry install
+# Install FileSqueeze
+pip install filesqueeze
+
+# Generate configuration
+filesqueeze-init
+
+# Edit configuration
+nano filesqueeze.toml
+
+# Start service
+filesqueeze-service
 ```
+
+### 🔧 Method 3: Manual Installation (For Developers)
+
+```bash
+# Clone repository
+git clone https://github.com/yourusername/filesqueeze.git
+cd filesqueeze
+
+# Install dependencies
+poetry install
+
+# Generate configuration
+poetry run python -m filesqueeze init-config
+
+# Start service
+poetry run python -m filesqueeze service
+```
+
+### External Dependencies
+
+**Required:**
+- **FFmpeg** - Video and image compression
+  - Windows: `choco install ffmpeg` or download from [ffmpeg.org](https://ffmpeg.org)
+  - Linux: `sudo apt-get install ffmpeg`
+
+- **Ghostscript** - PDF compression
+  - Windows: `choco install ghostscript` or download from [ghostscript.com](https://www.ghostscript.com)
+  - Linux: `sudo apt-get install ghostscript`
+
+**Optional:**
+- **Tesseract OCR** - Add text layer to scanned PDFs
+  - Windows: `choco install tesseract`
+  - Linux: `sudo apt-get install tesseract-ocr`
+
+> **Note:** The one-click installer will detect these automatically. Make sure they're in your system PATH.
 
 ## Configuration
 
