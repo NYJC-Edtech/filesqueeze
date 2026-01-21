@@ -49,6 +49,8 @@ setup(
             "filesqueeze-watch=filesqueeze.__main__:main",
             "filesqueeze-service=filesqueeze.__main__:main",
             "filesqueeze-init=filesqueeze.__main__:main",
+            "filesqueeze-doctor=filesqueeze.__main__:main",
+            "filesqueeze-detect=filesqueeze.__main__:main",
         ],
     },
     include_package_data=True,

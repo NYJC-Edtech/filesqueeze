@@ -366,6 +366,13 @@ def cmd_service_status(args):
         print("To install, run: python -m filesqueeze service-install")
 
 
+def cmd_doctor(args):
+    """Run diagnostic checks on FileSqueeze installation."""
+    from filesqueeze.doctor import run_doctor
+
+    run_doctor()
+
+
 def main():
     """Main entry point for FileSqueeze CLI."""
     parser = argparse.ArgumentParser(
@@ -487,6 +494,12 @@ Examples:
         help='Show auto-start installation status'
     )
 
+    # doctor command
+    subparsers.add_parser(
+        'doctor',
+        help='Run diagnostic checks on installation'
+    )
+
     # detect command
     detect_parser = subparsers.add_parser(
         'detect',
@@ -565,6 +578,9 @@ Examples:
 
     if args.command == 'service-status':
         return cmd_service_status(args)
+
+    if args.command == 'doctor':
+        return cmd_doctor(args)
 
     if args.command == 'detect':
         return cmd_detect(args)
