@@ -18,6 +18,45 @@ from .config import Config
 from .logger import setup_logging
 
 
+def show_windows_notification(title: str, message: str) -> bool:
+    """Show a Windows toast notification.
+
+    Args:
+        title: Notification title.
+        message: Notification message.
+
+    Returns:
+        True if notification was shown, False otherwise.
+    """
+    if sys.platform != 'win32':
+        return False
+
+    try:
+        import ctypes
+        from ctypes import wintypes
+
+        # Load user32.dll
+        user32 = ctypes.windll.user32
+
+        # Define Windows message box constants
+        MB_OK = 0x00000000
+        MB_ICONINFORMATION = 0x00000040
+        MB_TOPMOST = 0x00040000
+        MB_SETFOREGROUND = 0x00010000
+
+        # Show non-modal notification
+        user32.MessageBoxW(
+            0,
+            message,
+            title,
+            MB_OK | MB_ICONINFORMATION | MB_TOPMOST | MB_SETFOREGROUND
+        )
+        return True
+    except Exception:
+        # Fall back to console output if notification fails
+        return False
+
+
 class CompressionHandler(FileSystemEventHandler):
     """Handler for file system events."""
 
@@ -99,6 +138,12 @@ class CompressionHandler(FileSystemEventHandler):
 
             self.logger.info(f"Compressing {ext.upper()} file: {filepath.name}")
 
+            # Show Windows notification (only on first detection, not modal)
+            show_windows_notification(
+                "FileSqueeze",
+                f"Compressing {filepath.name}...\n\nType: {ext.upper()}\nThis may take a few minutes."
+            )
+
             try:
                 # Process file based on type
                 if ext in ['mp4', 'wmv', 'avi', 'mkv', 'mov', 'flv']:
@@ -128,6 +173,15 @@ class CompressionHandler(FileSystemEventHandler):
                         self.logger.info(f"  Saved:  {reduction:.1f}%")
                     else:
                         self.logger.info(f"  Note: Output is larger")
+
+                    # Show Windows notification for successful completion
+                    show_windows_notification(
+                        "FileSqueeze - Complete!",
+                        f"Successfully compressed: {filepath.name}\n\n"
+                        f"Input:  {input_size / 1024 / 1024:.2f} MB\n"
+                        f"Output: {output_size / 1024 / 1024:.2f} MB\n"
+                        f"Saved:  {reduction:.1f}%"
+                    )
 
                     # Remove original file
                     filepath.unlink()
