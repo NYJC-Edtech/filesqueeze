@@ -10,6 +10,8 @@ requires-python = ">=3.11"
 dependencies = [
     "tomli>=2.0.0; python_version < '3.11'",
     "tomli-w>=1.0.0",
+    "watchdog (>=6.0.0,<7.0.0)",
+    "pystray (>=0.19.5,<0.20.0)",
 ]
 
 [project.optional-dependencies]
@@ -35,6 +37,7 @@ tomli-w = "^1.0.0"
 pytest = "^7.0.0"
 pytest-cov = "^4.0.0"
 pdfminer-six = "^20231228"
+tomli-w = "^1.2.0"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

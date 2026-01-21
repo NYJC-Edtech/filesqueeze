@@ -112,3 +112,16 @@ def get_logger(name: Optional[str] = None) -> logging.Logger:
             Logger instance
     """
     return Logger.get_logger(name)
+
+
+def setup_logging(config: Optional[Config] = None, log_file: Optional[str | Path] = None) -> logging.Logger:
+    """Convenience function to set up logging.
+
+    Args:
+        config: Config object with logging settings
+        log_file: Optional path to log file (overrides config)
+
+    Returns:
+        Configured logger instance
+    """
+    return Logger.setup(config=config, log_file=log_file)

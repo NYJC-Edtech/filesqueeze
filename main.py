@@ -87,6 +87,81 @@ def cmd_init_config(args):
     print("\nFor more information, see the README.md file")
 
 
+def cmd_compress(args):
+    """Compress a single file."""
+    from filesqueeze.config import Config
+    from filesqueeze import make_video, make_pdf, make_image
+
+    # Load config
+    config = Config()
+
+    # Get input file
+    input_file = Path(args.input)
+    if not input_file.exists():
+        print(f"Error: Input file does not exist: {input_file}")
+        sys.exit(1)
+
+    if not input_file.is_file():
+        print(f"Error: Input is not a file: {input_file}")
+        sys.exit(1)
+
+    # Determine output path
+    if args.output:
+        output_path = Path(args.output)
+    else:
+        # Generate output filename: input_compressed.ext
+        output_path = input_file.parent / f"{input_file.stem}_compressed{input_file.suffix}"
+
+    # Determine file type
+    ext = input_file.suffix.lstrip('.').lower()
+
+    print(f"Input: {input_file}")
+    print(f"Output: {output_path}")
+    print(f"Type: {ext.upper()}")
+
+    # Ensure output directory exists
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    try:
+        # Process file based on type
+        if ext in ['mp4', 'wmv', 'avi', 'mkv', 'mov', 'flv']:
+            print("Compressing video...")
+            result_path = make_video(str(input_file), config=config, output_path=str(output_path))
+        elif ext == 'pdf':
+            print("Compressing PDF...")
+            result_path = make_pdf(str(input_file), config=config, output_path=str(output_path))
+        elif ext in ['jpg', 'jpeg', 'png']:
+            print("Compressing image...")
+            result_path = make_image(str(input_file), config=config, output_path=str(output_path))
+        elif ext in ['ppt', 'pptx']:
+            print("Error: PowerPoint files are not yet supported")
+            sys.exit(1)
+        else:
+            print(f"Error: Unsupported file type: {ext}")
+            print("Supported types: mp4, wmv, avi, mkv, mov, flv, pdf, jpg, jpeg, png")
+            sys.exit(1)
+
+        print(f"\n[OK] Success!")
+        print(f"Output: {result_path}")
+
+        # Show file size reduction if possible
+        input_size = input_file.stat().st_size
+        output_size = Path(result_path).stat().st_size
+        reduction = (1 - output_size / input_size) * 100
+
+        print(f"\nFile sizes:")
+        print(f"  Input:  {input_size:,} bytes ({input_size / 1024 / 1024:.2f} MB)")
+        print(f"  Output: {output_size:,} bytes ({output_size / 1024 / 1024:.2f} MB)")
+        if reduction > 0:
+            print(f"  Saved:  {reduction:.1f}% smaller")
+        else:
+            print(f"  Note:  Output is larger (original may be highly compressed)")
+
+    except Exception as e:
+        print(f"\n[X] Error: {e}")
+        sys.exit(1)
+
+
 def cmd_scan(args):
     """Scan input directory and process files."""
     # Import here to avoid issues if modules have errors
@@ -211,6 +286,86 @@ def cmd_detect(args):
         print_detection_results()
 
 
+def cmd_watch(args):
+    """Watch directory for new files and compress them."""
+    from filesqueeze.config import Config
+    from filesqueeze.service import DirectoryWatcher
+
+    # Load config
+    config = Config()
+
+    # Get directories
+    input_dir = Path(args.input) if args.input else Path(config.get('directories.input', 'upload'))
+    output_dir = Path(args.output) if args.output else Path(config.get('directories.output', 'compressed'))
+
+    # Create watcher
+    watcher = DirectoryWatcher(input_dir, output_dir, config)
+
+    # Run watcher
+    watcher.run()
+
+
+def cmd_service(args):
+    """Run FileSqueeze as a service with system tray icon."""
+    from filesqueeze.config import Config
+    from filesqueeze.tray import run_service
+
+    # Load config
+    config = Config()
+
+    # Get directories
+    input_dir = Path(args.input) if args.input else Path(config.get('directories.input', 'upload'))
+    output_dir = Path(args.output) if args.output else Path(config.get('directories.output', 'compressed'))
+
+    # Run service with tray icon
+    run_service(input_dir, output_dir, config)
+
+
+def cmd_service_install(args):
+    """Install FileSqueeze to start automatically on boot."""
+    from filesqueeze.config import Config
+    from filesqueeze.autostart import install_autostart, check_autostart_installed
+
+    # Load config
+    config = Config()
+
+    # Get directories
+    input_dir = Path(args.input) if args.input else Path(config.get('directories.input', 'upload'))
+    output_dir = Path(args.output) if args.output else Path(config.get('directories.output', 'compressed'))
+
+    # Check if already installed
+    if check_autostart_installed() and not args.force:
+        print("Auto-start is already installed.")
+        print("Use --force to reinstall.")
+        sys.exit(1)
+
+    # Install auto-start
+    install_autostart(input_dir, output_dir)
+
+
+def cmd_service_uninstall(args):
+    """Uninstall FileSqueeze auto-start."""
+    from filesqueeze.autostart import uninstall_autostart
+
+    uninstall_autostart()
+
+
+def cmd_service_status(args):
+    """Show auto-start installation status."""
+    from filesqueeze.autostart import check_autostart_installed, is_windows
+
+    if not is_windows():
+        print("Auto-start is only supported on Windows")
+        sys.exit(1)
+
+    if check_autostart_installed():
+        print("Auto-start is installed")
+        print("FileSqueeze will start automatically when you log in to Windows.")
+    else:
+        print("Auto-start is not installed")
+        print("To install, run: python -m filesqueeze service-install")
+
+
 def main():
     """Main entry point for FileSqueeze CLI."""
     parser = argparse.ArgumentParser(
@@ -229,6 +384,20 @@ Examples:
     )
 
     subparsers = parser.add_subparsers(dest='command', help='Available commands')
+
+    # compress command
+    compress_parser = subparsers.add_parser(
+        'compress',
+        help='Compress a single file'
+    )
+    compress_parser.add_argument(
+        'input',
+        help='Input file to compress'
+    )
+    compress_parser.add_argument(
+        '--output', '-o',
+        help='Output file path (default: <input>_compressed.<ext>)'
+    )
 
     # init-config command
     init_parser = subparsers.add_parser(
@@ -257,6 +426,65 @@ Examples:
     scan_parser.add_argument(
         '--output', '-o',
         help='Output directory for compressed files (default: from config or ./compressed)'
+    )
+
+    # watch command
+    watch_parser = subparsers.add_parser(
+        'watch',
+        help='Watch directory for new files and compress them'
+    )
+    watch_parser.add_argument(
+        '--input', '-i',
+        help='Input directory to watch (default: from config or ./upload)'
+    )
+    watch_parser.add_argument(
+        '--output', '-o',
+        help='Output directory for compressed files (default: from config or ./compressed)'
+    )
+
+    # service command
+    service_parser = subparsers.add_parser(
+        'service',
+        help='Run FileSqueeze as a service with system tray icon'
+    )
+    service_parser.add_argument(
+        '--input', '-i',
+        help='Input directory to watch (default: from config or ./upload)'
+    )
+    service_parser.add_argument(
+        '--output', '-o',
+        help='Output directory for compressed files (default: from config or ./compressed)'
+    )
+
+    # service-install command
+    service_install_parser = subparsers.add_parser(
+        'service-install',
+        help='Install FileSqueeze to start automatically on boot'
+    )
+    service_install_parser.add_argument(
+        '--input', '-i',
+        help='Input directory to watch (default: from config or ./upload)'
+    )
+    service_install_parser.add_argument(
+        '--output', '-o',
+        help='Output directory for compressed files (default: from config or ./compressed)'
+    )
+    service_install_parser.add_argument(
+        '--force', '-f',
+        action='store_true',
+        help='Reinstall if already installed'
+    )
+
+    # service-uninstall command
+    subparsers.add_parser(
+        'service-uninstall',
+        help='Uninstall FileSqueeze auto-start'
+    )
+
+    # service-status command
+    subparsers.add_parser(
+        'service-status',
+        help='Show auto-start installation status'
     )
 
     # detect command
@@ -314,11 +542,29 @@ Examples:
         return cmd_init_config(init_args)
 
     # Handle commands
+    if args.command == 'compress':
+        return cmd_compress(args)
+
     if args.command == 'init-config':
         return cmd_init_config(args)
 
     if args.command == 'scan':
         return cmd_scan(args)
+
+    if args.command == 'watch':
+        return cmd_watch(args)
+
+    if args.command == 'service':
+        return cmd_service(args)
+
+    if args.command == 'service-install':
+        return cmd_service_install(args)
+
+    if args.command == 'service-uninstall':
+        return cmd_service_uninstall(args)
+
+    if args.command == 'service-status':
+        return cmd_service_status(args)
 
     if args.command == 'detect':
         return cmd_detect(args)
