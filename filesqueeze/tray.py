@@ -148,12 +148,16 @@ Files being processed: {len(self.watcher.event_handler._processing)}
 """
         self.logger.info(status_text)
 
-        # Show status in a message box (Windows only for now)
+        # Update icon tooltip with status
+        if icon:
+            icon.title = f"FileSqueeze - {'Running' if self.watcher._running else 'Stopped'}\nWatching: {self.input_dir.name}\nProcessing: {len(self.watcher.event_handler._processing)} files"
+
+        # Show non-blocking notification
         try:
-            import ctypes
-            ctypes.windll.user32.MessageBoxW(0, status_text, "FileSqueeze Status", 0)
+            if icon:
+                icon.notify(f"State: {'Running' if self.watcher._running else 'Stopped'}\nProcessing: {len(self.watcher.event_handler._processing)} files", "FileSqueeze Status")
         except:
-            # If message box fails, just log it
+            # If notification fails, just log it
             pass
 
     def start(self):
