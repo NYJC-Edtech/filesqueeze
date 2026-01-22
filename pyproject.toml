@@ -23,6 +23,9 @@ ocr = [
     "pdfminer.six>=20231228",
 ]
 
+[project.scripts]
+filesqueeze = "filesqueeze.__main__:main"
+
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
