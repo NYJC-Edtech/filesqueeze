@@ -48,9 +48,6 @@ class StatusWindow:
         self.root.geometry("600x500")
         self.root.resizable(True, True)
 
-        # Make window stay on top
-        self.root.attributes('-topmost', True)
-
         # Create UI components
         self._create_widgets()
 

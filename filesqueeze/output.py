@@ -39,10 +39,13 @@ def generate_output_path(
     if structure not in valid_structures:
         raise ValueError(f"Invalid structure: {structure}. Must be one of {valid_structures}")
 
+    # Add compressed_ prefix to filename
+    compressed_filename = f"compressed_{input_path.name}"
+
     # Generate output path based on structure
     if structure == 'flat':
         # All files in output root
-        return output_dir / input_path.name
+        return output_dir / compressed_filename
 
     elif structure == 'by_type':
         # Organize by file type
@@ -60,14 +63,14 @@ def generate_output_path(
         else:
             type_dir = 'other'
 
-        return output_dir / type_dir / input_path.name
+        return output_dir / type_dir / compressed_filename
 
     elif structure == 'by_date':
         # Organize by date (YYYY-MM-DD)
         # Use file modification time
         mtime = input_path.stat().st_mtime
         date_str = datetime.fromtimestamp(mtime).strftime('%Y-%m-%d')
-        return output_dir / date_str / input_path.name
+        return output_dir / date_str / compressed_filename
 
     elif structure == 'mirror':
         # Preserve source structure relative to input root
@@ -84,16 +87,17 @@ def generate_output_path(
             # Try to preserve relative path
             try:
                 rel_path = input_path.relative_to(input_root)
-                return output_dir / rel_path
+                # Add compressed_ prefix to the final filename component
+                return output_dir / rel_path.parent / f"compressed_{rel_path.name}"
             except ValueError:
                 # input_path is not relative to input_root, fall back to flat
-                return output_dir / input_path.name
+                return output_dir / compressed_filename
         else:
-            # Use the relative path structure
-            return output_dir / input_path
+            # Use the relative path structure with compressed_ prefix
+            return output_dir / input_path.parent / compressed_filename
 
     # Default to flat
-    return output_dir / input_path.name
+    return output_dir / compressed_filename
 
 
 def save_metadata(
