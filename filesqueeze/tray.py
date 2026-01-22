@@ -39,6 +39,8 @@ class TrayService:
         # Tray icon state
         self.icon = None
         self.running = False
+        self._last_click_time = 0
+        self._click_count = 0
 
     def _create_icon_image(self) -> Image.Image:
         """Create a simple icon image.
@@ -132,33 +134,52 @@ class TrayService:
             self.logger.error(f"Failed to open output folder: {e}")
 
     def _on_show_status(self, icon=None, item=None):
-        """Handle show status action.
+        """Handle show status action - opens GUI status window.
 
         Args:
             icon: Tray icon instance.
-            item: Menu item instance.
+            item: Menu item instance (for menu clicks) or event (for icon clicks).
         """
-        status_text = f"""FileSqueeze Status
+        self.logger.info("Opening status window")
 
-Watching: {self.input_dir}
-Output:  {self.output_dir}
-State:   {'Running' if self.watcher._running else 'Stopped'}
+        # Launch GUI status window in a separate thread
+        # This prevents blocking the tray icon
+        status_thread = threading.Thread(
+            target=self._show_status_window,
+            daemon=True
+        )
+        status_thread.start()
 
-Files being processed: {len(self.watcher.event_handler._processing)}
-"""
-        self.logger.info(status_text)
+    def _on_icon_click(self, icon, button, pressed):
+        """Handle icon click events - left-click opens status window.
 
-        # Update icon tooltip with status
-        if icon:
-            icon.title = f"FileSqueeze - {'Running' if self.watcher._running else 'Stopped'}\nWatching: {self.input_dir.name}\nProcessing: {len(self.watcher.event_handler._processing)} files"
+        Args:
+            icon: Tray icon instance.
+            button: Mouse button that was clicked (left=1, right=3, etc.).
+            pressed: Whether the button was pressed (True) or released (False).
+        """
+        # Only open status on left-click release (button=1, pressed=False)
+        if button == 1 and not pressed:
+            self.logger.info("Left-click detected, opening status window")
+            status_thread = threading.Thread(
+                target=self._show_status_window,
+                daemon=True
+            )
+            status_thread.start()
 
-        # Show non-blocking notification
+    def _show_status_window(self):
+        """Show the GUI status window.
+
+        This runs in a separate thread to avoid blocking the tray icon.
+        """
         try:
-            if icon:
-                icon.notify(f"State: {'Running' if self.watcher._running else 'Stopped'}\nProcessing: {len(self.watcher.event_handler._processing)} files", "FileSqueeze Status")
-        except:
-            # If notification fails, just log it
-            pass
+            from .gui import show_status_window
+
+            # Show status window with 2-second refresh
+            show_status_window(self.watcher, refresh_interval=2000)
+
+        except Exception as e:
+            self.logger.error(f"Failed to show status window: {e}", exc_info=True)
 
     def start(self):
         """Start the tray service."""
@@ -171,9 +192,9 @@ Files being processed: {len(self.watcher.event_handler._processing)}
         # Create tray icon
         icon_image = self._create_icon_image()
 
-        # Create menu
+        # Create menu with default action (double-click activates first item)
         menu = pystray.Menu(
-            pystray.MenuItem('Show Status', self._on_show_status),
+            pystray.MenuItem('Show Status', self._on_show_status, default=True),
             pystray.MenuItem('Open Input Folder', self._on_open_input),
             pystray.MenuItem('Open Output Folder', self._on_open_output),
             pystray.Menu.SEPARATOR,
