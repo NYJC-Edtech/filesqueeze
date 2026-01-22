@@ -4,6 +4,7 @@ Configuration management for FileSqueeze.
 Supports config cascade: CLI args → project config → user config → defaults.
 """
 
+import logging
 import os
 from pathlib import Path
 from typing import Any, Optional
@@ -105,7 +106,7 @@ class Config:
                 data = tomllib.load(f)
             self._deep_merge(self._config, data)
         except Exception as e:
-            print(f"Warning: Failed to load config from {path}: {e}")
+            logging.getLogger('filesqueeze').warning(f"Failed to load config from {path}: {e}")
 
     def _merge_dict(self, data: dict) -> None:
         """Merge dict directly into current config (for testing)."""

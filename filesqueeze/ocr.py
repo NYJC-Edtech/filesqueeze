@@ -4,6 +4,7 @@ OCR (Optical Character Recognition) functionality for scanned documents.
 Uses Tesseract OCR to add invisible text layers to scanned PDFs.
 """
 
+import logging
 import os
 import subprocess
 import tempfile
@@ -120,12 +121,12 @@ def ocr_image(
         )
 
         if result.returncode != 0:
-            print(f"Tesseract error: {result.stderr}")
+            logging.getLogger('filesqueeze').error(f"Tesseract OCR error: {result.stderr}")
             return False
 
         return True
     except (subprocess.TimeoutExpired, FileNotFoundError) as e:
-        print(f"OCR failed: {e}")
+        logging.getLogger('filesqueeze').error(f"OCR failed: {e}")
         return False
 
 
@@ -183,25 +184,26 @@ def ocr_pdf(
             )
 
             if result.returncode != 0:
-                print(f"Ghostscript error converting PDF to images: {result.stderr}")
+                logging.getLogger('filesqueeze').error(f"Ghostscript error converting PDF to images: {result.stderr}")
                 return False
 
         except (subprocess.TimeoutExpired, FileNotFoundError) as e:
-            print(f"PDF to image conversion failed: {e}")
+            logging.getLogger('filesqueeze').error(f"PDF to image conversion failed: {e}")
             return False
 
         # Step 2: Find all generated images
         images = sorted(temp_path.glob("page_*.png"))
         if not images:
-            print("No images were generated from PDF")
+            logging.getLogger('filesqueeze').error("No images were generated from PDF")
             return False
 
-        print(f"  OCR Processing {len(images)} pages...")
+        logger = logging.getLogger('filesqueeze')
+        logger.info(f"OCR Processing {len(images)} pages...")
 
         # Step 3: Run OCR on each image to create individual PDFs
         ocr_pdfs = []
         for i, image in enumerate(images, 1):
-            print(f"    Page {i}/{len(images)}...", end='\r')
+            logger.debug(f"Processing page {i}/{len(images)}")
 
             ocr_pdf_path = temp_path / f"ocr_{i}.pdf"
             if ocr_image(
@@ -214,12 +216,10 @@ def ocr_pdf(
             ):
                 ocr_pdfs.append(ocr_pdf_path)
             else:
-                print(f"\n  Warning: OCR failed for page {i}")
-
-        print()  # New line after progress indicator
+                logger.warning(f"OCR failed for page {i}")
 
         if not ocr_pdfs:
-            print("  OCR failed for all pages")
+            logger.error("OCR failed for all pages")
             return False
 
         # Step 4: Combine OCR'd PDFs into single output
@@ -243,13 +243,13 @@ def ocr_pdf(
             )
 
             if result.returncode != 0:
-                print(f"Ghostscript error merging PDFs: {result.stderr}")
+                logging.getLogger('filesqueeze').error(f"Ghostscript error merging PDFs: {result.stderr}")
                 return False
 
             return True
 
         except (subprocess.TimeoutExpired, FileNotFoundError) as e:
-            print(f"PDF merge failed: {e}")
+            logging.getLogger('filesqueeze').error(f"PDF merge failed: {e}")
             return False
 
 
@@ -309,7 +309,7 @@ def process_pdf_with_ocr(
     if not needs_ocr(pdf_path, config):
         return False, "PDF already has text layer, skipping OCR"
 
-    print(f"  Running OCR on scanned PDF...")
+    logging.getLogger('filesqueeze').info("Running OCR on scanned PDF...")
 
     # Run OCR
     success = ocr_pdf(

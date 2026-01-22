@@ -55,15 +55,16 @@ def create_batch_file(input_dir: Path, output_dir: Path, startup_folder: Path) -
     # Get the Python executable path
     python_exe = sys.executable
 
+    # Use pythonw.exe instead of python.exe for background service (no console window)
+    pythonw_exe = python_exe.replace('python.exe', 'pythonw.exe')
+
     # Get the filesqueeze module path
     filesqueeze_module = Path(__file__).parent.parent
 
-    # Create batch file content
+    # Create batch file content (no echo - console won't be visible anyway)
     batch_content = f"""@echo off
-REM FileSqueeze Auto-start Service
-echo Starting FileSqueeze service...
 cd /d "{filesqueeze_module}"
-"{python_exe}" -m filesqueeze service --input "{input_dir}" --output "{output_dir}"
+"{pythonw_exe}" -m filesqueeze service --input "{input_dir}" --output "{output_dir}"
 """
 
     # Write batch file

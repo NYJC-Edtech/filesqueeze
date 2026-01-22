@@ -8,14 +8,48 @@ import sys
 import time
 import logging
 import threading
+from dataclasses import dataclass, field
+from datetime import timedelta
 from pathlib import Path
-from typing import Optional
+from typing import Optional, List
 
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler, FileCreatedEvent, FileMovedEvent
 
 from .config import Config
 from .logger import setup_logging
+
+
+@dataclass(frozen=True)
+class ServiceState:
+    """Immutable snapshot of service state.
+
+    This dataclass provides a read-only snapshot of the service's current state,
+    perfect for GUI display and status queries. It's frozen to ensure immutability.
+    """
+    running: bool
+    input_dir: Path
+    output_dir: Path
+    processing_files: List[str] = field(default_factory=list)
+    completed_count: int = 0
+    failed_count: int = 0
+    uptime: timedelta = field(default_factory=timedelta)
+
+
+class StateProvider:
+    """Interface for querying service state.
+
+    Any component that wants to display service status (GUI, CLI, web UI, etc.)
+    should depend on this interface rather than concrete implementations.
+    """
+
+    def get_state(self) -> ServiceState:
+        """Get current service state.
+
+        Returns:
+            ServiceState: Immutable snapshot of current state.
+        """
+        raise NotImplementedError
 
 
 def show_windows_notification(title: str, message: str) -> bool:
@@ -200,7 +234,7 @@ class CompressionHandler(FileSystemEventHandler):
                 self._processing.discard(str(filepath.absolute()))
 
 
-class DirectoryWatcher:
+class DirectoryWatcher(StateProvider):
     """Watcher for monitoring directories and compressing files."""
 
     def __init__(self, input_dir: Path, output_dir: Path, config: Optional[Config] = None):
@@ -234,12 +268,43 @@ class DirectoryWatcher:
         )
         self.observer = Observer()
         self._running = False
+        self._start_time = None
+        self._completed_count = 0
+        self._failed_count = 0
+        self._state_lock = threading.Lock()
+
+    def get_state(self) -> ServiceState:
+        """Get current service state (thread-safe).
+
+        Returns:
+            ServiceState: Immutable snapshot of current state.
+        """
+        with self._state_lock:
+            # Calculate uptime
+            uptime = timedelta()
+            if self._start_time is not None:
+                uptime = timedelta(seconds=time.time() - self._start_time)
+
+            # Get processing files list (thread-safe copy)
+            with self.event_handler._lock:
+                processing = list(self.event_handler._processing)
+
+            return ServiceState(
+                running=self._running,
+                input_dir=self.input_dir,
+                output_dir=self.output_dir,
+                processing_files=processing,
+                completed_count=self._completed_count,
+                failed_count=self._failed_count,
+                uptime=uptime
+            )
 
     def start(self):
         """Start watching the directory."""
         self.observer.schedule(self.event_handler, str(self.input_dir), recursive=True)
         self.observer.start()
         self._running = True
+        self._start_time = time.time()
 
         self.logger.info("=" * 60)
         self.logger.info("FileSqueeze Watch Mode Started")
@@ -264,5 +329,5 @@ class DirectoryWatcher:
             while self._running:
                 time.sleep(1)
         except KeyboardInterrupt:
-            print("\nReceived stop signal, shutting down...")
+            self.logger.info("Received stop signal, shutting down...")
             self.stop()
