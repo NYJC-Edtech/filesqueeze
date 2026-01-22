@@ -196,10 +196,10 @@ class StatusWindow:
         if not state.processing_files:
             self.processing_text.insert(tk.END, "No files currently processing.")
         else:
-            for i, filepath in enumerate(state.processing_files, 1):
+            for filepath in state.processing_files:
                 # Extract just the filename for cleaner display
                 filename = Path(filepath).name
-                self.processing_text.insert(tk.END, f"{i}. {filename}\n")
+                self.processing_text.insert(tk.END, f"{filename}\n")
 
         self.processing_text.config(state=tk.DISABLED)
 

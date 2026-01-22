@@ -389,6 +389,111 @@ poetry run python -m filesqueeze detect
 
 ---
 
+## File Detection Behavior
+
+### How FileSqueeze Detects New Files
+
+FileSqueeze uses a multi-layered approach to detect and process files:
+
+#### 1. Real-Time File System Events (Watchdog)
+- **Immediate detection** when files are added to the input directory
+- Uses the `watchdog` library to monitor file system events
+- Works best for local drives and well-behaved network drives
+
+#### 2. Periodic Polling (Fallback)
+- **Scans every 5 minutes** (configurable via `service.poll_interval`)
+- Catches files missed by watchdog events
+- Essential for network drives with delayed or unreliable file system events
+
+#### 3. Initial Scan on Startup
+- **Scans existing files** when the service starts
+- Only processes files older than 5 seconds (to avoid race conditions)
+- Prevents re-processing files that were already handled
+
+### File Validation Rules
+
+Before processing, files must meet these criteria:
+
+| Requirement | Default | Description |
+|-------------|---------|-------------|
+| **File Extension** | `mp4, wmv, avi, mkv, mov, flv, pdf, jpg, jpeg, png, pptx` | Only these file types are processed |
+| **Minimum Age** | 5 seconds | Files must be at least this old (prevents processing incomplete uploads) |
+| **Minimum Size** | 1 KB | Files smaller than this are skipped |
+| **File Stability** | 2 seconds unchanged | File size must remain stable for 2 seconds |
+
+### Understanding File Dates
+
+⚠️ **Important**: FileSqueeze relies on the file system's modification time (`mtime`), not the actual creation time.
+
+**Common Issues:**
+
+1. **Files with old dates**: If you copy a file from last year into the upload folder, it will have last year's modification time. FileSqueeze will still process it because:
+   - The initial scan on startup picks it up
+   - The periodic polling catches it within 5 minutes
+
+2. **Network drive delays**: On Google Shared Drives, Dropbox, OneDrive, etc.:
+   - File system events may be delayed or unreliable
+   - The polling mechanism (every 5 minutes) ensures files are eventually processed
+   - Files may take up to **5-7 minutes** to be processed (5s age check + 2s stability + polling interval)
+
+3. **Recently modified files**: If you edit a file and save it again:
+   - FileSqueeze treats it as a "new" file based on its `mtime`
+   - It will be processed again if it's in the input directory
+
+### Configuring File Detection
+
+Edit your `filesqueeze.toml` to adjust detection behavior:
+
+```toml
+[file_detection]
+# File extensions to process (add/remove as needed)
+extensions = ['mp4', 'wmv', 'avi', 'mkv', 'mov', 'flv', 'pdf', 'jpg', 'jpeg', 'png']
+
+# Minimum file age in seconds (prevents processing incomplete uploads)
+min_age_seconds = 5
+
+# Minimum file size in bytes (skip tiny files)
+min_size_bytes = 1024
+
+[service]
+# Polling interval in seconds (fallback for missed watchdog events)
+# Set to 0 to disable polling
+poll_interval = 300
+```
+
+### Network Drive Considerations
+
+For Google Shared Drives, Dropbox, OneDrive, or other cloud-synced folders:
+
+- ✅ **Keep polling enabled** (default: 300 seconds)
+- ✅ **Increase `min_age_seconds`** to 30-60 seconds for slow connections
+- ✅ **Expect delays** of 5-7 minutes for file processing
+- ❌ **Don't disable polling** - watchdog events are unreliable on network drives
+
+### Troubleshooting File Detection
+
+**Problem**: File not being processed
+
+1. **Check file extension**: Is it in the `extensions` list?
+2. **Wait longer**: Network drives may take 5-7 minutes
+3. **Check the log**: `filesqueeze.log` shows what files are detected
+4. **Verify file stability**: Is the file still being uploaded/synced?
+5. **Restart the service**: Forces an initial scan of all files
+
+**Problem**: Old file being processed again
+
+- This is normal behavior for files in the input directory
+- Move processed files out of the input directory if you don't want them re-processed
+- FileSqueeze removes the original file after successful compression
+
+**Problem**: File with wrong date not detected immediately
+
+- FileSqueeze will still process it, just not immediately via watchdog
+- Wait for the periodic poll (every 5 minutes by default)
+- Or restart the service to trigger an initial scan
+
+---
+
 ## Troubleshooting
 
 ### Quick Diagnosis
