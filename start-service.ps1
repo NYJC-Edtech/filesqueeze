@@ -12,21 +12,38 @@
     .\start-service.ps1
 #>
 
-Write-Host "Starting FileSqueeze service..." -ForegroundColor Green
-
 # Get the directory where this script is located
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 
 # Change to the script directory
 Set-Location $ScriptDir
 
-# Start the service in a minimized window
-Start-Process -FilePath "cmd" `
-    -ArgumentList "/c", "poetry run python -m filesqueeze service" `
-    -WindowStyle Minimized `
-    -WorkingDirectory $ScriptDir
+# Check if Poetry is available (development install)
+$PoetryAvailable = $null -ne (Get-Command poetry -ErrorAction SilentlyContinue)
 
-Write-Host "FileSqueeze service started!" -ForegroundColor Green
-Write-Host "Look for the green 'FS' icon in your system tray." -ForegroundColor Cyan
-Write-Host ""
-Write-Host "To stop the service, right-click the tray icon and select 'Quit'" -ForegroundColor Yellow
+if ($PoetryAvailable) {
+    # Development install: use poetry
+    $Command = "poetry run python -m filesqueeze service"
+} else {
+    # System install: use python directly
+    $Command = "python -m filesqueeze service"
+}
+
+# Start the service completely hidden (no console window)
+$Process = Start-Process -FilePath "powershell" `
+    -ArgumentList "-ExecutionPolicy Bypass -Command", $Command `
+    -WindowStyle Hidden `
+    -WorkingDirectory $ScriptDir `
+    -PassThru
+
+# Wait a moment to check if process started successfully
+Start-Sleep -Seconds 2
+
+if ($Process.HasExited) {
+    Write-Host "ERROR: FileSqueeze service failed to start. Exit code: $($Process.ExitCode)" -ForegroundColor Red
+    Write-Host "Try running manually: python -m filesqueeze service" -ForegroundColor Yellow
+    exit 1
+} else {
+    Write-Host "FileSqueeze service started successfully (PID: $($Process.Id))" -ForegroundColor Green
+    Write-Host "Look for the green 'FS' icon in your system tray." -ForegroundColor Cyan
+}

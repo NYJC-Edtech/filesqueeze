@@ -4,14 +4,18 @@
 
 $ErrorActionPreference = "Stop"
 
+# Set UTF-8 encoding for proper character display
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+$OutputEncoding = [System.Text.Encoding]::UTF8
+
 # Configuration
 $StartMenuFolder = "$env:APPDATA\Microsoft\Windows\Start Menu\Programs\FileSqueeze"
 $UserConfigDir = "$env:USERPROFILE\.config\filesqueeze"
 
 Write-Host ""
-Write-Host "=" * 70
+Write-Host ("=" * 70)
 Write-Host "FileSqueeze Uninstaller" -ForegroundColor Cyan
-Write-Host "=" * 70
+Write-Host ("=" * 70)
 Write-Host ""
 
 # Confirm uninstallation
@@ -64,9 +68,9 @@ try {
 Write-Host ""
 Write-Host "[4/4] Uninstallation complete!" -ForegroundColor Green
 Write-Host ""
-Write-Host "=" * 70
+Write-Host ("=" * 70)
 Write-Host "Uninstallation Summary" -ForegroundColor Cyan
-Write-Host "=" * 70
+Write-Host ("=" * 70)
 Write-Host ""
 Write-Host "Removed:" -ForegroundColor Yellow
 Write-Host "  • Start Menu shortcuts" -ForegroundColor Yellow
