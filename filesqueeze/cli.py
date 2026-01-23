@@ -301,9 +301,9 @@ def cmd_watch(args):
     # Load config
     config = Config()
 
-    # Get directories
-    input_dir = Path(args.input) if args.input else Path(config.get('directories.input', 'upload'))
-    output_dir = Path(args.output) if args.output else Path(config.get('directories.output', 'compressed'))
+    # Get directories (use properties to ensure tilde expansion)
+    input_dir = Path(args.input) if args.input else config.input_dir
+    output_dir = Path(args.output) if args.output else config.output_dir
 
     # Create watcher
     watcher = DirectoryWatcher(input_dir, output_dir, config)
@@ -320,9 +320,9 @@ def cmd_service(args):
     # Load config
     config = Config()
 
-    # Get directories
-    input_dir = Path(args.input) if args.input else Path(config.get('directories.input', 'upload'))
-    output_dir = Path(args.output) if args.output else Path(config.get('directories.output', 'compressed'))
+    # Get directories (use properties to ensure tilde expansion)
+    input_dir = Path(args.input) if args.input else config.input_dir
+    output_dir = Path(args.output) if args.output else config.output_dir
 
     # Run service with tray icon
     run_service(input_dir, output_dir, config)
@@ -336,9 +336,9 @@ def cmd_service_install(args):
     # Load config
     config = Config()
 
-    # Get directories
-    input_dir = Path(args.input) if args.input else Path(config.get('directories.input', 'upload'))
-    output_dir = Path(args.output) if args.output else Path(config.get('directories.output', 'compressed'))
+    # Get directories (use properties to ensure tilde expansion)
+    input_dir = Path(args.input) if args.input else config.input_dir
+    output_dir = Path(args.output) if args.output else config.output_dir
 
     # Check if already installed
     if check_autostart_installed() and not args.force:

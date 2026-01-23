@@ -151,8 +151,8 @@ $TempOut = [System.IO.Path]::GetTempFileName()
 $TempErr = [System.IO.Path]::GetTempFileName()
 
 try {
-    # Run pip install and capture all output
-    Start-Process -FilePath "python" -ArgumentList "-m", "pip", "install", "$WheelPath" -NoNewWindow -Wait -RedirectStandardOutput $TempOut -RedirectStandardError $TempErr
+    # Run pip install with --force-reinstall to ensure latest code is used
+    Start-Process -FilePath "python" -ArgumentList "-m", "pip", "install", "--force-reinstall", "$WheelPath" -NoNewWindow -Wait -RedirectStandardOutput $TempOut -RedirectStandardError $TempErr
     $InstallExitCode = $LASTEXITCODE
 
     # Read the output
@@ -208,6 +208,19 @@ try {
     Write-Host "  Configuration created: $ConfigPath" -ForegroundColor Gray
 } catch {
     Write-Host "  Warning: Config generation failed. You can create it manually." -ForegroundColor Yellow
+}
+
+# Create default input/output directories
+Write-Status "Creating default directories..."
+$InputDir = Join-Path $env:USERPROFILE "FileSqueeze\upload"
+$OutputDir = Join-Path $env:USERPROFILE "FileSqueeze\compressed"
+try {
+    New-Item -ItemType Directory -Path $InputDir -Force | Out-Null
+    New-Item -ItemType Directory -Path $OutputDir -Force | Out-Null
+    Write-Host "  Created: $InputDir" -ForegroundColor Gray
+    Write-Host "  Created: $OutputDir" -ForegroundColor Gray
+} catch {
+    Write-Host "  Warning: Failed to create default directories" -ForegroundColor Yellow
 }
 
 # Create Start Menu folder
