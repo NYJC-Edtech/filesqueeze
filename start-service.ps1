@@ -23,10 +23,10 @@ $PoetryAvailable = $null -ne (Get-Command poetry -ErrorAction SilentlyContinue)
 
 if ($PoetryAvailable) {
     # Development install: use poetry
-    $Command = "poetry run python -m filesqueeze service"
+    $Command = "poetry run python -m filesqueeze service run"
 } else {
     # System install: use python directly
-    $Command = "python -m filesqueeze service"
+    $Command = "python -m filesqueeze service run"
 }
 
 # Start the service completely hidden (no console window)
@@ -41,7 +41,7 @@ Start-Sleep -Seconds 2
 
 if ($Process.HasExited) {
     Write-Host "ERROR: FileSqueeze service failed to start. Exit code: $($Process.ExitCode)" -ForegroundColor Red
-    Write-Host "Try running manually: python -m filesqueeze service" -ForegroundColor Yellow
+    Write-Host "Try running manually: python -m filesqueeze service run" -ForegroundColor Yellow
     exit 1
 } else {
     Write-Host "FileSqueeze service started successfully (PID: $($Process.Id))" -ForegroundColor Green

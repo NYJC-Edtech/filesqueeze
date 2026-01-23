@@ -158,7 +158,7 @@ try {
     $WshShell = New-Object -ComObject WScript.Shell
     $Shortcut = $WshShell.CreateShortcut("$env:USERPROFILE\Desktop\FileSqueeze.lnk")
     $Shortcut.TargetPath = "poetry"
-    $Shortcut.Arguments = "run python -m filesqueeze service"
+    $Shortcut.Arguments = "run python -m filesqueeze service run"
     $Shortcut.WorkingDirectory = "$InstallDir\repo"
     $Shortcut.Description = "FileSqueeze Compression Service"
     $Shortcut.Save()
@@ -175,7 +175,7 @@ $watchScript = @"
 @echo off
 title FileSqueeze Watch Mode
 cd /d "$InstallDir\repo"
-poetry run python -m filesqueeze service
+poetry run python -m filesqueeze service run
 pause
 "@
 $watchScript | Out-File -FilePath "$InstallDir\start-watch.bat" -Encoding ASCII
@@ -204,14 +204,14 @@ Write-Host ""
 Write-Host "Quick Start:" -ForegroundColor Yellow
 Write-Host "  1. Double-click 'FileSqueeze' on desktop to start service"
 Write-Host "  2. Or run: cd $InstallDir\repo"
-Write-Host "             poetry run python -m filesqueeze service"
+Write-Host "             poetry run python -m filesqueeze service run"
 Write-Host ""
 Write-Host "Commands:" -ForegroundColor Yellow
-Write-Host "  Start service:      poetry run python -m filesqueeze service"
+Write-Host "  Start service:      poetry run python -m filesqueeze service run"
 Write-Host "  Watch mode:         poetry run python -m filesqueeze watch"
 Write-Host "  Compress file:      poetry run python -m filesqueeze compress <file>"
 Write-Host "  Batch process:      poetry run python -m filesqueeze scan"
-Write-Host "  Install auto-start: poetry run python -m filesqueeze service-install"
+Write-Host "  Install auto-start: poetry run python -m filesqueeze service install"
 Write-Host ""
 Write-Host "Configuration:" -ForegroundColor Yellow
 Write-Host "  Edit: $InstallDir\filesqueeze.toml"
@@ -220,16 +220,16 @@ Write-Host "  Configure log location"
 Write-Host ""
 Write-Host "Next Steps:" -ForegroundColor Yellow
 Write-Host "  1. Edit filesqueeze.toml to configure directories"
-Write-Host "  2. Run: poetry run python -m filesqueeze service-install"
+Write-Host "  2. Run: poetry run python -m filesqueeze service install"
 Write-Host "  3. Reboot to test auto-start"
+Write-Host ""
+Write-Status "To start FileSqueeze now:" "Cyan"
+Write-Host "  • Double-click 'FileSqueeze' on desktop" -ForegroundColor White
+Write-Host "  • Or run: cd $InstallDir\repo" -ForegroundColor White
+Write-Host "             poetry run python -m filesqueeze service run" -ForegroundColor White
+Write-Host ""
+Write-Host "  The service will run in the background with a tray icon." -ForegroundColor Gray
+Write-Host "  Right-click the tray icon and select 'Quit' to stop the service." -ForegroundColor Gray
 Write-Host ""
 Write-Status "Thank you for installing FileSqueeze!" "Cyan"
 Write-Host ""
-
-# Offer to start service
-$start = Read-Host "Start FileSqueeze service now? (Y/N)"
-if ($start -eq "Y" -or $start -eq "y") {
-    Write-Status "Starting FileSqueeze service..."
-    Set-Location "$InstallDir\repo"
-    poetry run python -m filesqueeze service
-}

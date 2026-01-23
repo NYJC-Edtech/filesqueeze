@@ -22,9 +22,12 @@ dev = [
 ocr = [
     "pdfminer.six>=20231228",
 ]
+notifications = [
+    "win10toast>=0.9",
+]
 
 [project.scripts]
-filesqueeze = "filesqueeze.__main__:main"
+filesqueeze = "filesqueeze.cli:main"
 
 
 [build-system]

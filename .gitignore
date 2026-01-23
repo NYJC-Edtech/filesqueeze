@@ -177,3 +177,9 @@ cython_debug/
 filesqueeze.toml
 filesqueeze.log
 tests/fixtures/
+
+# Auto-generated files (created by service install)
+filesqueeze-autostart.ps1
+
+# Claude Code configuration (may contain env vars)
+.claude/

@@ -91,8 +91,10 @@ def compressDocument(state: State) -> Handler:
     ext = state.target.suffix.lower()
 
     # Determine output path
-    if hasattr(state, 'output_path') and state.output_path:
-        outpath = state.output_path
+    # Access output_path directly from __data to handle None values properly
+    output_path = state._State__data.get('output_path')
+    if output_path:
+        outpath = output_path
     else:
         outpath = state.target.parent / f"compressed_{state.target.name}"
 
@@ -218,8 +220,10 @@ def compressVideo(state: State) -> Handler:
     state.status_compress()
 
     # Determine output path
-    if hasattr(state, 'output_path') and state.output_path:
-        outfile = state.output_path
+    # Access output_path directly from __data to handle None values properly
+    output_path = state._State__data.get('output_path')
+    if output_path:
+        outfile = output_path
     else:
         outfile = state.target.parent.joinpath('compressed_' + state.target.name)
 

@@ -53,7 +53,7 @@ class Config:
         },
         'logging': {
             'level': 'INFO',
-            'file': 'filesqueeze.log',
+            'file': '~/.config/filesqueeze/filesqueeze.log',
             'max_bytes': 10485760,  # 10MB
             'backup_count': 5,
             'format': 'detailed',  # simple, detailed, json

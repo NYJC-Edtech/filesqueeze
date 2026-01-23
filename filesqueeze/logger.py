@@ -5,6 +5,7 @@ Dual handlers: StreamHandler (stdout) + RotatingFileHandler or TimedRotatingFile
 """
 
 import logging
+import os
 import sys
 from logging.handlers import RotatingFileHandler, TimedRotatingFileHandler
 from pathlib import Path

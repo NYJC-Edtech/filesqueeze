@@ -18,17 +18,17 @@ Utility package for compressing videos, PDFs, and images using FFmpeg and Ghosts
 ## Quick Start
 
 ```bash
-# One-click installation (Windows)
-irm https://nyjc.app/filesqueeze/install | iex
+# System-wide installation (Windows)
+cd filesqueeze
+.\install.ps1
 
-# Generate configuration
-poetry run python -m filesqueeze init-config
+# Or for development: Poetry installation
+.\install-dev.ps1
 
-# Edit configuration
-nano filesqueeze.toml
-
-# Start watching for files
-poetry run python -m filesqueeze watch
+# Start the service
+filesqueeze service run          # System install
+# OR
+poetry run python -m filesqueeze service run  # Development install
 ```
 
 ---
@@ -50,69 +50,89 @@ poetry run python -m filesqueeze watch
 
 ## Installation
 
-FileSqueeze supports three installation methods:
+FileSqueeze supports two installation methods:
 
-### Method 1: One-Click Installer (Recommended)
+### Method 1: System-Wide Installer (Recommended for End Users)
 
-**Best for:** Non-technical users who want to get started quickly
+**Best for:** Production use, end users who want `filesqueeze` command available everywhere
 
-#### Windows
+#### Prerequisites
+- Python 3.11 or later
+- FFmpeg (for video/image compression)
+- Ghostscript (for PDF compression)
+- Tesseract OCR (optional, for scanned PDFs)
+
+#### Installation
 
 ```powershell
-# Download and run installer
-irm https://nyjc.app/filesqueeze/install | iex
+# Navigate to FileSqueeze directory
+cd filesqueeze
 
-# Or download and run manually
-curl -o install.ps1 https://nyjc.app/filesqueeze/install
+# Run system installer
 .\install.ps1
 ```
 
-**Installer options:**
+**What the installer does:**
+- ✅ Checks Python 3.11+ installation
+- ✅ Builds FileSqueeze package (wheel)
+- ✅ Installs system-wide with pip
+- ✅ Creates Start Menu shortcuts
+- ✅ Generates configuration file
+- ✅ Detects FFmpeg, Ghostscript, Tesseract
+
+**After installation:**
+```bash
+# Command available from anywhere
+filesqueeze --help
+
+# Start service
+filesqueeze service run
+
+# Install auto-start on boot
+filesqueeze service install
+
+# Run diagnostics
+filesqueeze doctor
+```
+
+### Method 2: Development Installer (For Developers)
+
+**Best for:** Developers working on FileSqueeze code, need editable installation
+
+#### Prerequisites
+- Python 3.11 or later
+- Poetry (dependency manager)
+- FFmpeg, Ghostscript, Tesseract
+
+#### Installation
+
 ```powershell
-# Custom installation directory
-.\install.ps1 -InstallDir "C:\FileSqueeze"
+# Navigate to FileSqueeze directory
+cd filesqueeze
 
-# Force reinstall
-.\install.ps1 -Force
-
-# Skip dependency installation (faster)
-.\install.ps1 -SkipDeps
-```
-
-#### Linux
-
-```bash
-# Download and run installer
-curl -sSL https://nyjc.app/filesqueeze/install | bash
-
-# Or download and run manually
-wget https://nyjc.app/filesqueeze/install -O install.sh
-chmod +x install.sh
-./install.sh
-```
-
-**Installer options:**
-```bash
-# Custom installation directory
-./install.sh --install-dir ~/FileSqueeze
-
-# Force reinstall
-./install.sh --force
-
-# Skip dependency installation
-./install.sh --skip-deps
+# Run development installer
+.\install-dev.ps1
 ```
 
 **What the installer does:**
-- ✅ Checks for Python 3.11+
-- ✅ Installs Poetry (dependency manager) if needed
-- ✅ Clones FileSqueeze repository
-- ✅ Installs all dependencies
-- ✅ Detects FFmpeg, Ghostscript, Tesseract paths
-- ✅ Generates configuration file with detected paths
-- ✅ Creates desktop shortcut (Windows)
-- ✅ Creates start scripts
-- ✅ Creates systemd service file (Linux)
+- ✅ Checks Python 3.11+ installation
+- ✅ Installs Poetry if needed
+- ✅ Installs dependencies in editable mode
+- ✅ Detects FFmpeg, Ghostscript, Tesseract
+- ✅ Generates configuration file
+- ✅ Creates desktop shortcut
+
+**After installation:**
+```bash
+# Must use poetry run prefix
+poetry run python -m filesqueeze --help
+
+# Start service
+poetry run python -m filesqueeze service run
+
+# Install auto-start
+poetry run python -m filesqueeze service install
+```
 
 ### Method 2: PyPI Package (Recommended for Python Users)
 
@@ -200,7 +220,11 @@ poetry run python -m filesqueeze detect
 
 **Windows:**
 ```bash
-# Download from https://ffmpeg.org/download.html
+# Download ffmpeg-release-essentials.7z from:
+# https://www.gyan.dev/ffmpeg/builds/#release-builds
+# Extract to C:\Program Files\ffmpeg
+# Add C:\Program Files\ffmpeg\bin to your PATH
+
 # Or use chocolatey:
 choco install ffmpeg
 
@@ -225,7 +249,8 @@ sudo pacman -S ffmpeg
 
 **Windows:**
 ```bash
-# Download from https://www.ghostscript.com/download.html
+# Download from:
+# https://ghostscript.com/releases/index.html
 # Or use chocolatey:
 choco install ghostscript
 ```
@@ -249,7 +274,8 @@ sudo pacman -S ghostscript
 
 **Windows:**
 ```bash
-# Download from https://github.com/UB-Mannheim/tesseract/wiki
+# Download from:
+# https://tesseract-ocr.com/#download
 # Or use chocolatey:
 choco install tesseract
 ```
@@ -368,17 +394,19 @@ poetry run python -m filesqueeze watch --input ./upload --output ./compressed
 
 ```bash
 # Run with system tray icon (Windows)
-poetry run python -m filesqueeze service
+poetry run python -m filesqueeze service run
 
 # Install auto-start on boot (Windows)
-poetry run python -m filesqueeze service-install
+poetry run python -m filesqueeze service install
 
 # Check installation status
-poetry run python -m filesqueeze service-status
+poetry run python -m filesqueeze service status
 
 # Uninstall auto-start
-poetry run python -m filesqueeze service-uninstall
+poetry run python -m filesqueeze service uninstall
 ```
+
+**Note:** Hyphenated versions (`service-run`, `service-install`, etc.) are still supported for backward compatibility.
 
 #### Detect Binaries
 
@@ -494,6 +522,47 @@ For Google Shared Drives, Dropbox, OneDrive, or other cloud-synced folders:
 
 ---
 
+## System Invariants
+
+FileSqueeze guarantees these non-negotiable behaviors:
+
+### Service Launch Behavior
+
+**When launched from Start Menu or command line:**
+- ✅ System tray icon appears immediately
+- ✅ Status window opens automatically to show service status
+
+**Rationale:** Users launching FileSqueeze expect immediate visual feedback that the service is running. The status window shows:
+- Service state (running/stopped)
+- Input/output directories
+- Processing statistics
+- Currently processing files
+
+**Implementation:** The `filesqueeze service run` command starts the tray icon AND automatically opens the status window. This ensures:
+- Users can immediately see the service is working
+- Clear visual confirmation of launch
+- Easy access to service status and directories
+
+### Single Instance Enforcement
+
+- Only one FileSqueeze service instance can run at a time
+- Attempting to start a second instance displays a helpful error message
+- Ensures no conflicts from multiple services watching the same directories
+
+### Singleton Status Window
+
+- Clicking the tray icon repeatedly opens only ONE status window
+- If the status window is already open, subsequent clicks bring it to the foreground (TODO: not yet implemented)
+- Prevents window clutter from multiple status windows
+
+### Configuration Management
+
+- User configuration file (`~/.config/filesqueeze/config.toml`) is the single source of truth
+- Configuration paths (especially `~` home directory) are expanded once at initialization
+- Runtime uses absolute paths, no re-expansion on every access
+
+---
+
 ## Troubleshooting
 
 ### Quick Diagnosis
@@ -574,7 +643,7 @@ ghostscript_path = "C:/path/to/gswin64c.exe"
 
 ```powershell
 # Uninstall auto-start
-poetry run python -m filesqueeze service-uninstall
+poetry run python -m filesqueeze service uninstall
 
 # Remove installation directory
 Remove-Item -Recurse -Force "$env:USERPROFILE\FileSqueeze"
@@ -601,7 +670,7 @@ rm ~/.config/systemd/user/filesqueeze.service
 
 ```bash
 # Uninstall auto-start (Windows)
-filesqueeze-service-uninstall
+filesqueeze service uninstall
 
 # Uninstall package
 pip uninstall filesqueeze

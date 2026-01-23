@@ -72,8 +72,9 @@ max_retries = 2
 [logging]
 # Log level: DEBUG, INFO, WARNING, ERROR, CRITICAL
 level = "INFO"
-# Log file path (relative to working directory or absolute)
-file = "filesqueeze.log"
+# Log file path (use absolute path for system installations)
+# Default: user's home directory .config/filesqueeze/
+file = "~/.config/filesqueeze/filesqueeze.log"
 # Rotation type: 'size' or 'time'
 rotation_type = "size"
 # When to rotate for time-based: 'S'=Seconds, 'M'=Minutes, 'H'=Hours, 'D'=Days, 'midnight'=Daily

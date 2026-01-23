@@ -52,43 +52,132 @@ class StateProvider:
         raise NotImplementedError
 
 
-def show_windows_notification(title: str, message: str) -> bool:
+class NotificationManager:
+    """Manages Windows toast notifications with update support."""
+
+    def __init__(self):
+        """Initialize the notification manager."""
+        self._notifications = {}  # Track notification tags by filename
+        self._lock = threading.Lock()
+        self._counter = 0  # For generating unique tags
+
+    def show(self, title: str, message: str, filename: str = None, tag: str = None) -> bool:
+        """Show a Windows toast notification.
+
+        Args:
+            title: Notification title.
+            message: Notification message.
+            filename: Optional filename to track this notification for updates.
+            tag: Optional custom tag for the notification.
+
+        Returns:
+            True if notification was shown, False otherwise.
+        """
+        if sys.platform != 'win32':
+            return False
+
+        # Generate tag if not provided
+        if tag is None and filename:
+            with self._lock:
+                tag = f"file_{filename}_{self._counter}"
+                self._notifications[filename] = tag
+                self._counter += 1
+        elif tag is None:
+            tag = f"notification_{self._counter}"
+            with self._lock:
+                self._counter += 1
+
+        try:
+            # Use Windows toast via PowerShell with tag support
+            import subprocess
+            # Escape single quotes in message
+            escaped_title = title.replace("'", "''")
+            escaped_message = message.replace("'", "''").replace("\n", "`n")
+            escaped_tag = tag.replace("'", "''")
+
+            ps_command = f'''
+            Add-Type -AssemblyName Windows.UI.Notifications
+            Add-Type -AssemblyName Windows.Data.Xml.Dom
+
+            [Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType = WindowsRuntime] | Out-Null
+            [Windows.Data.Xml.Dom.XmlDocument, Windows.Data.Xml.Dom, ContentType = WindowsRuntime] | Out-Null
+
+            $template = @"
+            <toast>
+                <visual>
+                    <binding template="ToastGeneric">
+                        <text>{escaped_title}</text>
+                        <text>{escaped_message}</text>
+                    </binding>
+                </visual>
+            </toast>
+            "@
+
+            $xml = New-Object Windows.Data.Xml.Dom.XmlDocument
+            $xml.LoadXml($template)
+            $toast = New-Object Windows.UI.Notifications.ToastNotification $xml
+            $toast.Tag = "{escaped_tag}"
+            $notifier = [Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier("FileSqueeze")
+
+            # Clear any existing notification with the same tag
+            try {{
+                $notifier.Hide($notifier.GetHistory() | Where-Object {{ $_.Tag -eq "{escaped_tag}" }} | Select-Object -First 1)
+            }} catch {{}}
+
+            $notifier.Show($toast)
+            '''
+
+            # Run PowerShell in background, don't wait for it
+            subprocess.Popen(
+                ['powershell', '-Command', ps_command],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                creationflags=subprocess.CREATE_NO_WINDOW
+            )
+            return True
+
+        except Exception as e:
+            # Silently fail - don't disrupt the service if notifications don't work
+            return False
+
+    def get_tag(self, filename: str) -> str:
+        """Get the notification tag for a file.
+
+        Args:
+            filename: The filename to get the tag for.
+
+        Returns:
+            The notification tag, or None if not found.
+        """
+        with self._lock:
+            return self._notifications.get(filename)
+
+    def clear(self, filename: str):
+        """Clear the notification tag for a file.
+
+        Args:
+            filename: The filename to clear the tag for.
+        """
+        with self._lock:
+            self._notifications.pop(filename, None)
+
+
+# Global notification manager instance
+_notification_manager = NotificationManager()
+
+
+def show_windows_notification(title: str, message: str, filename: str = None) -> bool:
     """Show a Windows toast notification.
 
     Args:
         title: Notification title.
         message: Notification message.
+        filename: Optional filename to track this notification for updates.
 
     Returns:
         True if notification was shown, False otherwise.
     """
-    if sys.platform != 'win32':
-        return False
-
-    try:
-        import ctypes
-        from ctypes import wintypes
-
-        # Load user32.dll
-        user32 = ctypes.windll.user32
-
-        # Define Windows message box constants
-        MB_OK = 0x00000000
-        MB_ICONINFORMATION = 0x00000040
-        MB_TOPMOST = 0x00040000
-        MB_SETFOREGROUND = 0x00010000
-
-        # Show non-modal notification
-        user32.MessageBoxW(
-            0,
-            message,
-            title,
-            MB_OK | MB_ICONINFORMATION | MB_TOPMOST | MB_SETFOREGROUND
-        )
-        return True
-    except Exception:
-        # Fall back to console output if notification fails
-        return False
+    return _notification_manager.show(title, message, filename=filename)
 
 
 class CompressionHandler(FileSystemEventHandler):
@@ -158,6 +247,12 @@ class CompressionHandler(FileSystemEventHandler):
             if not scanner.is_valid_file(filepath):
                 return
 
+            # Wait for file to be stable (for network drives and slow writes)
+            # Check if file size is stable over 2 seconds
+            if not self._wait_for_file_stability(filepath):
+                self.logger.warning(f"File not stable, skipping: {filepath.name}")
+                return
+
             self.logger.info(f"Detected new file: {filepath.name}")
 
             # Determine file type
@@ -173,9 +268,11 @@ class CompressionHandler(FileSystemEventHandler):
             self.logger.info(f"Compressing {ext.upper()} file: {filepath.name}")
 
             # Show Windows notification (only on first detection, not modal)
+            # Include filename to track for updates
             show_windows_notification(
                 "FileSqueeze",
-                f"Compressing {filepath.name}...\n\nType: {ext.upper()}\nThis may take a few minutes."
+                f"Compressing {filepath.name}...\n\nType: {ext.upper()}\nThis may take a few minutes.",
+                filename=filepath.name
             )
 
             try:
@@ -209,13 +306,18 @@ class CompressionHandler(FileSystemEventHandler):
                         self.logger.info(f"  Note: Output is larger")
 
                     # Show Windows notification for successful completion
+                    # Include filename to replace the previous "compressing" notification
                     show_windows_notification(
                         "FileSqueeze - Complete!",
                         f"Successfully compressed: {filepath.name}\n\n"
                         f"Input:  {input_size / 1024 / 1024:.2f} MB\n"
                         f"Output: {output_size / 1024 / 1024:.2f} MB\n"
-                        f"Saved:  {reduction:.1f}%"
+                        f"Saved:  {reduction:.1f}%",
+                        filename=filepath.name
                     )
+
+                    # Clear the notification tag for this file
+                    _notification_manager.clear(filepath.name)
 
                     # Remove original file
                     filepath.unlink()
@@ -232,6 +334,59 @@ class CompressionHandler(FileSystemEventHandler):
             # Remove from processing set
             with self._lock:
                 self._processing.discard(str(filepath.absolute()))
+
+    def _wait_for_file_stability(self, filepath: Path, timeout: int = 30) -> bool:
+        """Wait for file to be stable (not being written to).
+
+        This is important for network drives where files may appear before they're fully written.
+
+        Args:
+            filepath: Path to the file.
+            timeout: Maximum seconds to wait for stability.
+
+        Returns:
+            True if file is stable, False if timeout exceeded.
+        """
+        try:
+            import time as time_module
+
+            # Check stability by monitoring file size
+            previous_size = -1
+            stable_count = 0
+            start_time = time_module.time()
+
+            while time_module.time() - start_time < timeout:
+                try:
+                    current_size = filepath.stat().st_size
+
+                    # File size hasn't changed
+                    if current_size == previous_size:
+                        stable_count += 1
+                        # Need 2 consecutive checks with same size (1 second apart)
+                        if stable_count >= 2:
+                            self.logger.debug(f"File stable: {filepath.name} ({current_size:,} bytes)")
+                            return True
+                    else:
+                        # File size changed, reset counter
+                        stable_count = 0
+                        previous_size = current_size
+                        self.logger.debug(f"File size changed: {filepath.name} ({current_size:,} bytes)")
+
+                    time_module.sleep(0.5)
+
+                except FileNotFoundError:
+                    # File was deleted, don't process
+                    self.logger.debug(f"File disappeared during stability check: {filepath.name}")
+                    return False
+
+            # Timeout exceeded
+            self.logger.warning(f"File stability timeout for: {filepath.name}")
+            return False
+
+        except Exception as e:
+            self.logger.error(f"Error checking file stability: {e}")
+            # On error, assume file is stable and try to process anyway
+            return True
 
 
 class DirectoryWatcher(StateProvider):
@@ -273,6 +428,10 @@ class DirectoryWatcher(StateProvider):
         self._failed_count = 0
         self._state_lock = threading.Lock()
 
+        # Polling fallback mechanism (scan periodically to catch missed files)
+        self._poll_interval = self.config.get('service.poll_interval', 300)  # Default: 5 minutes
+        self._last_poll_time = 0
+
     def get_state(self) -> ServiceState:
         """Get current service state (thread-safe).
 
@@ -312,6 +471,16 @@ class DirectoryWatcher(StateProvider):
         self.logger.info(f"Watching: {self.input_dir}")
         self.logger.info(f"Output:  {self.output_dir}")
         self.logger.info("=" * 60)
+
+        # Perform initial scan to catch any files that existed before service started
+        self.logger.info("Performing initial scan for existing files...")
+        self._scan_existing_files()
+
+        # Start polling thread for periodic fallback scans
+        if self._poll_interval > 0:
+            self._start_polling_thread()
+
+        self.logger.info("=" * 60)
         self.logger.info("Press Ctrl+C to stop...")
 
     def stop(self):
@@ -321,6 +490,76 @@ class DirectoryWatcher(StateProvider):
             self.observer.stop()
             self.observer.join()
             self.logger.info("Watch mode stopped")
+
+    def run(self):
+        """Run the watcher until interrupted."""
+        self.start()
+        try:
+            while self._running:
+                time.sleep(1)
+        except KeyboardInterrupt:
+            self.logger.info("Received stop signal, shutting down...")
+            self.stop()
+
+    def _scan_existing_files(self):
+        """Scan for existing files that may have been missed.
+
+        This catches:
+        - Files that existed before the service started
+        - Files that were added while service was down
+        - Files missed by watchdog events
+        """
+        try:
+            from .scanner import FileScanner
+            scanner = FileScanner(self.config)
+
+            file_count = 0
+            for filepath in scanner.scan(self.input_dir):
+                # Skip if already being processed
+                file_key = str(filepath.absolute())
+                with self.event_handler._lock:
+                    if file_key in self.event_handler._processing:
+                        continue
+
+                # Check if this is truly an existing file (not just created)
+                # Use file modification time to filter very recent files that watchdog might handle
+                import time as time_module
+                file_mtime = filepath.stat().st_mtime
+                file_age = time_module.time() - file_mtime
+
+                # Only process files older than 5 seconds (give watchdog a chance to handle new files)
+                if file_age < 5:
+                    self.logger.debug(f"Skipping recent file (watchdog may handle): {filepath.name}")
+                    continue
+
+                # Process the file
+                file_count += 1
+                self.logger.info(f"Found existing file: {filepath.name}")
+                self.event_handler._process_file(filepath)
+
+            if file_count > 0:
+                self.logger.info(f"Initial scan processed {file_count} existing files")
+            else:
+                self.logger.info("No existing files found to process")
+
+        except Exception as e:
+            self.logger.error(f"Error during initial scan: {e}", exc_info=True)
+
+    def _start_polling_thread(self):
+        """Start background thread for periodic polling scans."""
+        def poll_worker():
+            while self._running:
+                try:
+                    time.sleep(self._poll_interval)
+                    if self._running:
+                        self.logger.debug("Running periodic poll scan...")
+                        self._scan_existing_files()
+                except Exception as e:
+                    self.logger.error(f"Error in polling thread: {e}", exc_info=True)
+
+        poll_thread = threading.Thread(target=poll_worker, daemon=True)
+        poll_thread.start()
+        self.logger.info(f"Periodic polling enabled (every {self._poll_interval}s)")
 
     def run(self):
         """Run the watcher until interrupted."""

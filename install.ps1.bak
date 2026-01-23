@@ -69,13 +69,6 @@ try {
     Write-Error-Status "Python not found. Please install Python 3.11+ from https://python.org`nMake sure to check 'Add Python to PATH' during installation."
 }
 
-# Get Python installation path for shortcuts
-$PythonInstallPath = python -c "import sys, os; print(os.path.dirname(sys.executable))" 2>&1
-if ($LASTEXITCODE -ne 0) {
-    Write-Error-Status "Failed to detect Python installation path"
-}
-Write-Host "  Python path: $PythonInstallPath" -ForegroundColor Gray
-
 # Build the package
 Write-Status "Building FileSqueeze package..."
 try {

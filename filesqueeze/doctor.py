@@ -155,12 +155,33 @@ class Doctor:
             self.issues.append(f"[FAIL] {name} not installed")
             return False
 
-    def check_binary(self, binary_type: str, binary_name: str) -> bool:
+    def check_module_optional(self, module_name: str, display_name: str = None) -> bool:
+        """Check if an optional Python module is installed.
+
+        Args:
+            module_name: Name of the module to check.
+            display_name: Optional display name for the module.
+
+        Returns:
+            True if module is installed, False otherwise.
+        """
+        name = display_name or module_name
+
+        try:
+            __import__(module_name)
+            self.passed.append(f"[OK] {name} installed")
+            return True
+        except ImportError:
+            self.warnings.append(f"[WARN] {name} not installed")
+            return False
+
+    def check_binary(self, binary_type: str, binary_name: str, optional: bool = False) -> bool:
         """Check if a binary tool is installed.
 
         Args:
             binary_type: Type of binary ('ffmpeg', 'ghostscript', 'tesseract').
             binary_name: Display name for the binary.
+            optional: Whether this binary is optional (affects reporting).
 
         Returns:
             True if binary is found, False otherwise.
@@ -179,7 +200,10 @@ class Doctor:
             self.passed.append(f"[OK] {binary_name} found: {path}")
             return True
         else:
-            self.issues.append(f"[FAIL] {binary_name} not found ({msg})")
+            if optional:
+                self.warnings.append(f"[WARN] {binary_name} not found ({msg})")
+            else:
+                self.issues.append(f"[FAIL] {binary_name} not found ({msg})")
             return False
 
     def check_config_file(self) -> bool:
@@ -291,13 +315,13 @@ class Doctor:
                 self.check_module('tomli_w', 'TOML library (tomli_w)')
 
         # Check optional Python modules
-        self.check_module('pdfminer', 'PDFMiner (optional)')
-        self.check_module('PIL', 'Pillow (optional)')
+        self.check_module_optional('pdfminer', 'PDFMiner (optional)')
+        self.check_module_optional('PIL', 'Pillow (optional)')
 
         # Check external binaries
         self.check_binary('ffmpeg', 'FFmpeg')
         self.check_binary('ghostscript', 'Ghostscript')
-        self.check_binary('tesseract', 'Tesseract OCR (optional)')
+        self.check_binary('tesseract', 'Tesseract OCR (optional)', optional=True)
 
         # Check configuration
         has_config = self.check_config_file()
@@ -367,12 +391,6 @@ class Doctor:
                 print("  Windows: choco install ghostscript")
                 print("  Linux: sudo apt-get install ghostscript")
 
-            # Missing Tesseract
-            if any("Tesseract" in issue for issue in self.issues):
-                print("• Install Tesseract OCR (optional):")
-                print("  Windows: choco install tesseract")
-                print("  Linux: sudo apt-get install tesseract-ocr")
-
             # Config issues
             if any("Configuration" in issue for issue in self.issues):
                 print("• Generate configuration: poetry run python -m filesqueeze init-config")
@@ -381,6 +399,23 @@ class Doctor:
             if any("permissions" in issue.lower() for issue in self.issues):
                 print("• Check directory permissions")
                 print("• Ensure you have write access to the working directory")
+
+        # Optional enhancement suggestions
+        if self.warnings:
+            print()
+            print(Colors.bold("Optional enhancements:"))
+            print()
+
+            # Missing optional Python modules
+            if any("PDFMiner" in warning or "Pillow" in warning for warning in self.warnings):
+                print("• Install optional Python modules:")
+                print("  pip install pdfminer six pillow")
+
+            # Missing Tesseract
+            if any("Tesseract" in warning for warning in self.warnings):
+                print("• Install Tesseract OCR (for OCR features):")
+                print("  Windows: choco install tesseract")
+                print("  Linux: sudo apt-get install tesseract-ocr")
 
         print()
 

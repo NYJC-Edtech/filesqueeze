@@ -48,6 +48,54 @@ def sample_scanned_pdf():
     pytest.skip(f"Sample PDF not found: {pdf_path}")
 
 
+@pytest.fixture(autouse=True)
+def cleanup_windows_mutex():
+    """Clean up Windows FileSqueeze mutex before each test.
+
+    This prevents tests from interfering with each other when they
+    create TrayService instances. The Windows named mutex persists
+    within a pytest session, so we need to clean it up before each test.
+
+    Only runs on Windows.
+    """
+    if sys.platform != 'win32':
+        yield
+        return
+
+    import ctypes
+    import time
+
+    mutex_name = "Global\\FileSqueeze_SingleInstanceMutex"
+
+    # Cleanup before test
+    try:
+        existing_mutex = ctypes.windll.kernel32.OpenMutexW(
+            0x00100000,  # MUTEX_ALL_ACCESS
+            False,
+            mutex_name
+        )
+        if existing_mutex:
+            ctypes.windll.kernel32.CloseHandle(existing_mutex)
+            # Wait for mutex to be fully released
+            time.sleep(0.15)
+    except:
+        pass
+
+    yield
+
+    # Cleanup after test
+    try:
+        existing_mutex = ctypes.windll.kernel32.OpenMutexW(
+            0x00100000,
+            False,
+            mutex_name
+        )
+        if existing_mutex:
+            ctypes.windll.kernel32.CloseHandle(existing_mutex)
+    except:
+        pass
+
+
 def pytest_configure(config):
     """Configure pytest with custom markers."""
     config.addinivalue_line(

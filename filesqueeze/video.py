@@ -244,7 +244,12 @@ def compress(
     ])
 
     try:
-        subprocess.run(cmd, timeout=1800, check=True)
+        subprocess.run(
+            cmd,
+            timeout=1800,
+            check=True,
+            creationflags=subprocess.CREATE_NO_WINDOW if os.name == 'nt' else 0
+        )
     except subprocess.TimeoutExpired:
         raise RuntimeError(f"FFmpeg timeout compressing video: {infile}")
     except subprocess.CalledProcessError as e:
