@@ -188,13 +188,15 @@ class Config:
 
     @property
     def input_dir(self) -> Path:
-        """Get input directory path."""
-        return Path(self.get('directories.input'))
+        """Get input directory path with tilde expansion."""
+        path_str = self.get('directories.input')
+        return Path(path_str).expanduser()
 
     @property
     def output_dir(self) -> Path:
-        """Get output directory path."""
-        return Path(self.get('directories.output'))
+        """Get output directory path with tilde expansion."""
+        path_str = self.get('directories.output')
+        return Path(path_str).expanduser()
 
     @property
     def ffmpeg_path(self) -> str:

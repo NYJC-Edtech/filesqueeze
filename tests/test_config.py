@@ -10,17 +10,19 @@ from filesqueeze.config import Config
 
 def test_config_defaults():
     """Test that default config values are loaded."""
+    import os
     config = Config()
 
-    # Test dot notation access
+    # Test dot notation access (raw values, no tilde expansion)
     assert config.get('ffmpeg.crf') == 28
     assert config.get('directories.input') == '~/FileSqueeze/upload'
     assert config.get('logging.level') == 'INFO'
 
-    # Test property access - note that paths may still have tilde at this point
-    # They get expanded during init-config, not during Config loading
-    assert config.input_dir == Path('~/FileSqueeze/upload')
-    assert config.output_dir == Path('~/FileSqueeze/compressed')
+    # Test property access - tildes are expanded automatically
+    expected_input = Path('~/FileSqueeze/upload').expanduser()
+    expected_output = Path('~/FileSqueeze/compressed').expanduser()
+    assert config.input_dir == expected_input
+    assert config.output_dir == expected_output
 
 
 def test_config_from_file():
