@@ -160,8 +160,9 @@ try {
     $StdErr = Get-Content $TempErr -Raw
     $Output = "$StdOut$StdErr"
 
-    # Check if installation actually succeeded (pip returns non-zero for notices but installation may have worked)
-    $InstallSuccess = $Output -match "Successfully installed filesqueeze"
+    # Check if installation actually succeeded by verifying the package is installed
+    & python -m pip show filesqueeze > $null 2>&1
+    $InstallSuccess = ($LASTEXITCODE -eq 0)
 
     if ($InstallSuccess) {
         Write-Host "  FileSqueeze installed successfully" -ForegroundColor Gray

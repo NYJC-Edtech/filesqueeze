@@ -144,3 +144,7 @@ def pytest_collection_modifyitems(config, items):
                 )
             )
 
+        # Note: OCR tests are NOT skipped when Tesseract is missing
+        # They should FAIL to alert the team that OCR functionality is broken
+        # This is intentional - OCR is a critical feature that should work
+
