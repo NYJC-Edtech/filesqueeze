@@ -91,8 +91,7 @@ def compressDocument(state: State) -> Handler:
     ext = state.target.suffix.lower()
 
     # Determine output path
-    # Access output_path directly from __data to handle None values properly
-    output_path = state._State__data.get('output_path')
+    output_path = state.get_output_path()
     if output_path:
         outpath = output_path
     else:
@@ -220,8 +219,7 @@ def compressVideo(state: State) -> Handler:
     state.status_compress()
 
     # Determine output path
-    # Access output_path directly from __data to handle None values properly
-    output_path = state._State__data.get('output_path')
+    output_path = state.get_output_path()
     if output_path:
         outfile = output_path
     else:
@@ -260,7 +258,7 @@ def selectAnalyzer(
         # format_enum is now the Video/Slideshow/Document class
         if suffix in format_enum.__dict__:
             # Store the format string value directly
-            state._State__data['format'] = format_enum.__dict__[suffix]
+            state.set_format_value(format_enum.__dict__[suffix])
             return handler[format_enum]
 
     # No matching target format found

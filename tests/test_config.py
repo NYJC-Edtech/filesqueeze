@@ -14,12 +14,13 @@ def test_config_defaults():
 
     # Test dot notation access
     assert config.get('ffmpeg.crf') == 28
-    assert config.get('directories.input') == 'G:/Shared drives/compressor/upload'
+    assert config.get('directories.input') == '~/FileSqueeze/upload'
     assert config.get('logging.level') == 'INFO'
 
-    # Test property access
-    assert config.input_dir == Path('G:/Shared drives/compressor/upload')
-    assert config.output_dir == Path('G:/Shared drives/compressor/compressed')
+    # Test property access - note that paths may still have tilde at this point
+    # They get expanded during init-config, not during Config loading
+    assert config.input_dir == Path('~/FileSqueeze/upload')
+    assert config.output_dir == Path('~/FileSqueeze/compressed')
 
 
 def test_config_from_file():

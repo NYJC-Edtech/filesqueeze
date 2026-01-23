@@ -31,8 +31,30 @@ class State:
             return self.__data[attr]
         raise AttributeError(f"'{type(self).__name__}' object has no attribute '{attr}'")
 
-    def set_format(self, format: str):
-        Format.validate(format)
+    # Public getter methods for commonly accessed attributes
+    # These provide explicit public API instead of relying on __getattr__
+    def get_output_path(self) -> Optional[Path]:
+        """Get the output path for this file.
+
+        Returns:
+            Optional[Path]: Output path if set, None otherwise
+        """
+        return self.__data.get('output_path')
+
+    def get_format(self) -> Optional[str]:
+        """Get the target format for conversion.
+
+        Returns:
+            Optional[str]: Format string if set, None otherwise
+        """
+        return self.__data.get('format')
+
+    def set_format_value(self, format: str):
+        """Set the target format for conversion.
+
+        Args:
+            format: Format string to set
+        """
         self.__data['format'] = format
 
     def set_target(self, target):

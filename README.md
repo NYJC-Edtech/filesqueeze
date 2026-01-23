@@ -311,10 +311,11 @@ This creates a `filesqueeze.toml` file with auto-detected binary paths.
 ```toml
 [directories]
 # Where to look for files to compress
-input = "G:/Shared drives/compressor/upload"
+# Tilde (~) will be expanded to your home directory
+input = "~/FileSqueeze/upload"
 
 # Where to save compressed files
-output = "G:/Shared drives/compressor/compressed"
+output = "~/FileSqueeze/compressed"
 
 [ffmpeg]
 # Video quality: lower = better quality, larger file (18-28 recommended)
@@ -333,9 +334,19 @@ enable_ocr = true
 language = "eng"
 
 [logging]
-# Log file location
-file = "G:/Shared drives/compressor/logs/filesqueeze.log"
+# Log file location (tilde will be expanded)
+file = "~/.config/filesqueeze/filesqueeze.log"
 level = "INFO"
+```
+
+**Environment Variables**
+
+You can override configuration using environment variables (highest priority):
+
+```bash
+export FILESQUEEZE_INPUT_DIR="/path/to/input"
+export FILESQUEEZE_OUTPUT_DIR="/path/to/output"
+export FILESQUEEZE_LOG_FILE="/path/to/filesqueeze.log"
 ```
 
 ### Configuration File Locations

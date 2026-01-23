@@ -21,8 +21,8 @@ class Config:
     # Default configuration values
     DEFAULTS = {
         'directories': {
-            'input': 'G:/Shared drives/compressor/upload',
-            'output': 'G:/Shared drives/compressor/compressed',
+            'input': '~/FileSqueeze/upload',
+            'output': '~/FileSqueeze/compressed',
         },
         'file_detection': {
             'extensions': ['mp4', 'avi', 'wmv', 'pptx', 'pdf', 'jpg', 'jpeg', 'png'],
@@ -76,13 +76,22 @@ class Config:
         self._load_configs(config_path)
 
     def _load_configs(self, config_path: Optional[str | Path | dict]) -> None:
-        """Load configurations from all sources in priority order."""
+        """Load configurations from all sources in priority order.
+
+        Priority (highest to lowest):
+        1. Environment variables (FILESQUEEZE_*)
+        2. Config file (if provided)
+        3. User config (~/.config/filesqueeze/config.toml)
+        4. Project config (./filesqueeze.toml)
+        5. DEFAULTS
+        """
         # Start with defaults
         self._config = self._deep_copy(self.DEFAULTS)
 
         # If config_path is a dict, merge it directly (for testing)
         if isinstance(config_path, dict):
             self._merge_dict(config_path)
+            self._apply_env_overrides()
             return
 
         # Load user config
@@ -98,6 +107,9 @@ class Config:
 
         if project_config.exists():
             self._merge_toml(project_config)
+
+        # Apply environment variable overrides (highest priority)
+        self._apply_env_overrides()
 
     def _merge_toml(self, path: Path) -> None:
         """Merge TOML config file into current config."""
@@ -124,6 +136,33 @@ class Config:
         """Create a deep copy of a dictionary."""
         import copy
         return copy.deepcopy(data)
+
+    def _apply_env_overrides(self) -> None:
+        """Apply environment variable overrides to configuration.
+
+        Supported environment variables:
+        - FILESQUEEZE_INPUT_DIR: Override input directory
+        - FILESQUEEZE_OUTPUT_DIR: Override output directory
+        - FILESQUEEZE_LOG_FILE: Override log file path
+
+        Environment variables take precedence over all other config sources.
+        """
+        env_overrides = {
+            'FILESQUEEZE_INPUT_DIR': ('directories', 'input'),
+            'FILESQUEEZE_OUTPUT_DIR': ('directories', 'output'),
+            'FILESQUEEZE_LOG_FILE': ('logging', 'file'),
+        }
+
+        for env_var, (section, key) in env_overrides.items():
+            value = os.getenv(env_var)
+            if value:
+                # Ensure section exists
+                if section not in self._config:
+                    self._config[section] = {}
+                self._config[section][key] = value
+                logging.getLogger('filesqueeze').info(
+                    f"Config override from {env_var}: {value}"
+                )
 
     def get(self, key: str, default: Any = None) -> Any:
         """Get config value using dot notation.

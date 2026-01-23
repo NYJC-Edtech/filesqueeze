@@ -4,9 +4,10 @@
 
 [directories]
 # Input directory for files to process
-input = "G:/Shared drives/compressor/upload"
+# Tilde (~) will be expanded to user's home directory during config initialization
+input = "~/FileSqueeze/upload"
 # Output directory for compressed files
-output = "G:/Shared drives/compressor/compressed"
+output = "~/FileSqueeze/compressed"
 
 [file_detection]
 # File extensions to process (case-insensitive)
