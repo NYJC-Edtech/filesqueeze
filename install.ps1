@@ -8,7 +8,8 @@
 param(
     [string]$InstallDir = "$env:USERPROFILE\\FileSqueeze",
     [switch]$Force,
-    [switch]$SkipDeps
+    [switch]$SkipDeps,
+    [string]$OverwriteConfig = "prompt"  # "prompt" = ask user, "yes" = always overwrite, "no" = never overwrite
 )
 
 $ErrorActionPreference = "Stop"
@@ -40,7 +41,9 @@ Write-Host "  - Check Python 3.11+ installation"
 Write-Host "  - Build FileSqueeze package"
 Write-Host "  - Install system-wide with pip"
 Write-Host "  - Create Start Menu shortcuts"
-Write-Host "  - Generate configuration file"
+Write-Host "  - Generate configuration file (preserved if exists)"
+Write-Host ""
+Write-Host "  Options: -Force (reinstall), -OverwriteConfig yes/no/prompt" -ForegroundColor Gray
 Write-Host ""
 
 # Get the script directory
@@ -203,10 +206,35 @@ try {
 # Generate configuration
 Write-Status "Generating configuration file..."
 $ConfigPath = "$env:USERPROFILE\\.config\\filesqueeze\\config.toml"
+$ConfigExists = Test-Path $ConfigPath
+
 try {
     New-Item -ItemType Directory -Path (Split-Path $ConfigPath) -Force | Out-Null
-    filesqueeze init-config --output $ConfigPath --force
-    Write-Host "  Configuration created: $ConfigPath" -ForegroundColor Gray
+
+    if ($ConfigExists) {
+        # Config already exists - check what to do based on $OverwriteConfig parameter
+        if ($OverwriteConfig -eq "no") {
+            Write-Host "  Existing config preserved: $ConfigPath" -ForegroundColor Gray
+        } elseif ($OverwriteConfig -eq "yes") {
+            filesqueeze init-config --output $ConfigPath --force
+            Write-Host "  Configuration overwritten: $ConfigPath" -ForegroundColor Gray
+        } else {
+            # Default: prompt user
+            Write-Host ""
+            Write-Host "  Configuration file already exists: $ConfigPath" -ForegroundColor Yellow
+            $overwrite = Read-Host "  Overwrite existing config? [y/N]"
+            if ($overwrite -eq "Y" -or $overwrite -eq "y") {
+                filesqueeze init-config --output $ConfigPath --force
+                Write-Host "  Configuration overwritten: $ConfigPath" -ForegroundColor Gray
+            } else {
+                Write-Host "  Existing config preserved: $ConfigPath" -ForegroundColor Gray
+            }
+        }
+    } else {
+        # No existing config - create new one
+        filesqueeze init-config --output $ConfigPath --force
+        Write-Host "  Configuration created: $ConfigPath" -ForegroundColor Gray
+    }
 } catch {
     Write-Host "  Warning: Config generation failed. You can create it manually." -ForegroundColor Yellow
 }
@@ -239,6 +267,8 @@ $Shortcut = $WshShell.CreateShortcut("$StartMenuFolder\\FileSqueeze.lnk")
 $Shortcut.TargetPath = $PythonwPath
 $Shortcut.Arguments = "-m filesqueeze service run"
 $Shortcut.Description = "Start FileSqueeze compression service with system tray icon"
+# Set working directory to user home to avoid using Start Menu folder as cwd
+$Shortcut.WorkingDirectory = $env:USERPROFILE
 $Shortcut.Save()
 Write-Host "  Created: FileSqueeze" -ForegroundColor Gray
 
@@ -247,6 +277,7 @@ $Shortcut = $WshShell.CreateShortcut("$StartMenuFolder\\Uninstall FileSqueeze.ln
 $Shortcut.TargetPath = "powershell.exe"
 $Shortcut.Arguments = "-ExecutionPolicy Bypass -NoProfile -Command python -m pip uninstall filesqueeze -y"
 $Shortcut.Description = "Uninstall FileSqueeze"
+$Shortcut.WorkingDirectory = $env:USERPROFILE
 $Shortcut.Save()
 Write-Host "  Created: Uninstall FileSqueeze" -ForegroundColor Gray
 
