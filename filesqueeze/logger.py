@@ -2,6 +2,8 @@
 
 Logging configuration for FileSqueeze.
 Dual handlers: StreamHandler (stdout) + RotatingFileHandler or TimedRotatingFileHandler.
+
+This module now re-exports the system logger for backward compatibility.
 """
 
 import logging
@@ -12,6 +14,69 @@ from pathlib import Path
 from typing import Optional
 
 from .config import Config
+
+# Re-export system logger for backward compatibility
+from .system.logger import register_logger, get_logger as system_get_logger
+from .system import logger as system_logger_module
+
+
+# Create a module-level logger proxy object
+# This allows the logger module to behave like the old logger module
+class _ModuleLoggerProxy:
+    """Proxy that mimics the old logger module interface."""
+
+    def __init__(self):
+        self._cached_logger = None
+
+    def _get_logger(self):
+        """Get the actual logger, caching for performance."""
+        if self._cached_logger is None:
+            self._cached_logger = system_logger_module.get_logger()
+        return self._cached_logger
+
+    def info(self, msg, *args, **kwargs):
+        """Log info message."""
+        return self._get_logger().info(msg, *args, **kwargs)
+
+    def debug(self, msg, *args, **kwargs):
+        """Log debug message."""
+        return self._get_logger().debug(msg, *args, **kwargs)
+
+    def warning(self, msg, *args, **kwargs):
+        """Log warning message."""
+        return self._get_logger().warning(msg, *args, **kwargs)
+
+    def error(self, msg, *args, **kwargs):
+        """Log error message."""
+        return self._get_logger().error(msg, *args, **kwargs)
+
+    def critical(self, msg, *args, **kwargs):
+        """Log critical message."""
+        return self._get_logger().critical(msg, *args, **kwargs)
+
+    def exception(self, msg, *args, **kwargs):
+        """Log exception message."""
+        return self._get_logger().exception(msg, *args, **kwargs)
+
+    def __getattr__(self, name):
+        """Delegate any other attributes to the actual logger."""
+        return getattr(self._get_logger(), name)
+
+    def __repr__(self):
+        """String representation."""
+        return f"<ModuleLoggerProxy delegating to {self._get_logger().name}>"
+
+
+# Create the proxy instance
+_logger_proxy = _ModuleLoggerProxy()
+
+# Export common logging methods at module level for backward compatibility
+info = _logger_proxy.info
+debug = _logger_proxy.debug
+warning = _logger_proxy.warning
+error = _logger_proxy.error
+critical = _logger_proxy.critical
+exception = _logger_proxy.exception
 
 
 class Logger:
@@ -148,5 +213,12 @@ def setup_logging(config: Optional[Config] = None, log_file: Optional[str | Path
 
     Returns:
         Configured logger instance
+
+    Note:
+        This function both configures the logger AND registers it with the system logger.
     """
-    return Logger.setup(config=config, log_file=log_file)
+    configured_logger = Logger.setup(config=config, log_file=log_file)
+    # Register with system logger for dependency injection
+    system_get_logger()  # This will be replaced by the registered logger
+    register_logger(configured_logger)
+    return configured_logger

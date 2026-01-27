@@ -4,7 +4,7 @@
 
 [directories]
 # Input directory for files to process
-# Tilde (~) will be expanded to user's home directory during config initialization
+# Tilde (~) and environment variables are expanded when the config is loaded
 input = "~/FileSqueeze/upload"
 # Output directory for compressed files
 output = "~/FileSqueeze/compressed"
@@ -69,12 +69,17 @@ timeout_seconds = 1800
 lock_timeout_seconds = 300
 # Maximum number of retry attempts for failed tasks
 max_retries = 2
+# Maximum time in seconds for PDF compression (Ghostscript)
+pdf_timeout_seconds = 300
+# Maximum time in seconds for OCR processing
+ocr_timeout_seconds = 300
+# Minimum output file size in bytes (files smaller than this may indicate failure)
+min_output_size_bytes = 4096
 
 [logging]
 # Log level: DEBUG, INFO, WARNING, ERROR, CRITICAL
 level = "INFO"
-# Log file path (use absolute path for system installations)
-# Default: user's home directory .config/filesqueeze/
+# Log file path (tilde and environment variables are expanded when config is loaded)
 file = "~/.config/filesqueeze/filesqueeze.log"
 # Rotation type: 'size' or 'time'
 rotation_type = "size"
@@ -100,3 +105,7 @@ structure = "flat"
 preserve_timestamps = true
 # Save metadata as JSON alongside compressed files
 save_metadata = false
+
+[gui]
+# Status window refresh interval in milliseconds
+refresh_interval_ms = 2000
