@@ -2,7 +2,8 @@
 
 import pytest
 from pathlib import Path
-from filesqueeze.document import compress_pdf, compress_image, get_image_size
+from filesqueeze.ops.document import compress_pdf
+from filesqueeze.ops.image import compress_image, get_image_size
 
 
 class TestDocumentCompression:
@@ -10,7 +11,7 @@ class TestDocumentCompression:
 
     def test_get_ghostscript_path_not_found(self, tmp_path):
         """Test that get_ghostscript_path raises error when not found."""
-        from filesqueeze.document import get_ghostscript_path
+        from filesqueeze.ops.document import get_ghostscript_path
 
         # Should raise RuntimeError when Ghostscript is not found
         with pytest.raises(RuntimeError, match="Ghostscript not found"):
@@ -18,7 +19,7 @@ class TestDocumentCompression:
 
     def test_get_ffmpeg_path_not_found(self, tmp_path):
         """Test that get_ffmpeg_path raises error when not found."""
-        from filesqueeze.document import get_ffmpeg_path
+        from filesqueeze.ops.image import get_ffmpeg_path
 
         # Should raise RuntimeError when FFmpeg is not found
         with pytest.raises(RuntimeError, match="FFmpeg not found"):
@@ -62,7 +63,7 @@ class TestDocumentHelpers:
 
     def test_ghostscript_path_with_config(self, tmp_path):
         """Test get_ghostscript_path with config path."""
-        from filesqueeze.document import get_ghostscript_path
+        from filesqueeze.ops.document import get_ghostscript_path
 
         # Test with non-existent config path (should fall back to PATH or raise if not found)
         # If Ghostscript is in PATH, it will return the path; otherwise it raises RuntimeError
@@ -76,7 +77,7 @@ class TestDocumentHelpers:
 
     def test_ffmpeg_path_with_config(self, tmp_path):
         """Test get_ffmpeg_path with config path."""
-        from filesqueeze.document import get_ffmpeg_path
+        from filesqueeze.ops.image import get_ffmpeg_path
 
         # Test with non-existent config path (should fall back to PATH or raise if not found)
         # If FFmpeg is in PATH, it will return the path; otherwise it raises RuntimeError

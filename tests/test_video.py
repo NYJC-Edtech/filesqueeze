@@ -2,7 +2,7 @@
 
 import pytest
 from pathlib import Path
-from filesqueeze.video import (
+from filesqueeze.ops.video import (
     get_ffmpeg_path,
     get_ffprobe_path,
     width_height,

@@ -6,8 +6,9 @@ from pathlib import Path
 import pytest
 
 from filesqueeze import make_video, make_pdf, make_image
-from filesqueeze.video import width_height, duration
-from filesqueeze.document import compress_pdf, compress_image, get_image_size
+from filesqueeze.ops.video import width_height, duration
+from filesqueeze.ops.document import compress_pdf
+from filesqueeze.ops.image import compress_image, get_image_size
 
 
 @pytest.mark.integration
@@ -300,7 +301,7 @@ class TestRealFileCompression:
         import shutil
         from filesqueeze.config import Config
         from filesqueeze.ocr import needs_ocr
-        from filesqueeze.document import compress_pdf
+        from filesqueeze.ops.document import compress_pdf
 
         # Check Tesseract availability - fail if not available
         if not shutil.which('tesseract'):
