@@ -21,6 +21,13 @@ from .logger import setup_logging  # This is the actual Logger.setup, not a wrap
 
 
 @dataclass(frozen=True)
+class ProcessedFile:
+    """Information about a processed file."""
+    filename: str
+    timestamp: str  # ISO format timestamp
+    success: bool
+
+@dataclass(frozen=True)
 class ServiceState:
     """Immutable snapshot of service state.
 
@@ -31,6 +38,7 @@ class ServiceState:
     input_dir: Path
     output_dir: Path
     processing_files: List[str] = field(default_factory=list)
+    processed_files: List[ProcessedFile] = field(default_factory=list)
     completed_count: int = 0
     failed_count: int = 0
     uptime: timedelta = field(default_factory=timedelta)
@@ -183,7 +191,7 @@ def show_windows_notification(title: str, message: str, filename: str = None) ->
 class CompressionHandler(FileSystemEventHandler):
     """Handler for file system events."""
 
-    def __init__(self, config: Config, input_dir: Path, output_dir: Path, logger: logging.Logger):
+    def __init__(self, config: Config, input_dir: Path, output_dir: Path, logger: logging.Logger, watcher):
         """Initialize the compression handler.
 
         Args:
@@ -191,11 +199,13 @@ class CompressionHandler(FileSystemEventHandler):
             input_dir: Input directory to watch.
             output_dir: Output directory for compressed files.
             logger: Logger instance.
+            watcher: DirectoryWatcher instance for state updates.
         """
         self.config = config
         self.input_dir = input_dir
         self.output_dir = output_dir
         self.logger = logger
+        self._watcher = watcher
         self._processing = set()
         self._lock = threading.Lock()
 
@@ -323,12 +333,19 @@ class CompressionHandler(FileSystemEventHandler):
                     filepath.unlink()
                     self.logger.info(f"Removed original file: {filepath.name}")
 
+                    # Add to processed files
+                    self._watcher._add_processed_file(filepath.name, success=True)
+
                 else:
                     self.logger.error(f"Output file not created: {result_path}")
+                    # Add to processed files as failed
+                    self._watcher._add_processed_file(filepath.name, success=False)
 
             except Exception as e:
                 self.logger.error(f"Failed to compress {filepath.name}: {e}", exc_info=True)
                 # Keep original file in place (as per requirements)
+                # Add to processed files as failed
+                self._watcher._add_processed_file(filepath.name, success=False)
 
         finally:
             # Remove from processing set
@@ -426,18 +443,51 @@ class DirectoryWatcher(StateProvider):
             self.config,
             self.input_dir,
             self.output_dir,
-            self.logger
+            self.logger,
+            self  # Pass watcher reference to handler
         )
         self.observer = Observer()
         self._running = False
         self._start_time = None
         self._completed_count = 0
         self._failed_count = 0
+        self._processed_files = []  # List of ProcessedFile objects
+        self._max_processed_files = 100  # Keep only last 100 processed files
         self._state_lock = threading.Lock()
 
         # Polling fallback mechanism (scan periodically to catch missed files)
         self._poll_interval = self.config.get('service.poll_interval', 300)  # Default: 5 minutes
         self._last_poll_time = 0
+
+    def _add_processed_file(self, filename: str, success: bool):
+        """Add a processed file to the tracking list (thread-safe).
+
+        Args:
+            filename: Name of the processed file.
+            success: True if processing succeeded, False if failed.
+        """
+        from datetime import datetime
+
+        with self._state_lock:
+            # Create ProcessedFile with timestamp
+            processed_file = ProcessedFile(
+                filename=filename,
+                timestamp=datetime.now().isoformat(),
+                success=success
+            )
+
+            # Add to list
+            self._processed_files.append(processed_file)
+
+            # Keep only the most recent files
+            if len(self._processed_files) > self._max_processed_files:
+                self._processed_files = self._processed_files[-self._max_processed_files:]
+
+            # Update counters
+            if success:
+                self._completed_count += 1
+            else:
+                self._failed_count += 1
 
     def get_state(self) -> ServiceState:
         """Get current service state (thread-safe).
@@ -460,6 +510,7 @@ class DirectoryWatcher(StateProvider):
                 input_dir=self.input_dir,
                 output_dir=self.output_dir,
                 processing_files=processing,
+                processed_files=list(self._processed_files),  # Thread-safe copy
                 completed_count=self._completed_count,
                 failed_count=self._failed_count,
                 uptime=uptime
