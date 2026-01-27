@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Dict, List, Tuple
 
 from .config import Config
-from .binaries import BinaryDetector
+from .system.binaries import BinaryFinder as BinaryDetector
 
 
 class Colors:
@@ -236,9 +236,9 @@ class Doctor:
         """
         all_exist = True
 
-        input_dir = config.get('directories.input')
-        output_dir = config.get('directories.output')
-        log_file = config.get('logging.file')
+        input_dir = config.input_dir
+        output_dir = config.output_dir
+        log_file = config.log_file
 
         if input_dir:
             input_path = Path(input_dir)
@@ -257,11 +257,11 @@ class Doctor:
                 all_exist = False
 
         if log_file:
-            log_path = Path(log_file)
-            if log_path.parent.exists():
-                self.passed.append(f"[OK] Log directory exists: {log_path.parent}")
+            # log_file is already a Path object from config.log_file property
+            if log_file.parent.exists():
+                self.passed.append(f"[OK] Log directory exists: {log_file.parent}")
             else:
-                self.warnings.append(f"[WARN] Log directory does not exist: {log_path.parent}")
+                self.warnings.append(f"[WARN] Log directory does not exist: {log_file.parent}")
                 all_exist = False
 
         return all_exist

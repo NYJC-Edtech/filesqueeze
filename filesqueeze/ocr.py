@@ -4,13 +4,14 @@ OCR (Optical Character Recognition) functionality for scanned documents.
 Uses Tesseract OCR to add invisible text layers to scanned PDFs.
 """
 
-import logging
 import os
 import subprocess
 import tempfile
 from pathlib import Path
 from typing import Optional, Tuple
 import shutil
+
+from .system import logger
 
 
 def has_text_layer(pdf_path: str) -> bool:
@@ -75,18 +76,21 @@ def has_text_layer(pdf_path: str) -> bool:
                 # If no PDF libraries available, assume it needs OCR
                 # This is conservative - better to OCR than skip
                 return False
-    except Exception:
+    except Exception as e:
         # On error, assume it needs OCR
+        logger.debug(f"Error checking for text layer: {e}", exc_info=True)
         return False
 
 
 def ocr_image(
     image_path: str,
     output_path: str,
+    *,
     tesseract_path: str = "tesseract",
     language: str = "eng",
     oem: int = 3,
-    psm: int = 3
+    psm: int = 3,
+    config=None
 ) -> bool:
     """Run OCR on an image file and create a searchable PDF.
 
@@ -97,6 +101,7 @@ def ocr_image(
         language: OCR language(s).
         oem: OCR Engine Mode (0-3).
         psm: Page Segmentation Mode (0-13).
+        config: Optional Config object with settings.
 
     Returns:
         True if successful, False otherwise.
@@ -112,33 +117,38 @@ def ocr_image(
             'pdf'  # Output format
         ]
 
+        # Get timeout from config
+        timeout = config.get('processing.ocr_timeout_seconds', 300) if config else 300
+
         result = subprocess.run(
             cmd,
             capture_output=True,
             text=True,
-            timeout=300,
+            timeout=timeout,
             creationflags=subprocess.CREATE_NO_WINDOW if os.name == 'nt' else 0
         )
 
         if result.returncode != 0:
-            logging.getLogger('filesqueeze').error(f"Tesseract OCR error: {result.stderr}")
+            logger.error(f"Tesseract OCR error: {result.stderr}")
             return False
 
         return True
     except (subprocess.TimeoutExpired, FileNotFoundError) as e:
-        logging.getLogger('filesqueeze').error(f"OCR failed: {e}")
+        logger.error(f"OCR failed: {e}")
         return False
 
 
 def ocr_pdf(
     pdf_path: str,
     output_path: str,
+    *,
     tesseract_path: str = "tesseract",
     language: str = "eng",
     oem: int = 3,
     psm: int = 3,
     dpi: int = 300,
-    ghostscript_path: str = "gs"
+    ghostscript_path: str = "gs",
+    config=None
 ) -> bool:
     """Run OCR on a PDF by converting pages to images first.
 
@@ -153,6 +163,7 @@ def ocr_pdf(
         psm: Page Segmentation Mode (0-13).
         dpi: DPI for rendering PDF pages.
         ghostscript_path: Path to ghostscript executable.
+        config: Optional Config object with settings.
 
     Returns:
         True if successful, False otherwise.
@@ -175,29 +186,32 @@ def ocr_pdf(
                 str(pdf_path)
             ]
 
+            # Get timeout from config
+            timeout = config.get('processing.ocr_timeout_seconds', 300) if config else 300
+
             result = subprocess.run(
                 gs_cmd,
                 capture_output=True,
                 text=True,
-                timeout=300,
+                timeout=timeout,
                 creationflags=subprocess.CREATE_NO_WINDOW if os.name == 'nt' else 0
             )
 
             if result.returncode != 0:
-                logging.getLogger('filesqueeze').error(f"Ghostscript error converting PDF to images: {result.stderr}")
+                logger.error(f"Ghostscript error converting PDF to images: {result.stderr}")
                 return False
 
         except (subprocess.TimeoutExpired, FileNotFoundError) as e:
-            logging.getLogger('filesqueeze').error(f"PDF to image conversion failed: {e}")
+            logger.error(f"PDF to image conversion failed: {e}")
             return False
 
         # Step 2: Find all generated images
         images = sorted(temp_path.glob("page_*.png"))
         if not images:
-            logging.getLogger('filesqueeze').error("No images were generated from PDF")
+            logger.error("No images were generated from PDF")
             return False
 
-        logger = logging.getLogger('filesqueeze')
+        logger = logger
         logger.info(f"OCR Processing {len(images)} pages...")
 
         # Step 3: Run OCR on each image to create individual PDFs
@@ -234,22 +248,25 @@ def ocr_pdf(
                 f'-sOutputFile={output_path}',
             ] + [str(pdf) for pdf in ocr_pdfs]
 
+            # Get timeout from config
+            timeout = config.get('processing.ocr_timeout_seconds', 300) if config else 300
+
             result = subprocess.run(
                 gs_cmd,
                 capture_output=True,
                 text=True,
-                timeout=300,
+                timeout=timeout,
                 creationflags=subprocess.CREATE_NO_WINDOW if os.name == 'nt' else 0
             )
 
             if result.returncode != 0:
-                logging.getLogger('filesqueeze').error(f"Ghostscript error merging PDFs: {result.stderr}")
+                logger.error(f"Ghostscript error merging PDFs: {result.stderr}")
                 return False
 
             return True
 
         except (subprocess.TimeoutExpired, FileNotFoundError) as e:
-            logging.getLogger('filesqueeze').error(f"PDF merge failed: {e}")
+            logger.error(f"PDF merge failed: {e}")
             return False
 
 
@@ -309,7 +326,7 @@ def process_pdf_with_ocr(
     if not needs_ocr(pdf_path, config):
         return False, "PDF already has text layer, skipping OCR"
 
-    logging.getLogger('filesqueeze').info("Running OCR on scanned PDF...")
+    logger.info("Running OCR on scanned PDF...")
 
     # Run OCR
     success = ocr_pdf(

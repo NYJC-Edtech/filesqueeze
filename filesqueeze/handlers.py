@@ -1,10 +1,11 @@
-import logging
 import tempfile
 from pathlib import Path
 
 from .fsm import Format, Handler, State
 from .fsm.enums import Video, Slideshow, Document
-from . import video, pptx, document, ocr
+from .ops import video, presentation as pptx, document, image
+from . import ocr
+from .system import logger
 
 
 def cleanupFiles(state: State) -> None:
@@ -59,7 +60,7 @@ def analyzeDocument(state: State) -> Handler:
             config = getattr(state, 'config', None)
             if config and ocr.needs_ocr(str(state.target), config):
                 state.metadata['needs_ocr'] = True
-                logging.getLogger('filesqueeze').info("PDF appears to be scanned (no text layer)")
+                logger.info("PDF appears to be scanned (no text layer)")
             else:
                 state.metadata['needs_ocr'] = False
 
@@ -74,8 +75,9 @@ def analyzeDocument(state: State) -> Handler:
             )
             state.metadata['width'] = width
             state.metadata['height'] = height
-    except Exception:
-        # No need to terminate; can still proceed without metadata
+    except (OSError, IOError) as e:
+        # File access errors - log but don't terminate
+        logger.debug(f"File access error during analysis: {e}")
         state.metadata['error'] = "Error during document analysis"
     finally:
         return compressDocument
@@ -104,7 +106,7 @@ def compressDocument(state: State) -> Handler:
 
             if needs_ocr and config and config.get('ocr', {}).get('enable_ocr', True):
                 # For scanned PDFs: OCR first, then compress
-                logging.getLogger('filesqueeze').info("Processing scanned PDF with OCR...")
+                logger.info("Processing scanned PDF with OCR...")
 
                 # Create temporary file for OCR'd PDF
                 with tempfile.NamedTemporaryFile(suffix='.pdf', delete=False) as tmp:
@@ -120,7 +122,7 @@ def compressDocument(state: State) -> Handler:
                     )
 
                     if ocr_success:
-                        logging.getLogger('filesqueeze').info(ocr_msg)
+                        logger.info(ocr_msg)
 
                         # Step 2: Compress the OCR'd PDF
                         # Use 'ebook' quality for scanned PDFs (better compression)
@@ -136,7 +138,7 @@ def compressDocument(state: State) -> Handler:
                             ghostscript_path=gs_path
                         )
                     else:
-                        logging.getLogger('filesqueeze').warning("OCR failed, compressing original...")
+                        logger.warning("OCR failed, compressing original...")
                         # Fallback: compress original PDF without OCR
                         quality = config.get('document.pdf_quality', 'ebook')
                         compression_level = config.get('document.pdf_compression_level', 2)

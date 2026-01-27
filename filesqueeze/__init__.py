@@ -9,6 +9,23 @@ from . import handlers
 from .fsm import StateMachine
 from .config import Config
 
+# Export ops modules
+from .ops import video, document, image
+from .ops import presentation as pptx
+
+# Export system modules
+from . import logger  # Logger.setup, setup_logging
+from .system import platform
+from .system import binaries
+
+# Re-export commonly used items for convenience
+from .system import (
+    register_logger,
+    register_binary_finder,
+    trace_context,
+    trace_handler,
+)
+
 
 start = handlers.selectAnalyzer
 
@@ -67,3 +84,21 @@ def make_image(filepath: str, callback: Optional[Callable] = None, config: Optio
         sm.onupdate = callback
     final = sm.run(filepath, config=config, output_path=output_path)
     return final.target
+
+
+__all__ = [
+    'video',
+    'document',
+    'image',
+    'pptx',  # Alias for presentation
+    'logger',
+    'platform',
+    'binaries',
+    'make_video',
+    'make_pdf',
+    'make_image',
+    'register_logger',
+    'register_binary_finder',
+    'trace_context',
+    'trace_handler',
+]

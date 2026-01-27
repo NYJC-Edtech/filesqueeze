@@ -78,7 +78,7 @@ def generate_output_path(
         # If input_path is relative, use it as-is
         # If input_path is absolute, we need the input_root from config
         if config:
-            input_root = Path(config.get('directories.input', ''))
+            input_root = config.input_dir
         else:
             # Try to preserve relative structure
             input_root = Path('')

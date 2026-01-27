@@ -16,6 +16,7 @@ from PIL import Image, ImageDraw
 from .config import Config
 from .logger import setup_logging
 from .service import DirectoryWatcher
+from .system import logger as system_logger
 
 # App User Model ID for Windows to recognize this app consistently
 APP_USER_MODEL_ID = "com.filesqueeze.app"
@@ -39,6 +40,10 @@ class TrayService:
         self.output_dir = output_dir
         self.config = config or Config()
         self.logger = setup_logging(self.config)
+
+        # Register logger with system for consistent logging
+        from .system import register_logger
+        register_logger(self.logger)
 
         # Enforce single instance on Windows
         if sys.platform == 'win32':
@@ -213,10 +218,13 @@ class TrayService:
         try:
             from .gui import StatusWindow
 
+            # Get refresh interval from config
+            refresh_interval = self.config.get('gui.refresh_interval_ms', 2000) if self.config else 2000
+
             # CRITICAL: Create and store the window BEFORE showing it
             # This ensures _status_window is set immediately for singleton enforcement
             # even though window.show() will block on mainloop()
-            self._status_window = StatusWindow(self.watcher, refresh_interval=2000)
+            self._status_window = StatusWindow(self.watcher, refresh_interval=refresh_interval)
             self._status_window.show()
 
             # After window closes, clear the reference so a new window can be opened

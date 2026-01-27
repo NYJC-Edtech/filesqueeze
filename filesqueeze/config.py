@@ -2,9 +2,14 @@
 
 Configuration management for FileSqueeze.
 Supports config cascade: CLI args → project config → user config → defaults.
+
+Path Expansion Policy:
+All path values containing ~ (tilde) or environment variables are expanded
+once during config initialization. This ensures that config.get() always
+returns expanded, ready-to-use paths, eliminating the need for expanduser()
+calls throughout the codebase.
 """
 
-import logging
 import os
 from pathlib import Path
 from typing import Any, Optional
@@ -14,56 +19,18 @@ try:
 except ImportError:
     import tomli as tomllib  # Python < 3.11
 
+from .system import logger
+
 
 class Config:
-    """Configuration manager with dot-notation access and default values."""
+    """Configuration manager with dot-notation access and default values.
 
-    # Default configuration values
-    DEFAULTS = {
-        'directories': {
-            'input': '~/FileSqueeze/upload',
-            'output': '~/FileSqueeze/compressed',
-        },
-        'file_detection': {
-            'extensions': ['mp4', 'avi', 'wmv', 'pptx', 'pdf', 'jpg', 'jpeg', 'png'],
-            'min_age_seconds': 60,
-            'min_size_bytes': 1024,  # 1KB
-        },
-        'ffmpeg': {
-            'path': '',  # empty = use PATH
-            'crf': 28,
-            'threads': 8,
-            'preset': 'veryfast',
-            'max_height': 720,
-            'audio_bitrate': '96k',
-        },
-        'document': {
-            'ghostscript_path': '',  # empty = use PATH
-            'pdf_quality': 'printer',  # screen, ebook, printer, prepress, default
-            'pdf_compression_level': 2,
-            'image_quality': 90,
-            'max_image_width': 1920,
-            'max_image_height': 1080,
-            'convert_to_jpeg': False,
-        },
-        'processing': {
-            'timeout_seconds': 1800,
-            'lock_timeout_seconds': 300,
-            'max_retries': 2,
-        },
-        'logging': {
-            'level': 'INFO',
-            'file': '~/.config/filesqueeze/filesqueeze.log',
-            'max_bytes': 10485760,  # 10MB
-            'backup_count': 5,
-            'format': 'detailed',  # simple, detailed, json
-        },
-        'output': {
-            'structure': 'flat',  # flat, by_type, by_date, mirror
-            'preserve_timestamps': True,
-            'save_metadata': False,
-        },
-    }
+    Configuration loading cascade (priority low to high):
+    1. default.toml (bundled with package) - Base defaults
+    2. ~/.config/filesqueeze/config.toml - User config
+    3. ./filesqueeze.toml - Project config
+    4. FILESQUEEZE_* environment variables - Runtime overrides
+    """
 
     def __init__(self, config_path: Optional[str | Path | dict] = None):
         """Initialize configuration.
@@ -83,15 +50,16 @@ class Config:
         2. Config file (if provided)
         3. User config (~/.config/filesqueeze/config.toml)
         4. Project config (./filesqueeze.toml)
-        5. DEFAULTS
+        5. default.toml (bundled with package)
         """
-        # Start with defaults
-        self._config = self._deep_copy(self.DEFAULTS)
+        # Load default.toml as base configuration
+        self._config = self._load_default_config()
 
         # If config_path is a dict, merge it directly (for testing)
         if isinstance(config_path, dict):
             self._merge_dict(config_path)
             self._apply_env_overrides()
+            self._expand_paths()
             return
 
         # Load user config
@@ -111,6 +79,55 @@ class Config:
         # Apply environment variable overrides (highest priority)
         self._apply_env_overrides()
 
+        # Expand all paths (tilde and environment variables)
+        self._expand_paths()
+
+    def _load_default_config(self) -> dict:
+        """Load default.toml from installed package.
+
+        This is the single source of truth for default configuration values.
+        If default.toml cannot be found, it indicates a broken installation.
+
+        Returns:
+            Dictionary containing default configuration.
+
+        Raises:
+            RuntimeError: If default.toml is missing from installation.
+        """
+
+        # Strategy 1: Try importlib.resources (Python 3.7+)
+        # This works for installed packages and is the recommended approach
+        try:
+            import importlib.resources
+            import importlib
+
+            package = importlib.import_module('filesqueeze')
+            with importlib.resources.files(package).joinpath('default.toml').open('rb') as f:
+                return tomllib.load(f)
+        except (AttributeError, FileNotFoundError, ModuleNotFoundError):
+            # Strategy 2: Fallback to __file__ for development/edge cases
+            default_path = Path(__file__).parent / 'default.toml'
+            if default_path.exists():
+                with open(default_path, 'rb') as f:
+                    return tomllib.load(f)
+
+        # If we get here, default.toml is missing - this is an installation error
+        logger.error(
+            "CRITICAL: default.toml not found in FileSqueeze installation.\n"
+            "This indicates a broken or incomplete installation.\n\n"
+            "Searched in:\n"
+            f"  - Package resources (importlib.resources)\n"
+            f"  - {Path(__file__).parent / 'default.toml'}\n\n"
+            "To fix this issue:\n"
+            "  1. Reinstall FileSqueeze: pip install --force-reinstall filesqueeze\n"
+            "  2. Or if using the development version, ensure default.toml exists in the filesqueeze package directory\n"
+        )
+
+        raise RuntimeError(
+            "FileSqueeze installation error: default.toml not found.\n"
+            "Please reinstall: pip install --force-reinstall filesqueeze"
+        )
+
     def _merge_toml(self, path: Path) -> None:
         """Merge TOML config file into current config."""
         try:
@@ -118,7 +135,7 @@ class Config:
                 data = tomllib.load(f)
             self._deep_merge(self._config, data)
         except Exception as e:
-            logging.getLogger('filesqueeze').warning(f"Failed to load config from {path}: {e}")
+            logger.warning(f"Failed to load config from {path}: {e}")
 
     def _merge_dict(self, data: dict) -> None:
         """Merge dict directly into current config (for testing)."""
@@ -160,9 +177,47 @@ class Config:
                 if section not in self._config:
                     self._config[section] = {}
                 self._config[section][key] = value
-                logging.getLogger('filesqueeze').info(
+                logger.info(
                     f"Config override from {env_var}: {value}"
                 )
+
+    def _expand_paths(self) -> None:
+        """Expand ~ and environment variables in all path config values.
+
+        This is called once during config initialization to ensure all paths
+        are expanded and ready to use. Callers can use config.get() directly
+        without needing to call Path.expanduser() or os.path.expanduser().
+
+        Path keys that are expanded:
+        - directories.input, directories.output
+        - logging.file
+        - ffmpeg.path
+        - document.ghostscript_path
+        - ocr.tesseract_path
+
+        Design rationale:
+        Expanding at load time (rather than on each access) provides:
+        1. Single source of truth - config.get() always returns expanded paths
+        2. No need to remember to call expanduser() throughout the codebase
+        3. Avoids bugs where unexpanded tildes create directories literally named '~'
+        """
+        path_keys = [
+            ('directories', 'input'),
+            ('directories', 'output'),
+            ('logging', 'file'),
+            ('ffmpeg', 'path'),
+            ('document', 'ghostscript_path'),
+            ('ocr', 'tesseract_path'),
+        ]
+
+        for section, key in path_keys:
+            path_str = self.get(f'{section}.{key}')
+            if path_str and isinstance(path_str, str):
+                # Expand both ~ (home directory) and %VAR% or $VAR environment vars
+                expanded = os.path.expanduser(os.path.expandvars(path_str))
+                if section not in self._config:
+                    self._config[section] = {}
+                self._config[section][key] = expanded
 
     def get(self, key: str, default: Any = None) -> Any:
         """Get config value using dot notation.
@@ -188,15 +243,23 @@ class Config:
 
     @property
     def input_dir(self) -> Path:
-        """Get input directory path with tilde expansion."""
+        """Get input directory path.
+
+        Note: Paths are expanded at config load time, so this returns
+        an expanded Path ready for use.
+        """
         path_str = self.get('directories.input')
-        return Path(path_str).expanduser()
+        return Path(path_str)
 
     @property
     def output_dir(self) -> Path:
-        """Get output directory path with tilde expansion."""
+        """Get output directory path.
+
+        Note: Paths are expanded at config load time, so this returns
+        an expanded Path ready for use.
+        """
         path_str = self.get('directories.output')
-        return Path(path_str).expanduser()
+        return Path(path_str)
 
     @property
     def ffmpeg_path(self) -> str:
@@ -207,6 +270,29 @@ class Config:
     def ghostscript_path(self) -> str:
         """Get Ghostscript path (empty if using PATH)."""
         return self.get('document.ghostscript_path', '')
+
+    @property
+    def log_file(self) -> Path:
+        """Get log file path as Path object.
+
+        Note: Paths are expanded at config load time, so this returns
+        an expanded Path ready for use.
+        """
+        path_str = self.get('logging.file')
+        return Path(path_str)
+
+    @property
+    def tesseract_path(self) -> Path:
+        """Get Tesseract OCR path as Path object.
+
+        Returns Path object for Tesseract executable, or Path('tesseract')
+        if using system PATH.
+
+        Note: This property should be used when Tesseract path is needed
+        for Path operations. For subprocess calls, convert to str().
+        """
+        path_str = self.get('ocr.tesseract_path', '')
+        return Path(path_str) if path_str else Path('tesseract')
 
     def as_dict(self) -> dict:
         """Return entire config as dictionary."""

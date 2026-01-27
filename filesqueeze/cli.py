@@ -9,7 +9,7 @@ def cmd_init_config(args):
     """Generate an example configuration file with auto-detected binaries."""
     # Import here to avoid issues if config module has errors
     from filesqueeze.config import Config
-    from filesqueeze.binaries import detect_binaries
+    from filesqueeze.system.binaries import BinaryFinder
 
     output_path = Path(args.output) if args.output else Path.cwd() / 'filesqueeze.toml'
 
@@ -37,7 +37,21 @@ def cmd_init_config(args):
 
     # Detect binaries
     print("Detecting FFmpeg, Ghostscript, and Tesseract...")
-    detection = detect_binaries()
+    finder = BinaryFinder(Config())
+
+    # Try to detect each binary (catch errors if not found)
+    def try_detect(detect_func):
+        try:
+            path = detect_func()
+            return {'found': True, 'path': path}
+        except RuntimeError:
+            return {'found': False, 'path': None}
+
+    detection = {
+        'ffmpeg': try_detect(finder.get_ffmpeg_path),
+        'ghostscript': try_detect(finder.get_ghostscript_path),
+        'tesseract': try_detect(finder.get_tesseract_path),
+    }
 
     # Read example config
     try:
@@ -49,31 +63,49 @@ def cmd_init_config(args):
         config_data = tomllib.load(f)
 
     # Update config with detected binary paths
+    # Normalize paths for TOML compatibility using pathlib
+    from pathlib import PureWindowsPath
+
+    def normalize_path(path: str) -> str:
+        """Normalize path for TOML compatibility.
+
+        Converts Windows paths to forward slashes while preserving
+        UNC paths and drive letters. Using PureWindowsPath ensures
+        proper path handling regardless of the current platform.
+        """
+        if not path:
+            return path
+        # Parse as Windows path to handle all edge cases
+        # Then convert to string with forward slashes
+        return str(PureWindowsPath(path).as_posix())
+
     if detection['ffmpeg']['found'] and detection['ffmpeg']['path']:
-        config_data['ffmpeg']['path'] = detection['ffmpeg']['path']
+        config_data['ffmpeg']['path'] = normalize_path(detection['ffmpeg']['path'])
         print(f"  [OK] FFmpeg detected: {detection['ffmpeg']['path']}")
     else:
         print(f"  [X] FFmpeg not found - using default (PATH)")
 
     if detection['ghostscript']['found'] and detection['ghostscript']['path']:
-        config_data['document']['ghostscript_path'] = detection['ghostscript']['path']
+        config_data['document']['ghostscript_path'] = normalize_path(detection['ghostscript']['path'])
         print(f"  [OK] Ghostscript detected: {detection['ghostscript']['path']}")
     else:
         print(f"  [X] Ghostscript not found - using default (PATH)")
 
     if detection['tesseract']['found'] and detection['tesseract']['path']:
-        config_data['ocr']['tesseract_path'] = detection['tesseract']['path']
+        config_data['ocr']['tesseract_path'] = normalize_path(detection['tesseract']['path'])
         print(f"  [OK] Tesseract detected: {detection['tesseract']['path']}")
     else:
         print(f"  [X] Tesseract not found - using default (PATH)")
     print()
 
     # Expand tilde in log file path for system installations
+    # Normalize to forward slashes for TOML compatibility
     import os
     if 'logging' in config_data and 'file' in config_data['logging']:
         log_file = config_data['logging']['file']
         if isinstance(log_file, str) and log_file.startswith('~'):
-            config_data['logging']['file'] = os.path.expanduser(log_file)
+            expanded = os.path.expanduser(log_file)
+            config_data['logging']['file'] = normalize_path(expanded)
 
     # Write updated config to output location
     try:
@@ -97,10 +129,18 @@ def cmd_init_config(args):
 def cmd_compress(args):
     """Compress a single file."""
     from filesqueeze.config import Config
+    from filesqueeze.logger import setup_logging
     from filesqueeze import make_video, make_pdf, make_image
+    from filesqueeze.system import register_logger, register_binary_finder
+    from filesqueeze.binaries import BinaryFinder
 
     # Load config
     config = Config()
+
+    # Setup logging and register with system
+    logger = setup_logging(config)
+    register_logger(logger)
+    register_binary_finder(BinaryFinder(config))
 
     # Get input file
     input_file = Path(args.input)
@@ -173,6 +213,7 @@ def cmd_scan(args):
     """Scan input directory and process files."""
     # Import here to avoid issues if modules have errors
     from filesqueeze.config import Config
+    from filesqueeze.logger import setup_logging
     from filesqueeze.scanner import FileScanner
     from filesqueeze.output import (
         generate_output_path,
@@ -182,14 +223,21 @@ def cmd_scan(args):
         get_unique_output_path
     )
     from filesqueeze import make_video, make_pdf, make_image
+    from filesqueeze.system import register_logger, register_binary_finder
+    from filesqueeze.binaries import BinaryFinder
     import filesqueeze
 
     # Load config
     config = Config()
 
+    # Setup logging and register with system
+    logger = setup_logging(config)
+    register_logger(logger)
+    register_binary_finder(BinaryFinder(config))
+
     # Override config with CLI args if specified
-    input_dir = Path(args.input) if args.input else Path(config.get('directories.input', 'upload'))
-    output_dir = Path(args.output) if args.output else Path(config.get('directories.output', 'compressed'))
+    input_dir = Path(args.input) if args.input else config.input_dir
+    output_dir = Path(args.output) if args.output else config.output_dir
 
     # Validate directories
     if not input_dir.exists():
@@ -286,7 +334,7 @@ def cmd_detect(args):
 
     if args.json:
         import json
-        from filesqueeze.binaries import detect_binaries
+        from filesqueeze.system.binaries import BinaryFinder
         results = detect_binaries()
         print(json.dumps(results, indent=2))
     else:

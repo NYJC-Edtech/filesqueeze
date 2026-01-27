@@ -17,7 +17,7 @@ from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler, FileCreatedEvent, FileMovedEvent
 
 from .config import Config
-from .logger import setup_logging
+from .logger import setup_logging  # This is the actual Logger.setup, not a wrapper
 
 
 @dataclass(frozen=True)
@@ -128,10 +128,10 @@ class NotificationManager:
             '''
 
             # Run PowerShell in background, don't wait for it
+            # Don't redirect stdout/stderr - they're discarded by the OS anyway
+            # This avoids creating a 'nul' file in the working directory
             subprocess.Popen(
                 ['powershell', '-Command', ps_command],
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
                 creationflags=subprocess.CREATE_NO_WINDOW
             )
             return True
@@ -406,6 +406,13 @@ class DirectoryWatcher(StateProvider):
 
         # Setup logging
         self.logger = setup_logging(self.config)
+
+        # Register logger with system for consistent logging across all modules
+        from .system import register_logger, register_binary_finder
+        from .system.binaries import BinaryFinder
+
+        register_logger(self.logger)
+        register_binary_finder(BinaryFinder(self.config))
 
         # Verify directories
         if not self.input_dir.exists():
