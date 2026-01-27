@@ -18,13 +18,20 @@ class TestServiceState:
 
     def test_service_state_creation(self):
         """Test that ServiceState can be created with all fields."""
-        from filesqueeze.service import ServiceState
+        from filesqueeze.service import ServiceState, ProcessedFile
+
+        processed_file = ProcessedFile(
+            filename="test.mp4",
+            timestamp="2026-01-27T10:30:00",
+            success=True
+        )
 
         state = ServiceState(
             running=True,
             input_dir=Path("/input"),
             output_dir=Path("/output"),
             processing_files=["file1.mp4", "file2.pdf"],
+            processed_files=[processed_file],
             completed_count=5,
             failed_count=1,
             uptime=timedelta(hours=1)
@@ -34,6 +41,8 @@ class TestServiceState:
         assert state.input_dir == Path("/input")
         assert state.output_dir == Path("/output")
         assert len(state.processing_files) == 2
+        assert len(state.processed_files) == 1
+        assert state.processed_files[0].filename == "test.mp4"
         assert state.completed_count == 5
         assert state.failed_count == 1
         assert state.uptime == timedelta(hours=1)
@@ -66,7 +75,8 @@ class TestCompressionHandlerTracking:
             output_dir.mkdir()
 
             config = Config()
-            handler = CompressionHandler(config, input_dir, output_dir, Mock())
+            watcher = Mock()
+            handler = CompressionHandler(config, input_dir, output_dir, Mock(), watcher)
 
             # Simulate file being added to processing set
             with handler._lock:
@@ -86,7 +96,8 @@ class TestCompressionHandlerTracking:
             output_dir.mkdir()
 
             config = Config()
-            handler = CompressionHandler(config, input_dir, output_dir, Mock())
+            watcher = Mock()
+            handler = CompressionHandler(config, input_dir, output_dir, Mock(), watcher)
 
             # Add file to processing set
             with handler._lock:
@@ -107,7 +118,8 @@ class TestCompressionHandlerTracking:
             output_dir.mkdir()
 
             config = Config()
-            handler = CompressionHandler(config, input_dir, output_dir, Mock())
+            watcher = Mock()
+            handler = CompressionHandler(config, input_dir, output_dir, Mock(), watcher)
 
             # Add multiple files concurrently
             files = [f"/path/to/file{i}.mp4" for i in range(100)]
