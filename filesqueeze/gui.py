@@ -7,7 +7,7 @@ import tkinter as tk
 from tkinter import ttk, scrolledtext
 from pathlib import Path
 from typing import Optional
-from datetime import timedelta
+from datetime import timedelta, datetime
 
 from .service import StateProvider, ServiceState
 
@@ -18,9 +18,11 @@ class StatusWindow:
     This window provides a real-time view of the service status, including:
     - Service running state
     - Input/output directories
-    - Currently processing files
+    - Currently processing file (single line)
+    - Processed files (scrollable list with timestamps)
     - Compression statistics (completed/failed counts)
     - Service uptime
+    - Log file viewer (last 1000 lines)
 
     The window uses the StateProvider interface for read-only state queries,
     ensuring loose coupling with the service implementation.
@@ -45,7 +47,7 @@ class StatusWindow:
         # Create main window
         self.root = tk.Tk()
         self.root.title("FileSqueeze Status")
-        self.root.geometry("600x500")
+        self.root.geometry("700x600")
         self.root.resizable(True, True)
 
         # Create UI components
@@ -64,7 +66,7 @@ class StatusWindow:
         self.root.columnconfigure(0, weight=1)
         self.root.rowconfigure(0, weight=1)
         main_frame.columnconfigure(0, weight=1)
-        main_frame.rowconfigure(4, weight=1)  # Processing files list expands
+        main_frame.rowconfigure(1, weight=1)  # Tab control expands
 
         # Title
         title_label = ttk.Label(
@@ -74,9 +76,29 @@ class StatusWindow:
         )
         title_label.grid(row=0, column=0, pady=(0, 10))
 
+        # Create notebook (tabs)
+        self.notebook = ttk.Notebook(main_frame)
+        self.notebook.grid(row=1, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+
+        # Create Status tab
+        self._create_status_tab()
+
+        # Create Logs tab
+        self._create_logs_tab()
+
+    def _create_status_tab(self):
+        """Create the Status tab with service information."""
+        # Status tab frame
+        status_tab = ttk.Frame(self.notebook, padding="10")
+        self.notebook.add(status_tab, text="Status")
+
+        # Configure grid weights
+        status_tab.columnconfigure(0, weight=1)
+        status_tab.rowconfigure(4, weight=1)  # Processed files expands
+
         # Service status section
-        status_frame = ttk.LabelFrame(main_frame, text="Service Status", padding="5")
-        status_frame.grid(row=1, column=0, sticky=(tk.W, tk.E), pady=(0, 10))
+        status_frame = ttk.LabelFrame(status_tab, text="Service Status", padding="5")
+        status_frame.grid(row=0, column=0, sticky=(tk.W, tk.E), pady=(0, 10))
         status_frame.columnconfigure(1, weight=1)
 
         # Running status
@@ -90,8 +112,8 @@ class StatusWindow:
         self.uptime_value.grid(row=1, column=1, sticky=tk.W)
 
         # Statistics section
-        stats_frame = ttk.LabelFrame(main_frame, text="Statistics", padding="5")
-        stats_frame.grid(row=2, column=0, sticky=(tk.W, tk.E), pady=(0, 10))
+        stats_frame = ttk.LabelFrame(status_tab, text="Statistics", padding="5")
+        stats_frame.grid(row=1, column=0, sticky=(tk.W, tk.E), pady=(0, 10))
         stats_frame.columnconfigure(1, weight=1)
 
         # Completed count
@@ -105,38 +127,79 @@ class StatusWindow:
         self.failed_value.grid(row=1, column=1, sticky=tk.W)
 
         # Directories section
-        dirs_frame = ttk.LabelFrame(main_frame, text="Directories", padding="5")
-        dirs_frame.grid(row=3, column=0, sticky=(tk.W, tk.E), pady=(0, 10))
+        dirs_frame = ttk.LabelFrame(status_tab, text="Directories", padding="5")
+        dirs_frame.grid(row=2, column=0, sticky=(tk.W, tk.E), pady=(0, 10))
         dirs_frame.columnconfigure(1, weight=1)
 
         # Input directory
         ttk.Label(dirs_frame, text="Input:").grid(row=0, column=0, sticky=tk.NW, padx=(0, 5))
-        self.input_value = ttk.Label(dirs_frame, text="", wraplength=500)
+        self.input_value = ttk.Label(dirs_frame, text="", wraplength=600)
         self.input_value.grid(row=0, column=1, sticky=tk.W)
 
         # Output directory
         ttk.Label(dirs_frame, text="Output:").grid(row=1, column=0, sticky=tk.NW, padx=(0, 5))
-        self.output_value = ttk.Label(dirs_frame, text="", wraplength=500)
+        self.output_value = ttk.Label(dirs_frame, text="", wraplength=600)
         self.output_value.grid(row=1, column=1, sticky=tk.W)
 
-        # Processing files section
-        processing_frame = ttk.LabelFrame(main_frame, text="Currently Processing", padding="5")
-        processing_frame.grid(row=4, column=0, sticky=(tk.W, tk.E, tk.N, tk.S), pady=(0, 10))
+        # Currently processing (single line)
+        processing_frame = ttk.LabelFrame(status_tab, text="Currently Processing", padding="5")
+        processing_frame.grid(row=3, column=0, sticky=(tk.W, tk.E), pady=(0, 10))
         processing_frame.columnconfigure(0, weight=1)
-        processing_frame.rowconfigure(0, weight=1)
 
-        # Processing files list (scrollable)
-        self.processing_text = scrolledtext.ScrolledText(
+        self.processing_value = ttk.Label(
             processing_frame,
-            height=8,
-            wrap=tk.WORD,
-            state=tk.DISABLED
+            text="",
+            font=('Helvetica', 9),
+            anchor=tk.W
         )
-        self.processing_text.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+        self.processing_value.grid(row=0, column=0, sticky=(tk.W, tk.E))
+
+        # Processed files section (scrollable)
+        processed_frame = ttk.LabelFrame(status_tab, text="Processed Files", padding="5")
+        processed_frame.grid(row=4, column=0, sticky=(tk.W, tk.E, tk.N, tk.S), pady=(0, 10))
+        processed_frame.columnconfigure(0, weight=1)
+        processed_frame.rowconfigure(0, weight=1)
+
+        # Processed files list (scrollable)
+        self.processed_text = scrolledtext.ScrolledText(
+            processed_frame,
+            height=15,
+            wrap=tk.WORD,
+            state=tk.DISABLED,
+            font=('Consolas', 9)
+        )
+        self.processed_text.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
 
         # Close button
-        close_button = ttk.Button(main_frame, text="Close", command=self.close)
+        close_button = ttk.Button(status_tab, text="Close", command=self.close)
         close_button.grid(row=5, column=0, pady=(10, 0))
+
+    def _create_logs_tab(self):
+        """Create the Logs tab with log file content."""
+        # Logs tab frame
+        logs_tab = ttk.Frame(self.notebook, padding="10")
+        self.notebook.add(logs_tab, text="Logs")
+
+        # Configure grid weights
+        logs_tab.columnconfigure(0, weight=1)
+        logs_tab.rowconfigure(1, weight=1)  # Log text expands
+
+        # Instructions label
+        instructions = ttk.Label(
+            logs_tab,
+            text="Showing last 1000 lines from log file. Auto-refreshes every 2 seconds.",
+            font=('Helvetica', 9)
+        )
+        instructions.grid(row=0, column=0, sticky=tk.W, pady=(0, 10))
+
+        # Log content (scrollable)
+        self.logs_text = scrolledtext.ScrolledText(
+            logs_tab,
+            wrap=tk.WORD,
+            state=tk.DISABLED,
+            font=('Consolas', 8)
+        )
+        self.logs_text.grid(row=1, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
 
     def update_display(self):
         """Update the display with current service state."""
@@ -145,7 +208,9 @@ class StatusWindow:
             self._update_status(state)
             self._update_stats(state)
             self._update_directories(state)
-            self._update_processing_files(state)
+            self._update_processing_file(state)
+            self._update_processed_files(state)
+            self._update_logs()
         except Exception as e:
             # Log error but don't crash
             self.status_value.config(text="Error", foreground="red")
@@ -184,24 +249,95 @@ class StatusWindow:
         self.input_value.config(text=str(state.input_dir))
         self.output_value.config(text=str(state.output_dir))
 
-    def _update_processing_files(self, state: ServiceState):
-        """Update processing files list.
+    def _update_processing_file(self, state: ServiceState):
+        """Update currently processing file display (single line).
 
         Args:
             state: Current service state.
         """
-        self.processing_text.config(state=tk.NORMAL)
-        self.processing_text.delete(1.0, tk.END)
-
         if not state.processing_files:
-            self.processing_text.insert(tk.END, "No files currently processing.")
+            self.processing_value.config(text="No files currently processing.")
         else:
-            for filepath in state.processing_files:
-                # Extract just the filename for cleaner display
-                filename = Path(filepath).name
-                self.processing_text.insert(tk.END, f"{filename}\n")
+            # Show only the first file (should typically be only one anyway)
+            filepath = state.processing_files[0]
+            filename = Path(filepath).name
+            self.processing_value.config(text=filename)
 
-        self.processing_text.config(state=tk.DISABLED)
+            # If there are more files, indicate it
+            if len(state.processing_files) > 1:
+                self.processing_value.config(
+                    text=f"{filename} (+{len(state.processing_files) - 1} more)"
+                )
+
+    def _update_processed_files(self, state: ServiceState):
+        """Update processed files list with timestamps.
+
+        Args:
+            state: Current service state.
+        """
+        self.processed_text.config(state=tk.NORMAL)
+        self.processed_text.delete(1.0, tk.END)
+
+        if not state.processed_files:
+            self.processed_text.insert(tk.END, "No files processed yet.")
+        else:
+            # Show all processed files, newest at the bottom
+            for processed_file in state.processed_files:
+                # Parse ISO timestamp and format it
+                try:
+                    dt = datetime.fromisoformat(processed_file.timestamp)
+                    timestamp_str = dt.strftime("%Y-%m-%d %H:%M:%S")
+                except:
+                    timestamp_str = processed_file.timestamp
+
+                # Format status icon
+                status_icon = "✓" if processed_file.success else "✗"
+
+                # Insert line with timestamp and filename
+                self.processed_text.insert(
+                    tk.END,
+                    f"{timestamp_str} {status_icon} {processed_file.filename}\n"
+                )
+
+            # Auto-scroll to bottom (newest)
+            self.processed_text.see(tk.END)
+
+        self.processed_text.config(state=tk.DISABLED)
+
+    def _update_logs(self):
+        """Update logs tab with last 1000 lines from log file."""
+        try:
+            # Get log file path from config
+            from .config import Config
+            config = Config()
+            log_file = config.log_file
+
+            # Read last 1000 lines
+            if log_file.exists():
+                with open(log_file, 'r', encoding='utf-8', errors='replace') as f:
+                    lines = f.readlines()
+                    last_1000 = lines[-1000:] if len(lines) > 1000 else lines
+
+                # Update log text widget
+                self.logs_text.config(state=tk.NORMAL)
+                self.logs_text.delete(1.0, tk.END)
+                self.logs_text.insert(tk.END, ''.join(last_1000))
+
+                # Auto-scroll to bottom
+                self.logs_text.see(tk.END)
+
+                self.logs_text.config(state=tk.DISABLED)
+            else:
+                self.logs_text.config(state=tk.NORMAL)
+                self.logs_text.delete(1.0, tk.END)
+                self.logs_text.insert(tk.END, f"Log file not found: {log_file}")
+                self.logs_text.config(state=tk.DISABLED)
+
+        except Exception as e:
+            self.logs_text.config(state=tk.NORMAL)
+            self.logs_text.delete(1.0, tk.END)
+            self.logs_text.insert(tk.END, f"Error reading log file: {e}")
+            self.logs_text.config(state=tk.DISABLED)
 
     def _format_timedelta(self, td: timedelta) -> str:
         """Format timedelta for display.
