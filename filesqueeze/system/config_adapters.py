@@ -88,6 +88,11 @@ class VideoConfig:
         """Get timeout in seconds."""
         return int(self._config.get('processing.timeout_seconds', 1800))
 
+    @property
+    def min_output_size_bytes(self) -> int:
+        """Get minimum output file size in bytes."""
+        return int(self._config.get('processing.min_output_size_bytes', 4096))
+
 
 class DocumentConfig:
     """Adapter for document operation configuration.
@@ -193,6 +198,11 @@ class ImageConfig:
     def timeout(self) -> int:
         """Get timeout in seconds."""
         return int(self._config.get('processing.image_timeout_seconds', 60))
+
+    @property
+    def min_output_size_bytes(self) -> int:
+        """Get minimum output file size in bytes."""
+        return int(self._config.get('processing.min_output_size_bytes', 4096))
 
 
 class PresentationConfig:

@@ -4,6 +4,11 @@
 # For development uninstall, manually remove Poetry environment
 #
 # Run with: .\uninstall.ps1
+# Run with: .\uninstall.ps1 -Force to skip confirmation
+
+param(
+    [switch]$Force
+)
 
 $ErrorActionPreference = "Stop"
 
@@ -34,12 +39,14 @@ Write-Host "  - Uninstall FileSqueeze package"
 Write-Host "  - Keep user configuration and logs"
 Write-Host ""
 
-# Confirm uninstallation
-$confirm = Read-Host "Uninstall FileSqueeze? [Y/n]"
-if ($confirm -eq "N" -or $confirm -eq "n") {
-    Write-Host ""
-    Write-Status "Uninstall cancelled." "Yellow"
-    exit 0
+# Confirm uninstallation (skip if -Force is used)
+if (-not $Force) {
+    $confirm = Read-Host "Uninstall FileSqueeze? [Y/n]"
+    if ($confirm -eq "N" -or $confirm -eq "n") {
+        Write-Host ""
+        Write-Status "Uninstall cancelled." "Yellow"
+        exit 0
+    }
 }
 
 Write-Host ""

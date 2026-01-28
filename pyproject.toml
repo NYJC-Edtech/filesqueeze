@@ -45,6 +45,15 @@ pytest-cov = "^4.0.0"
 pdfminer-six = "^20231228"
 tomli-w = "^1.2.0"
 
+[tool.poetry.scripts]
+# Project task scripts - use with: poetry run <task>
+# These enforce the policy of using install/uninstall scripts
+install = "powershell -ExecutionPolicy Bypass -File ./install.ps1"
+uninstall = "powershell -ExecutionPolicy Bypass -File ./uninstall.ps1"
+reinstall = "powershell -ExecutionPolicy Bypass -File ./install.ps1 -Force"
+build = "poetry build"
+test = "pytest"
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 python_files = ["test_*.py"]

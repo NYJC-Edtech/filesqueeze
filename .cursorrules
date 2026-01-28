@@ -1,0 +1,36 @@
+# FileSqueeze Development Policy
+
+## Installation/Uninstallation
+
+**ALWAYS use the provided scripts - NEVER use pip directly**
+
+```powershell
+# Install (first time or update)
+.\install.ps1
+
+# Reinstall (force reinstall)
+.\install.ps1 -Force
+
+# Or use Poetry scripts:
+poetry run install
+poetry run reinstall
+poetry run uninstall
+```
+
+**DO NOT** use:
+- `pip install filesqueeze` - won't set up shortcuts/config/auto-start
+- `pip uninstall filesqueeze` - won't clean up properly
+
+## Project Structure
+
+- `filesqueeze/system/` - Platform abstraction layer (binaries, platform detection, logging)
+- `filesqueeze/ops/` - File processing operations (video, pdf, image, presentation)
+- `filesqueeze/fsm/` - State machine components
+- `install.ps1` / `uninstall.ps1` - Use these for all installation/uninstallation
+
+## Module Imports
+
+After refactor, use these import paths:
+- `filesqueeze.system.binaries` - NOT `filesqueeze.binaries`
+- `filesqueeze.system.platform` - Platform detection utilities
+- `filesqueeze.system.config_adapters` - Config transformation utilities

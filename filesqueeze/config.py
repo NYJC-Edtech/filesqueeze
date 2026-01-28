@@ -104,8 +104,9 @@ class Config:
             package = importlib.import_module('filesqueeze')
             with importlib.resources.files(package).joinpath('default.toml').open('rb') as f:
                 return tomllib.load(f)
-        except (AttributeError, FileNotFoundError, ModuleNotFoundError):
+        except Exception:
             # Strategy 2: Fallback to __file__ for development/edge cases
+            # Catch any exception from importlib.resources (OSError, TypeError, etc.)
             default_path = Path(__file__).parent / 'default.toml'
             if default_path.exists():
                 with open(default_path, 'rb') as f:
@@ -259,6 +260,21 @@ class Config:
         an expanded Path ready for use.
         """
         path_str = self.get('directories.output')
+        return Path(path_str)
+
+    @property
+    def archive_dir(self) -> Optional[Path]:
+        """Get archive directory path for original files after compression.
+
+        Returns None if archive is disabled (empty string in config).
+        Otherwise returns Path object (expanded).
+
+        Note: Paths are expanded at config load time, so this returns
+        an expanded Path ready for use.
+        """
+        path_str = self.get('directories.archive', 'archive')
+        if not path_str or path_str.strip() == '':
+            return None
         return Path(path_str)
 
     @property

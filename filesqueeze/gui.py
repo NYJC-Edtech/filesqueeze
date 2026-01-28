@@ -43,6 +43,12 @@ class StatusWindow:
         self.state_provider = state_provider
         self.refresh_interval = refresh_interval
         self._auto_refresh_job = None
+        self._logs_first_load = True  # Track first log load for auto-scroll
+
+        # Cache config and log file path (avoid creating new Config every refresh)
+        from .config import Config
+        self._config = Config()
+        self._log_file = self._config.log_file
 
         # Create main window
         self.root = tk.Tk()
@@ -187,7 +193,7 @@ class StatusWindow:
         # Instructions label
         instructions = ttk.Label(
             logs_tab,
-            text="Showing last 1000 lines from log file. Auto-refreshes every 2 seconds.",
+            text="Showing last 1000 lines. Auto-refreshes every 2s. At bottom = follows new logs. Scrolled up = freezes position.",
             font=('Helvetica', 9)
         )
         instructions.grid(row=0, column=0, sticky=tk.W, pady=(0, 10))
@@ -305,12 +311,15 @@ class StatusWindow:
         self.processed_text.config(state=tk.DISABLED)
 
     def _update_logs(self):
-        """Update logs tab with last 1000 lines from log file."""
+        """Update logs tab with last 1000 lines from log file.
+
+        Scroll behavior:
+        - First load: Always scroll to bottom to show latest logs
+        - User at bottom: Auto-scroll to show new logs (follow mode)
+        - User scrolled up: Preserve current position (browse mode)
+        """
         try:
-            # Get log file path from config
-            from .config import Config
-            config = Config()
-            log_file = config.log_file
+            log_file = self._log_file
 
             # Read last 1000 lines
             if log_file.exists():
@@ -318,15 +327,26 @@ class StatusWindow:
                     lines = f.readlines()
                     last_1000 = lines[-1000:] if len(lines) > 1000 else lines
 
-                # Update log text widget
+                # Check scroll state BEFORE modifying content
+                # yview() returns (first_visible_fraction, last_visible_fraction)
+                # e.g., (0.0, 0.5) = viewing top half, (0.5, 1.0) = viewing bottom half
+                _, last_fraction = self.logs_text.yview()
+                was_at_bottom = last_fraction >= 0.98  # Within 2% of bottom
+
+                # Update content
+                new_content = ''.join(last_1000)
                 self.logs_text.config(state=tk.NORMAL)
                 self.logs_text.delete(1.0, tk.END)
-                self.logs_text.insert(tk.END, ''.join(last_1000))
+                self.logs_text.insert(tk.END, new_content)
 
-                # Auto-scroll to bottom
-                self.logs_text.see(tk.END)
+                # Restore appropriate scroll position
+                if self._logs_first_load or was_at_bottom:
+                    # First load or user was following logs -> scroll to bottom
+                    self.logs_text.see(tk.END)
+                # else: User was browsing -> Tkinter naturally preserves position
 
                 self.logs_text.config(state=tk.DISABLED)
+                self._logs_first_load = False
             else:
                 self.logs_text.config(state=tk.NORMAL)
                 self.logs_text.delete(1.0, tk.END)

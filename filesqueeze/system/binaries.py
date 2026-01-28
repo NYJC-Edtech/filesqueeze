@@ -423,3 +423,23 @@ class BinaryFinder:
                     return str(tesseract_bin), f"Found at {tesseract_bin}"
 
         return None, "Not found in common locations"
+
+
+def print_detection_results() -> None:
+    """Print binary detection results to console.
+
+    This is a convenience function for the CLI detect command.
+    """
+    import platform as platform_module
+
+    print(f"Platform: {platform_module.system()} {platform_module.machine()}")
+    print()
+
+    finder = BinaryFinder()
+    results = finder.verify_all()
+
+    for binary_name, result in results.items():
+        if isinstance(result, str) and result.startswith("Error:"):
+            print(f"[X] {binary_name.capitalize()}: {result}")
+        else:
+            print(f"[OK] {binary_name.capitalize()}: {result}")

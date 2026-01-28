@@ -109,7 +109,7 @@ New-Item -ItemType Directory -Path "$env:USERPROFILE\FileSqueeze\upload" -Force
 taskkill /F /IM filesqueeze.exe
 
 # GOOD - Use uninstall script for clean removal
-powershell -Command "echo Y | .\uninstall.ps1"
+.\uninstall.ps1 -Force
 ```
 
 **Don't use pip directly (use install/uninstall scripts):**
@@ -120,7 +120,32 @@ pip uninstall filesqueeze -y
 
 # GOOD - Use PowerShell scripts
 .\install.ps1
-powershell -Command "echo Y | .\uninstall.ps1"
+.\uninstall.ps1 -Force
+
+# GOOD - Or use Poetry scripts
+poetry run install
+poetry run reinstall
+poetry run uninstall
+```
+
+---
+
+## Module Import Paths (Post-Refactor)
+
+After the system module refactor, use these correct import paths:
+
+| Purpose | Correct Import |
+|---------|---------------|
+| Binary detection | `from filesqueeze.system.binaries import BinaryFinder` |
+| Platform detection | `from filesqueeze.system.platform import is_windows, is_linux` |
+| System logger | `from filesqueeze.system import logger` |
+| Register components | `from filesqueeze.system import register_logger, register_binary_finder` |
+
+**WRONG** (old paths, will fail):
+```python
+# DON'T USE - these are old paths
+from filesqueeze.binaries import BinaryFinder
+from filesqueeze.platform import is_windows
 ```
 
 ---
@@ -131,9 +156,15 @@ powershell -Command "echo Y | .\uninstall.ps1"
 
 **When making code changes to FileSqueeze:**
 
+**Option A - Use Poetry scripts (recommended):**
+```powershell
+poetry run reinstall
+```
+
+**Option B - Manual steps:**
 1. **Stop service (if running):**
    ```powershell
-   powershell -Command "echo Y | .\uninstall.ps1"
+   .\uninstall.ps1 -Force
    ```
 
 2. **Build package:**
@@ -232,6 +263,9 @@ filesqueeze init-config --output "$env:USERPROFILE\.config\filesqueeze\config.to
 
 | Task | Command |
 |------|--------|
+| Install/Update | `.\install.ps1` or `poetry run install` |
+| Reinstall | `.\install.ps1 -Force` or `poetry run reinstall` |
+| Uninstall | `.\uninstall.ps1 -Force` or `poetry run uninstall` |
 | Generate config | `filesqueeze init-config` |
 | Detect binaries | `filesqueeze detect` |
 | Run diagnostics | `filesqueeze doctor` |
@@ -260,7 +294,15 @@ filesqueeze init-config --output "$env:USERPROFILE\.config\filesqueeze\config.to
 
 **Usage:**
 ```powershell
+# Install (or update existing)
 .\install.ps1
+
+# Force reinstall (overwrite existing)
+.\install.ps1 -Force
+
+# Or via Poetry scripts
+poetry run install
+poetry run reinstall
 ```
 
 ### uninstall.ps1
@@ -269,12 +311,20 @@ filesqueeze init-config --output "$env:USERPROFILE\.config\filesqueeze\config.to
 **What it does:**
 - Stops all FileSqueeze processes
 - Removes Start Menu shortcuts
+- Removes auto-start (if installed)
 - Uninstalls package
 - Preserves user config and logs
 
 **Usage:**
 ```powershell
-powershell -Command "echo Y | .\uninstall.ps1"
+# Interactive (prompts for confirmation)
+.\uninstall.ps1
+
+# Silent (no prompts, for scripts/automation)
+.\uninstall.ps1 -Force
+
+# Or via Poetry
+poetry run uninstall
 ```
 
 ---
@@ -305,10 +355,11 @@ filesqueeze service run
 
 ### Example 2: After code changes
 ```powershell
-# Uninstall old version
-powershell -Command "echo Y | .\uninstall.ps1"
+# Option A - Use Poetry scripts (recommended)
+poetry run reinstall
 
-# Rebuild and reinstall (install.ps1 handles build)
+# Option B - Manual steps
+.\uninstall.ps1 -Force
 .\install.ps1
 
 # Test

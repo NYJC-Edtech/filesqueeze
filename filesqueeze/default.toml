@@ -8,6 +8,9 @@
 input = "~/FileSqueeze/upload"
 # Output directory for compressed files
 output = "~/FileSqueeze/compressed"
+# Archive directory for original files after compression
+# Set to empty string to delete original files (old behavior)
+archive = "archive"
 
 [file_detection]
 # File extensions to process (case-insensitive)

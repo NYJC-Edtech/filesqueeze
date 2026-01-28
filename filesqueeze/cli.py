@@ -13,6 +13,34 @@ def cmd_init_config(args):
 
     output_path = Path(args.output) if args.output else Path.cwd() / 'filesqueeze.toml'
 
+    # SAFEGUARD: Prevent accidental overwrite of user config location
+    # The user config is ~/.config/filesqueeze/config.toml and should only be
+    # edited manually by the user, not overwritten by init-config.
+    user_config_path = Path.home() / '.config' / 'filesqueeze' / 'config.toml'
+    is_user_config = output_path == user_config_path
+
+    if is_user_config and not args.user_config:
+        print(f"Error: Cannot write to user config location: {output_path}")
+        print()
+        print("The user config file at ~/.config/filesqueeze/config.toml contains your")
+        print("personal settings and should not be overwritten with defaults.")
+        print()
+        print("To create a project config instead (recommended):")
+        print("  - Run init-config without --output (creates ./filesqueeze.toml)")
+        print("  - Or specify: --output /path/to/project/filesqueeze.toml")
+        print()
+        print("If you REALLY want to reset your user config to defaults, use:")
+        print("  python -m filesqueeze init-config --output ~/.config/filesqueeze/config.toml --user-config --force")
+        sys.exit(1)
+
+    # Create backup if overwriting an existing config with --force
+    if output_path.exists() and args.force:
+        import shutil
+        from datetime import datetime
+        backup_path = output_path.with_suffix(f'.toml.backup.{datetime.now().strftime("%Y%m%d_%H%M%S")}')
+        shutil.copy2(output_path, backup_path)
+        print(f"Backup created at: {backup_path}")
+
     # If file exists and --force not specified, warn user
     if output_path.exists() and not args.force:
         print(f"Error: Configuration file already exists at {output_path}")
@@ -132,7 +160,7 @@ def cmd_compress(args):
     from filesqueeze.logger import setup_logging
     from filesqueeze import make_video, make_pdf, make_image
     from filesqueeze.system import register_logger, register_binary_finder
-    from filesqueeze.binaries import BinaryFinder
+    from filesqueeze.system.binaries import BinaryFinder
 
     # Load config
     config = Config()
@@ -224,7 +252,7 @@ def cmd_scan(args):
     )
     from filesqueeze import make_video, make_pdf, make_image
     from filesqueeze.system import register_logger, register_binary_finder
-    from filesqueeze.binaries import BinaryFinder
+    from filesqueeze.system.binaries import BinaryFinder
     import filesqueeze
 
     # Load config
@@ -330,12 +358,12 @@ def cmd_scan(args):
 
 def cmd_detect(args):
     """Detect FFmpeg and Ghostscript binaries."""
-    from filesqueeze.binaries import print_detection_results
+    from filesqueeze.system.binaries import print_detection_results, BinaryFinder
 
     if args.json:
         import json
-        from filesqueeze.system.binaries import BinaryFinder
-        results = detect_binaries()
+        finder = BinaryFinder()
+        results = finder.verify_all()
         print(json.dumps(results, indent=2))
     else:
         print_detection_results()
@@ -473,7 +501,12 @@ Examples:
     init_parser.add_argument(
         '--force', '-f',
         action='store_true',
-        help='Overwrite existing configuration file'
+        help='Overwrite existing configuration file (creates backup)'
+    )
+    init_parser.add_argument(
+        '--user-config',
+        action='store_true',
+        help='Allow writing to user config location (~/.config/filesqueeze/config.toml)'
     )
 
     # scan command
@@ -636,6 +669,11 @@ Examples:
         action='store_true',
         help='Overwrite existing configuration file (when using --init-config)'
     )
+    parser.add_argument(
+        '--user-config',
+        action='store_true',
+        help='Allow writing to user config location (when using --init-config)'
+    )
 
     # Other commands will be added in future phases
     # scan_parser = subparsers.add_parser('scan', help='Process files in input directory')
@@ -656,10 +694,11 @@ Examples:
     if args.init_config_flag:
         # Create a namespace object with the init-config args
         class InitConfigArgs:
-            def __init__(self, output, force):
+            def __init__(self, output, force, user_config):
                 self.output = output
                 self.force = force
-        init_args = InitConfigArgs(args.output, args.force)
+                self.user_config = user_config
+        init_args = InitConfigArgs(args.output, args.force, getattr(args, 'user_config', False))
         return cmd_init_config(init_args)
 
     # Handle commands
