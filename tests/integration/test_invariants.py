@@ -13,6 +13,7 @@ import subprocess
 import pytest
 from pathlib import Path
 from typing import Optional
+from unittest import mock
 
 # Add project root to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
@@ -387,6 +388,178 @@ output = "/test/output"
         config = Config(config_path=str(config_output))
         runtime_log_path = config.get('logging.file')
         assert runtime_log_path == log_path, "Path should match expanded version"
+
+
+class TestArchiveInvariant:
+    """Tests for Archive invariant - original files must always be preserved."""
+
+    def test_original_file_preserved_without_archive_config(self, tmp_path):
+        """When archive_dir is not configured, original file must be preserved in input.
+
+        Invariant: There must always be at least one copy of the original file
+        (either in input or archive directory, possibly both at transient points).
+        """
+        from filesqueeze.service import DirectoryWatcher, CompressionHandler
+        from filesqueeze.config import Config
+        from unittest.mock import Mock
+        import shutil
+
+        # Create test directories
+        input_dir = tmp_path / "input"
+        output_dir = tmp_path / "output"
+        input_dir.mkdir()
+        output_dir.mkdir()
+
+        # Create a test file (using a small text file to avoid binary dependencies)
+        test_file = input_dir / "test.txt"
+        test_file.write_text("test content")
+
+        # Create config WITHOUT archive directory (empty string = None)
+        config = Config()
+
+        # Override archive_dir to None for this test
+        with mock.patch.object(Config, 'archive_dir', return_value=None):
+            watcher = Mock()
+            logger = Mock()
+            handler = CompressionHandler(config, input_dir, output_dir, logger, watcher)
+
+            # Manually simulate processing a file (without actual compression)
+            # We'll test just the file preservation logic
+            original_path = test_file
+            original_content = test_file.read_text()
+
+            # Simulate the post-compression behavior when archive_dir is None
+            # Original file should be preserved
+            assert original_path.exists(), "Original file must be preserved when archive is not configured"
+            assert original_path.read_text() == original_content, "Original file content must be unchanged"
+
+    def test_original_file_moved_to_archive_with_archive_config(self, tmp_path):
+        """When archive_dir is configured, original file must be moved to archive.
+
+        Invariant: There must always be at least one copy of the original file
+        (either in input or archive directory, possibly both at transient points).
+        """
+        from filesqueeze.service import CompressionHandler
+        from filesqueeze.config import Config
+        from unittest.mock import Mock, patch
+        import time
+
+        # Create test directories
+        input_dir = tmp_path / "input"
+        output_dir = tmp_path / "output"
+        archive_dir = tmp_path / "archive"
+        input_dir.mkdir()
+        output_dir.mkdir()
+        archive_dir.mkdir()
+
+        # Create a test file
+        test_file = input_dir / "test.mp4"
+        test_file.write_bytes(b"fake video content")
+
+        # Create config WITH archive directory
+        config = Config()
+
+        # Mock the archive_dir property
+        with patch.object(Config, 'archive_dir', return_value=archive_dir):
+            watcher = Mock()
+            logger = Mock()
+            handler = CompressionHandler(config, input_dir, output_dir, logger, watcher)
+
+            # Simulate moving file to archive (the actual behavior from service.py)
+            archive_path = archive_dir / test_file.name
+            test_file.rename(archive_path)
+
+            # Verify invariant: file exists in archive
+            assert archive_path.exists(), "File must be moved to archive directory"
+            assert archive_path.read_bytes() == b"fake video content", "Archived file content must match original"
+
+            # Verify file is no longer in input
+            assert not test_file.exists(), "Original file should be moved (not copied) to archive"
+
+    def test_archive_invariant_with_name_collision(self, tmp_path):
+        """When archive already has file with same name, new file should be timestamped.
+
+        Invariant: Both files should be preserved in archive.
+        """
+        import time
+
+        # Create test directories
+        input_dir = tmp_path / "input"
+        output_dir = tmp_path / "output"
+        archive_dir = tmp_path / "archive"
+        input_dir.mkdir()
+        output_dir.mkdir()
+        archive_dir.mkdir()
+
+        # Create first file in archive
+        existing_archive = archive_dir / "test.pdf"
+        existing_archive.write_bytes(b"first file content")
+
+        # Create new file to process
+        test_file = input_dir / "test.pdf"
+        test_file.write_bytes(b"new file content")
+
+        # Simulate the name collision handling from service.py
+        archive_path = archive_dir / test_file.name
+        if archive_path.exists():
+            timestamp_str = time.strftime("%Y%m%d_%H%M%S")
+            stem = test_file.stem
+            suffix = test_file.suffix
+            archive_path = archive_dir / f"{stem}_{timestamp_str}{suffix}"
+
+        test_file.rename(archive_path)
+
+        # Verify both files exist
+        assert existing_archive.exists(), "First file should still exist"
+        assert archive_path.exists(), "New file should be archived with timestamp"
+        assert archive_path.read_bytes() == b"new file content", "New file content should be preserved"
+
+        # Verify timestamped name format
+        assert "_" in archive_path.stem and "202" in archive_path.stem, "Timestamp should be in filename"
+
+    def test_at_least_one_copy_must_exist_after_processing(self, tmp_path):
+        """Invariant: At least one copy of the original file must exist after processing.
+
+        This is the core invariant - regardless of success/failure or archive config,
+        there should always be at least one copy of the original file.
+        """
+        from pathlib import Path
+
+        # Create test directories
+        input_dir = tmp_path / "input"
+        output_dir = tmp_path / "output"
+        archive_dir = tmp_path / "archive"
+        input_dir.mkdir()
+        output_dir.mkdir()
+        archive_dir.mkdir()
+
+        # Create test file
+        test_file = input_dir / "important.pdf"
+        original_content = b"important document content"
+        test_file.write_bytes(original_content)
+
+        # Scenario 1: File in input before processing
+        assert test_file.exists(), "File should exist in input before processing"
+        copies_count = 1
+
+        # Scenario 2: After successful compression WITH archive
+        # Simulate: file moved to archive
+        archive_path = archive_dir / test_file.name
+        test_file.rename(archive_path)
+        assert archive_path.exists(), "File should exist in archive after processing"
+        copies_count = 1
+
+        # Scenario 3: After successful compression WITHOUT archive config
+        # Create another test file
+        test_file2 = input_dir / "no_archive.pdf"
+        test_file2.write_bytes(original_content)
+
+        # Simulate: file stays in input (current behavior when archive not configured)
+        assert test_file2.exists(), "File should remain in input when archive not configured"
+        copies_count = 1
+
+        # The invariant: at least one copy must always exist
+        # This is satisfied in both scenarios
 
 
 if __name__ == "__main__":

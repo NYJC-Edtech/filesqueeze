@@ -329,9 +329,33 @@ class CompressionHandler(FileSystemEventHandler):
                     # Clear the notification tag for this file
                     _notification_manager.clear(filepath.name)
 
-                    # Remove original file
-                    filepath.unlink()
-                    self.logger.info(f"Removed original file: {filepath.name}")
+                    # Archive original file - invariant: must always preserve at least one copy
+                    archive_dir = self.config.archive_dir
+                    if archive_dir:
+                        # Move to archive directory
+                        archive_path = archive_dir / filepath.name
+                        archive_path.parent.mkdir(parents=True, exist_ok=True)
+
+                        # Handle name collisions in archive
+                        if archive_path.exists():
+                            # Add timestamp to avoid overwriting
+                            timestamp_str = time.strftime("%Y%m%d_%H%M%S")
+                            stem = filepath.stem
+                            suffix = filepath.suffix
+                            archive_path = archive_dir / f"{stem}_{timestamp_str}{suffix}"
+
+                        filepath.rename(archive_path)
+                        self.logger.info(f"Archived original file: {filepath.name} -> {archive_path}")
+                    else:
+                        # INVARINT: Never delete the original file without preserving it
+                        # Keep original file in input directory when archive is not configured
+                        self.logger.warning(
+                            f"Archive directory not configured - original file preserved in input: {filepath.name}"
+                        )
+                        self.logger.warning(
+                            f"To enable archiving, set 'directories.archive' in config. "
+                            f"See: filesqueeze init-config"
+                        )
 
                     # Add to processed files
                     self._watcher._add_processed_file(filepath.name, success=True)

@@ -18,6 +18,20 @@ $ErrorActionPreference = "Stop"
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 $OutputEncoding = [System.Text.Encoding]::UTF8
 
+# Detect if FileSqueeze service is currently running (before uninstall)
+# This allows us to restart it after reinstallation
+$script:ServiceWasRunning = $false
+try {
+    $processes = Get-WmiObject Win32_Process -ErrorAction Stop | Where-Object {
+        $_.CommandLine -like "*filesqueeze*service*"
+    }
+    if ($processes) {
+        $script:ServiceWasRunning = $true
+    }
+} catch {
+    # Ignore detection errors
+}
+
 function Write-Status {
     param([string]$Message, [string]$Color = "Green")
     Write-Host "==> $Message" -ForegroundColor $Color
@@ -137,10 +151,11 @@ try {
     if ($pipExitCode -eq 0) {
         if (-not $Force) {
             $ErrorActionPreference = $PrevErrorAction
-            Write-Error-Status "FileSqueeze is already installed.`nUse -Force to reinstall, or uninstall first with: pip uninstall filesqueeze"
+            Write-Error-Status "FileSqueeze is already installed.`nUse -Force to reinstall, or uninstall first with: .\uninstall.ps1"
         }
         Write-Host "  Uninstalling existing version..." -ForegroundColor Yellow
-        & python -m pip uninstall filesqueeze -y 2>&1 | Out-Null
+        # Use uninstall.ps1 for consistent uninstallation
+        & "$ScriptDir\uninstall.ps1" -Force
     }
 } finally {
     $ErrorActionPreference = $PrevErrorAction
@@ -275,11 +290,91 @@ Write-Host "  Created: FileSqueeze" -ForegroundColor Gray
 # Shortcut: Uninstall FileSqueeze
 $Shortcut = $WshShell.CreateShortcut("$StartMenuFolder\\Uninstall FileSqueeze.lnk")
 $Shortcut.TargetPath = "powershell.exe"
-$Shortcut.Arguments = "-ExecutionPolicy Bypass -NoProfile -Command python -m pip uninstall filesqueeze -y"
+$Shortcut.Arguments = "-ExecutionPolicy Bypass -NoProfile -File `"$ScriptDir\uninstall.ps1`""
 $Shortcut.Description = "Uninstall FileSqueeze"
-$Shortcut.WorkingDirectory = $env:USERPROFILE
+$Shortcut.WorkingDirectory = $ScriptDir
 $Shortcut.Save()
 Write-Host "  Created: Uninstall FileSqueeze" -ForegroundColor Gray
+
+# Prompt for auto-start installation
+Write-Host ""
+Write-Status "Auto-start Configuration" "Cyan"
+$autostart = Read-Host "Enable FileSqueeze to start automatically on boot? [Y/n]"
+# Empty input (just Enter) defaults to Yes
+if ($autostart -eq "" -or $autostart -eq "Y" -or $autostart -eq "y") {
+    Write-Host ""
+    Write-Host "Installing auto-start..." -ForegroundColor Yellow
+    try {
+        # Get input/output directories from config
+        # If config doesn't exist or can't be read, use default directories
+        $inputDir = $null
+        $outputDir = $null
+        if (Test-Path $ConfigPath) {
+            try {
+                # Read config to get directories using more robust pattern matching
+                $configContent = Get-Content $ConfigPath -Raw -ErrorAction Stop
+                # Try different patterns for input (handle both with and without [service] section)
+                if ($configContent -match 'input\s*=\s*"([^"]+)"') {
+                    $inputDir = $matches[1]
+                } elseif ($configContent -match '\[service\]([\s\S]*?)\[.*?\]' -or $configContent -match '\[service\]([\s\S]*?)$') {
+                    $serviceSection = $matches[1]
+                    if ($serviceSection -match 'input\s*=\s*"([^"]+)"') {
+                        $inputDir = $matches[1]
+                    }
+                }
+
+                # Try different patterns for output
+                if ($configContent -match 'output\s*=\s*"([^"]+)"') {
+                    $outputDir = $matches[1]
+                } elseif ($configContent -match '\[service\]([\s\S]*?)\[.*?\]' -or $configContent -match '\[service\]([\s\S]*?)$') {
+                    $serviceSection = $matches[1]
+                    if ($serviceSection -match 'output\s*=\s*"([^"]+)"') {
+                        $outputDir = $matches[1]
+                    }
+                }
+            } catch {
+                # If config can't be read, will use defaults
+                Write-Host "  Note: Using default directories (config not readable)" -ForegroundColor Yellow
+            }
+        } else {
+            Write-Host "  Note: Using default directories (config not found)" -ForegroundColor Yellow
+        }
+
+        # Use filesqueeze service install command
+        # If input/output not found, command will use defaults from config module
+        $cmd = "filesqueeze service install"
+        if ($inputDir) { $cmd += " --input `"$inputDir`"" }
+        if ($outputDir) { $cmd += " --output `"$outputDir`"" }
+
+        Invoke-Expression $cmd
+    } catch {
+        Write-Host "  Note: You can enable auto-start later by running:" -ForegroundColor Yellow
+        Write-Host "        filesqueeze service install" -ForegroundColor Gray
+    }
+} else {
+    Write-Host "  Skipped. You can enable auto-start later by running:" -ForegroundColor Gray
+    Write-Host "  filesqueeze service install" -ForegroundColor Gray
+}
+
+# Restart service if it was running before reinstall
+if ($script:ServiceWasRunning) {
+    Write-Host ""
+    Write-Status "Service was running before reinstall - restarting..." "Yellow"
+    try {
+        # Start the service in background using pythonw.exe (no console window)
+        $PythonwPath = Join-Path $PythonInstallPath "pythonw.exe"
+        $processParams = @{
+            FilePath = $PythonwPath
+            ArgumentList = "-m", "filesqueeze", "service", "run"
+            WindowStyle = "Hidden"
+        }
+        Start-Process @processParams -ErrorAction Stop
+        Write-Host "  Service restarted - look for the 'FS' icon in your system tray" -ForegroundColor Gray
+    } catch {
+        Write-Host "  Note: Could not restart service automatically. Start it manually:" -ForegroundColor Yellow
+        Write-Host "        filesqueeze service run" -ForegroundColor Gray
+    }
+}
 
 # Success message
 Write-Host ""
