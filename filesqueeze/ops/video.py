@@ -247,6 +247,9 @@ def compress(
             '-profile:v', 'high',
             '-level', '4.2',
             '-preset', preset,
+            # Handle 10-bit and 12-bit videos by forcing 8-bit (yuv420p) output
+            '-vf', 'format=yuv420p',
+            '-pix_fmt', 'yuv420p',
         ]
 
         # Add video filter
