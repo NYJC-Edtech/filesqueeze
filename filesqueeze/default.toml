@@ -112,3 +112,19 @@ save_metadata = false
 [gui]
 # Status window refresh interval in milliseconds
 refresh_interval_ms = 2000
+
+[retention]
+# Enable automatic cleanup of old files
+enable_cleanup = true
+# Cleanup run interval in hours
+cleanup_interval_hours = 1
+# Retention period for compressed files in hours (48 = 2 days)
+compressed_retention_hours = 48
+# Retention period for archived original files in days (30 = 1 month)
+archive_retention_days = 30
+# Minimum age in hours before files can be deleted (safety safeguard)
+min_age_hours = 1
+# Dry-run mode: log what would be deleted without actually deleting
+dry_run = false
+# Require confirmation for first cleanup run
+require_confirmation = true
