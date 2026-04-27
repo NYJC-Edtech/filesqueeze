@@ -37,7 +37,7 @@ class FileScanner:
             extensions = self.config.get('file_detection.extensions', [])
         else:
             # Default extensions
-            extensions = ['mp4', 'wmv', 'avi', 'pptx', 'pdf', 'jpg', 'jpeg', 'png']
+            extensions = ['mp4', 'wmv', 'avi', 'mov', 'mkv', 'flv', 'pptx', 'pdf', 'jpg', 'jpeg', 'png']
 
         ext = filepath.suffix.lstrip('.').lower()
         return ext in extensions
