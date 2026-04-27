@@ -61,6 +61,9 @@ class Video(Enum):
     WMV = 'wmv'
     MP4 = 'mp4'
     AVI = 'avi'
+    MOV = 'mov'
+    MKV = 'mkv'
+    FLV = 'flv'
 
 
 class Slideshow(Enum):
