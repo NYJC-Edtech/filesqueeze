@@ -182,4 +182,4 @@ tests/fixtures/
 filesqueeze-autostart.ps1
 
 # Claude Code configuration (may contain env vars)
-.claude/
+.claude/settings.local.json
