@@ -6,13 +6,13 @@ This module provides image compression operations using FFmpeg.
 It uses the system package for binary detection and logging.
 """
 
-import os
-import subprocess
 from pathlib import Path
 from typing import Tuple, Optional
 
 # Import from system package
 from filesqueeze.system import get_binary_finder, logger
+# Import subprocess utilities
+from filesqueeze.utils.subprocess_helper import run_subprocess, verify_output_file, SubprocessTimeout, SubprocessError
 
 
 def get_ffmpeg_path(config_path: str = '') -> str:
@@ -102,17 +102,18 @@ def get_image_size(infile: str, ffmpeg_path: str = '') -> Tuple[int, int]:
         ]
 
         try:
-            data = subprocess.run(
+            data = run_subprocess(
                 cmd,
                 timeout=60,
-                check=True,
-                text=True,
-                capture_output=True
-            ).stdout.strip()
-        except subprocess.TimeoutExpired:
+                tool_name="ffprobe",
+                input_file=infile,
+                capture_output=True,
+                text_mode=True
+            )
+        except SubprocessTimeout:
             raise RuntimeError(f"ffprobe timeout analyzing image: {infile}")
-        except subprocess.CalledProcessError as e:
-            raise RuntimeError(f"ffprobe failed with return code {e.returncode}: {infile}")
+        except SubprocessError:
+            raise
 
         if data and 'x' in data:
             width, height = data.split('x')
@@ -234,20 +235,27 @@ def compress_image(
         input_size = Path(infile).stat().st_size
 
         try:
-            subprocess.run(cmd, timeout=timeout, check=True)
-        except subprocess.TimeoutExpired:
+            run_subprocess(
+                cmd,
+                timeout=timeout,
+                tool_name="FFmpeg",
+                input_file=infile
+            )
+        except SubprocessTimeout:
             raise RuntimeError(f"FFmpeg timeout compressing image: {infile}")
-        except subprocess.CalledProcessError as e:
-            raise RuntimeError(f"FFmpeg failed with return code {e.returncode}: {infile}")
+        except SubprocessError:
+            raise RuntimeError(f"FFmpeg failed to compress image: {infile}")
 
-        # Verify output file exists
-        if not Path(outfile).exists():
-            raise FileNotFoundError(f"Output file not created: {outfile}")
+        # Verify output file exists and meets size requirements
+        try:
+            verify_output_file(outfile, min_size=min_size)
+        except FileNotFoundError:
+            raise
+        except RuntimeError as e:
+            raise
 
-        # Verify output file is not too small
-        output_size = Path(outfile).stat().st_size
-        if output_size < min_size:
-            raise RuntimeError(f"Output file is too small (< {min_size} bytes): {outfile}")
+        output = verify_output_file(outfile, min_size=min_size)
+        output_size = output.stat().st_size
 
         # Verify compression actually reduced file size
         if output_size >= input_size:

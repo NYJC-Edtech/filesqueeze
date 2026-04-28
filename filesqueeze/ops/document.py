@@ -6,13 +6,13 @@ This module provides PDF compression operations using Ghostscript.
 It uses the system package for binary detection and logging.
 """
 
-import os
-import subprocess
 from pathlib import Path
 from typing import Optional
 
 # Import from system package
 from filesqueeze.system import get_binary_finder, logger
+# Import subprocess utilities
+from filesqueeze.utils.subprocess_helper import run_subprocess, verify_output_file, SubprocessTimeout, SubprocessError
 
 
 def get_ghostscript_path(config_path: str = '') -> str:
@@ -117,15 +117,22 @@ def compress_pdf(
         input_size = Path(infile).stat().st_size
 
         try:
-            subprocess.run(cmd, timeout=timeout, check=True)
-        except subprocess.TimeoutExpired:
-            raise RuntimeError(f"Ghostscript timeout compressing PDF: {infile}")
-        except subprocess.CalledProcessError as e:
-            raise RuntimeError(f"Ghostscript failed with return code {e.returncode}: {infile}")
+            run_subprocess(
+                cmd,
+                timeout=timeout,
+                tool_name="Ghostscript",
+                input_file=infile
+            )
+        except SubprocessTimeout:
+            raise
+        except SubprocessError:
+            raise
 
-        # Verify output file exists
-        if not Path(outfile).exists():
-            raise FileNotFoundError(f"Output file not created: {outfile}")
+        # Verify output file exists and has reasonable size
+        try:
+            verify_output_file(outfile, min_size=100)
+        except FileNotFoundError:
+            raise
 
         # Verify compression actually reduced file size
         output_size = Path(outfile).stat().st_size

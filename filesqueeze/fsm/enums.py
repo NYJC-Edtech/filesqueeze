@@ -9,7 +9,8 @@ class EnumMeta(type):
     def __iter__(cls):
         """Iterate over the enum members (class attributes).
 
-        For nested enums (like Format), this returns the nested enum classes directly.
+        For nested enums (like Format), this returns the nested enum
+        classes directly.
         For leaf enums (like Video), this returns an EnumValue wrapper.
         """
         from collections import namedtuple
@@ -51,7 +52,7 @@ class Enum(metaclass=EnumMeta):
         return member in cls.__dict__
 
     @classmethod
-    def validate(cls, member: str) -> bool:
+    def validate(cls, member: str) -> None:
         """Validate if a member is in the enum."""
         if member not in cls.__dict__:
             raise ValueError(f"'{member!r}' is not a valid member of {cls.__name__}.")
