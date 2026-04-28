@@ -259,7 +259,7 @@ class CompressionHandler(FileSystemEventHandler):
         try:
             # Import here to avoid circular imports
             from .scanner import FileScanner
-            from . import make_video, make_pdf, make_image, make_presentation
+            from .file_type_registry import get_file_type_registry
 
             scanner = FileScanner(self.config)
 
@@ -296,18 +296,15 @@ class CompressionHandler(FileSystemEventHandler):
             )
 
             try:
-                # Process file based on type
-                if ext in ['mp4', 'wmv', 'avi', 'mkv', 'mov', 'flv']:
-                    result_path = make_video(str(filepath), config=self.config, output_path=str(output_path))
-                elif ext == 'pdf':
-                    result_path = make_pdf(str(filepath), config=self.config, output_path=str(output_path))
-                elif ext in ['jpg', 'jpeg', 'png']:
-                    result_path = make_image(str(filepath), config=self.config, output_path=str(output_path))
-                elif ext in ['ppt', 'pptx']:
-                    result_path = make_presentation(str(filepath), config=self.config, output_path=str(output_path))
-                else:
+                # Process file based on type using registry
+                registry = get_file_type_registry()
+                processor = registry.get_processor(ext)
+
+                if processor is None:
                     self.logger.warning(f"Unsupported file type: {ext}")
                     return
+
+                result_path = processor(str(filepath), config=self.config, output_path=str(output_path))
 
                 # Verify output file exists
                 if Path(result_path).exists():

@@ -11,6 +11,8 @@ import threading
 from pathlib import Path
 from typing import Optional, Tuple
 
+from filesqueeze.constants import ConfigKeys
+
 # Global binary finder instance (None until registered)
 _binary_finder: Optional['BinaryFinder'] = None
 # Lock for thread-safe registration
@@ -128,21 +130,7 @@ class BinaryFinder:
         Raises:
             RuntimeError: If FFmpeg not found
         """
-        if 'ffmpeg' not in self._cached_paths:
-            # Check config first
-            if self.config:
-                config_path = self.config.get('ffmpeg.path')
-                if config_path:
-                    self._cached_paths['ffmpeg'] = config_path
-                    return config_path
-
-            # Auto-detect
-            path, msg = self.find_ffmpeg()
-            if path is None:
-                raise RuntimeError(f"FFmpeg not found: {msg}")
-            self._cached_paths['ffmpeg'] = path
-
-        return self._cached_paths['ffmpeg']
+        return self._get_binary_path('ffmpeg', ConfigKeys.FFMPEG_PATH, self.find_ffmpeg)
 
     def get_ffprobe_path(self) -> str:
         """Get ffprobe executable path.
@@ -182,21 +170,7 @@ class BinaryFinder:
         Raises:
             RuntimeError: If Ghostscript not found
         """
-        if 'ghostscript' not in self._cached_paths:
-            # Check config first
-            if self.config:
-                config_path = self.config.get('document.ghostscript_path')
-                if config_path:
-                    self._cached_paths['ghostscript'] = config_path
-                    return config_path
-
-            # Auto-detect
-            path, msg = self.find_ghostscript()
-            if path is None:
-                raise RuntimeError(f"Ghostscript not found: {msg}")
-            self._cached_paths['ghostscript'] = path
-
-        return self._cached_paths['ghostscript']
+        return self._get_binary_path('ghostscript', ConfigKeys.DOCUMENT_GHOSTSCRIPT_PATH, self.find_ghostscript)
 
     def get_tesseract_path(self) -> str:
         """Get Tesseract executable path.
@@ -207,21 +181,7 @@ class BinaryFinder:
         Raises:
             RuntimeError: If Tesseract not found
         """
-        if 'tesseract' not in self._cached_paths:
-            # Check config first
-            if self.config:
-                config_path = self.config.get('ocr.tesseract_path')
-                if config_path:
-                    self._cached_paths['tesseract'] = config_path
-                    return config_path
-
-            # Auto-detect
-            path, msg = self.find_tesseract()
-            if path is None:
-                raise RuntimeError(f"Tesseract not found: {msg}")
-            self._cached_paths['tesseract'] = path
-
-        return self._cached_paths['tesseract']
+        return self._get_binary_path('tesseract', ConfigKeys.OCR_TESSERACT_PATH, self.find_tesseract)
 
     def get_powershell_path(self) -> str:
         """Get PowerShell executable path.
@@ -232,21 +192,37 @@ class BinaryFinder:
         Raises:
             RuntimeError: If PowerShell not found
         """
-        if 'powershell' not in self._cached_paths:
+        return self._get_binary_path('powershell', ConfigKeys.PRESENTATION_POWERSHELL_PATH, self.find_powershell)
+
+    def _get_binary_path(self, binary_name: str, config_key: str, finder_method: callable) -> str:
+        """Generic binary path finder with caching.
+
+        Args:
+            binary_name: Name for caching (e.g., 'ffmpeg', 'ghostscript').
+            config_key: Configuration key path (e.g., 'ffmpeg.path').
+            finder_method: Method to call for auto-detection (e.g., self.find_ffmpeg).
+
+        Returns:
+            Path to binary executable.
+
+        Raises:
+            RuntimeError: If binary not found.
+        """
+        if binary_name not in self._cached_paths:
             # Check config first
             if self.config:
-                config_path = self.config.get('presentation.powershell_path')
+                config_path = self.config.get(config_key)
                 if config_path:
-                    self._cached_paths['powershell'] = config_path
+                    self._cached_paths[binary_name] = config_path
                     return config_path
 
-            # Auto-detect (PowerShell is built into Windows)
-            path, msg = self.find_powershell()
+            # Auto-detect
+            path, msg = finder_method()
             if path is None:
-                raise RuntimeError(f"PowerShell not found: {msg}")
-            self._cached_paths['powershell'] = path
+                raise RuntimeError(f"{binary_name} not found: {msg}")
+            self._cached_paths[binary_name] = path
 
-        return self._cached_paths['powershell']
+        return self._cached_paths[binary_name]
 
     def verify_all(self) -> dict:
         """Verify all binaries are available.
