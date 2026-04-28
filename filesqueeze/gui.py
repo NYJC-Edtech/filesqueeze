@@ -100,7 +100,7 @@ class StatusWindow:
 
         # Configure grid weights
         status_tab.columnconfigure(0, weight=1)
-        status_tab.rowconfigure(4, weight=1)  # Processed files expands
+        status_tab.rowconfigure(5, weight=1)  # Processed files expands
 
         # Service status section
         status_frame = ttk.LabelFrame(status_tab, text="Service Status", padding="5")
@@ -132,9 +132,34 @@ class StatusWindow:
         self.failed_value = ttk.Label(stats_frame, text="")
         self.failed_value.grid(row=1, column=1, sticky=tk.W)
 
+        # Cleanup Statistics section
+        cleanup_frame = ttk.LabelFrame(status_tab, text="Retention Cleanup", padding="5")
+        cleanup_frame.grid(row=2, column=0, sticky=(tk.W, tk.E), pady=(0, 10))
+        cleanup_frame.columnconfigure(1, weight=1)
+
+        # Last cleanup time
+        ttk.Label(cleanup_frame, text="Last cleanup:").grid(row=0, column=0, sticky=tk.W, padx=(0, 5))
+        self.last_cleanup_value = ttk.Label(cleanup_frame, text="", font=('Helvetica', 9))
+        self.last_cleanup_value.grid(row=0, column=1, sticky=tk.W)
+
+        # Compressed files deleted
+        ttk.Label(cleanup_frame, text="Compressed deleted:").grid(row=1, column=0, sticky=tk.W, padx=(0, 5))
+        self.compressed_deleted_value = ttk.Label(cleanup_frame, text="", font=('Helvetica', 9))
+        self.compressed_deleted_value.grid(row=1, column=1, sticky=tk.W)
+
+        # Archived files deleted
+        ttk.Label(cleanup_frame, text="Archived deleted:").grid(row=2, column=0, sticky=tk.W, padx=(0, 5))
+        self.archived_deleted_value = ttk.Label(cleanup_frame, text="", font=('Helvetica', 9))
+        self.archived_deleted_value.grid(row=2, column=1, sticky=tk.W)
+
+        # Total space freed
+        ttk.Label(cleanup_frame, text="Space freed:").grid(row=3, column=0, sticky=tk.W, padx=(0, 5))
+        self.space_freed_value = ttk.Label(cleanup_frame, text="", font=('Helvetica', 9))
+        self.space_freed_value.grid(row=3, column=1, sticky=tk.W)
+
         # Directories section
         dirs_frame = ttk.LabelFrame(status_tab, text="Directories", padding="5")
-        dirs_frame.grid(row=2, column=0, sticky=(tk.W, tk.E), pady=(0, 10))
+        dirs_frame.grid(row=3, column=0, sticky=(tk.W, tk.E), pady=(0, 10))
         dirs_frame.columnconfigure(1, weight=1)
 
         # Input directory
@@ -149,7 +174,7 @@ class StatusWindow:
 
         # Currently processing (single line)
         processing_frame = ttk.LabelFrame(status_tab, text="Currently Processing", padding="5")
-        processing_frame.grid(row=3, column=0, sticky=(tk.W, tk.E), pady=(0, 10))
+        processing_frame.grid(row=4, column=0, sticky=(tk.W, tk.E), pady=(0, 10))
         processing_frame.columnconfigure(0, weight=1)
 
         self.processing_value = ttk.Label(
@@ -162,7 +187,7 @@ class StatusWindow:
 
         # Processed files section (scrollable)
         processed_frame = ttk.LabelFrame(status_tab, text="Processed Files", padding="5")
-        processed_frame.grid(row=4, column=0, sticky=(tk.W, tk.E, tk.N, tk.S), pady=(0, 10))
+        processed_frame.grid(row=5, column=0, sticky=(tk.W, tk.E, tk.N, tk.S), pady=(0, 10))
         processed_frame.columnconfigure(0, weight=1)
         processed_frame.rowconfigure(0, weight=1)
 
@@ -178,7 +203,7 @@ class StatusWindow:
 
         # Close button
         close_button = ttk.Button(status_tab, text="Close", command=self.close)
-        close_button.grid(row=5, column=0, pady=(10, 0))
+        close_button.grid(row=6, column=0, pady=(10, 0))
 
     def _create_logs_tab(self):
         """Create the Logs tab with log file content."""
@@ -213,6 +238,7 @@ class StatusWindow:
             state = self.state_provider.get_state()
             self._update_status(state)
             self._update_stats(state)
+            self._update_cleanup_stats(state)
             self._update_directories(state)
             self._update_processing_file(state)
             self._update_processed_files(state)
@@ -245,6 +271,37 @@ class StatusWindow:
         """
         self.completed_value.config(text=str(state.completed_count))
         self.failed_value.config(text=str(state.failed_count))
+
+    def _update_cleanup_stats(self, state: ServiceState):
+        """Update cleanup statistics display.
+
+        Args:
+            state: Current service state.
+        """
+        cleanup_stats = state.cleanup_stats
+
+        if cleanup_stats.last_cleanup_time:
+            # Format the timestamp for display
+            try:
+                from datetime import datetime
+                dt = datetime.fromisoformat(cleanup_stats.last_cleanup_time)
+                time_str = dt.strftime("%Y-%m-%d %H:%M:%S")
+                self.last_cleanup_value.config(text=time_str)
+            except:
+                self.last_cleanup_value.config(text=cleanup_stats.last_cleanup_time)
+        else:
+            self.last_cleanup_value.config(text="Never")
+
+        # Display file counts
+        self.compressed_deleted_value.config(text=str(cleanup_stats.compressed_files_deleted))
+        self.archived_deleted_value.config(text=str(cleanup_stats.archived_files_deleted))
+
+        # Display space freed in MB
+        space_mb = cleanup_stats.total_space_freed / (1024 * 1024)
+        if space_mb > 0:
+            self.space_freed_value.config(text=f"{space_mb:.2f} MB")
+        else:
+            self.space_freed_value.config(text="0 MB")
 
     def _update_directories(self, state: ServiceState):
         """Update directories display.

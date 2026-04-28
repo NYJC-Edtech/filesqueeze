@@ -28,6 +28,15 @@ class ProcessedFile:
     success: bool
 
 @dataclass(frozen=True)
+class CleanupStats:
+    """Statistics about cleanup operations."""
+    last_cleanup_time: str = ""  # ISO format timestamp
+    compressed_files_deleted: int = 0
+    archived_files_deleted: int = 0
+    total_space_freed: int = 0  # bytes
+
+
+@dataclass(frozen=True)
 class ServiceState:
     """Immutable snapshot of service state.
 
@@ -42,6 +51,7 @@ class ServiceState:
     completed_count: int = 0
     failed_count: int = 0
     uptime: timedelta = field(default_factory=timedelta)
+    cleanup_stats: CleanupStats = field(default_factory=CleanupStats)
 
 
 class StateProvider:
@@ -430,6 +440,279 @@ class CompressionHandler(FileSystemEventHandler):
             return True
 
 
+class RetentionManager:
+    """Manages retention-based cleanup of compressed and archived files."""
+
+    def __init__(self, config: Config, output_dir: Path, logger: logging.Logger):
+        """Initialize the retention manager.
+
+        Args:
+            config: Config object.
+            output_dir: Output directory for compressed files.
+            logger: Logger instance.
+        """
+        self.config = config
+        self.output_dir = output_dir
+        self.logger = logger
+        self._running = False
+        self._cleanup_thread = None
+        self._stats_lock = threading.Lock()
+        self._cleanup_stats = CleanupStats()
+        self._first_run_confirmed = False
+
+        # Get retention settings
+        self.enable_cleanup = self.config.get('retention.enable_cleanup', True)
+        self.cleanup_interval_hours = self.config.get('retention.cleanup_interval_hours', 1)
+        self.compressed_retention_hours = self.config.get('retention.compressed_retention_hours', 48)
+        self.archive_retention_days = self.config.get('retention.archive_retention_days', 30)
+        self.min_age_hours = self.config.get('retention.min_age_hours', 1)
+        self.dry_run = self.config.get('retention.dry_run', False)
+        self.require_confirmation = self.config.get('retention.require_confirmation', True)
+
+        # Archive directory
+        self.archive_dir = self.config.archive_dir
+
+    def start(self):
+        """Start the periodic cleanup thread."""
+        if not self.enable_cleanup:
+            self.logger.info("Retention cleanup is disabled in configuration")
+            return
+
+        self._running = True
+        self._cleanup_thread = threading.Thread(target=self._cleanup_worker, daemon=True)
+        self._cleanup_thread.start()
+
+        interval_desc = "dry-run" if self.dry_run else "active"
+        self.logger.info("=" * 60)
+        self.logger.info("Retention Manager Started")
+        self.logger.info("=" * 60)
+        self.logger.info(f"Mode: {interval_desc}")
+        self.logger.info(f"Cleanup interval: {self.cleanup_interval_hours} hour(s)")
+        self.logger.info(f"Compressed files retention: {self.compressed_retention_hours} hours")
+        if self.archive_dir:
+            self.logger.info(f"Archived files retention: {self.archive_retention_days} days")
+        self.logger.info(f"Minimum age safeguard: {self.min_age_hours} hours")
+        self.logger.info("=" * 60)
+
+    def stop(self):
+        """Stop the periodic cleanup thread."""
+        self._running = False
+        if self._cleanup_thread:
+            self._cleanup_thread.join(timeout=5)
+            self.logger.info("Retention manager stopped")
+
+    def get_cleanup_stats(self) -> CleanupStats:
+        """Get cleanup statistics (thread-safe).
+
+        Returns:
+            CleanupStats: Immutable snapshot of cleanup statistics.
+        """
+        with self._stats_lock:
+            return self._cleanup_stats
+
+    def _cleanup_worker(self):
+        """Background worker for periodic cleanup."""
+        import time as time_module
+
+        while self._running:
+            try:
+                # Calculate sleep time in seconds
+                sleep_time = self.cleanup_interval_hours * 3600
+
+                # Sleep in small intervals to check _running flag
+                for _ in range(int(sleep_time)):
+                    if not self._running:
+                        return
+                    time_module.sleep(1)
+
+                if self._running:
+                    self._run_cleanup()
+
+            except Exception as e:
+                self.logger.error(f"Error in cleanup thread: {e}", exc_info=True)
+
+    def _run_cleanup(self):
+        """Run the cleanup process."""
+        try:
+            from datetime import datetime, timedelta
+
+            # Check if confirmation needed for first run
+            if self.require_confirmation and not self._first_run_confirmed:
+                self._handle_first_run_confirmation()
+                if not self._first_run_confirmed:
+                    return  # User declined confirmation
+
+            compressed_deleted = 0
+            archived_deleted = 0
+            space_freed = 0
+
+            self.logger.info("=" * 60)
+            self.logger.info("Starting Retention Cleanup")
+            self.logger.info("=" * 60)
+
+            # Clean compressed files
+            if self.dry_run:
+                self.logger.info("DRY-RUN MODE: No files will be deleted")
+
+            compressed_deleted, space_freed = self._cleanup_compressed_files()
+            if self.archive_dir:
+                archived_deleted, additional_space = self._cleanup_archived_files()
+                space_freed += additional_space
+
+            # Update statistics
+            with self._stats_lock:
+                self._cleanup_stats = CleanupStats(
+                    last_cleanup_time=datetime.now().isoformat(),
+                    compressed_files_deleted=compressed_deleted,
+                    archived_files_deleted=archived_deleted,
+                    total_space_freed=space_freed
+                )
+
+            self.logger.info("=" * 60)
+            self.logger.info("Cleanup Summary")
+            self.logger.info("=" * 60)
+            self.logger.info(f"Compressed files deleted: {compressed_deleted}")
+            if self.archive_dir:
+                self.logger.info(f"Archived files deleted: {archived_deleted}")
+            self.logger.info(f"Total space freed: {space_freed:,} bytes ({space_freed / 1024 / 1024:.2f} MB)")
+            self.logger.info("=" * 60)
+
+            # Show Windows notification
+            if compressed_deleted > 0 or archived_deleted > 0:
+                show_windows_notification(
+                    "FileSqueeze - Cleanup Complete",
+                    f"Deleted {compressed_deleted} compressed, {archived_deleted} archived files\n"
+                    f"Freed {space_freed / 1024 / 1024:.2f} MB"
+                )
+
+        except Exception as e:
+            self.logger.error(f"Error during cleanup: {e}", exc_info=True)
+
+    def _handle_first_run_confirmation(self):
+        """Handle confirmation for first cleanup run."""
+        self.logger.warning("=" * 60)
+        self.logger.warning("FIRST RUN CONFIRMATION REQUIRED")
+        self.logger.warning("=" * 60)
+        self.logger.warning("Retention cleanup is about to run for the first time.")
+        self.logger.warning("This will PERMANENTLY DELETE files older than:")
+        self.logger.warning(f"  - Compressed files: {self.compressed_retention_hours} hours")
+        if self.archive_dir:
+            self.logger.warning(f"  - Archived files: {self.archive_retention_days} days")
+        self.logger.warning("")
+        self.logger.warning("To enable automatic cleanup, update your config:")
+        self.logger.warning("  [retention]")
+        self.logger.warning("  require_confirmation = false")
+        self.logger.warning("")
+        self.logger.warning("Or run with: filesqueeze service --confirm-cleanup")
+        self.logger.warning("=" * 60)
+
+        # For now, we'll log this but require manual config update
+        # In the future, this could be interactive
+        self.logger.info("Cleanup cancelled. Update config to enable automatic cleanup.")
+
+    def _cleanup_compressed_files(self) -> tuple[int, int]:
+        """Clean up compressed files older than retention period.
+
+        Returns:
+            Tuple of (files_deleted, space_freed)
+        """
+        from datetime import datetime, timedelta
+
+        compressed_deleted = 0
+        space_freed = 0
+        cutoff_time = datetime.now() - timedelta(hours=self.compressed_retention_hours)
+        min_age_time = datetime.now() - timedelta(hours=self.min_age_hours)
+
+        self.logger.info(f"Scanning compressed directory: {self.output_dir}")
+        self.logger.info(f"Deleting files older than: {cutoff_time.isoformat()}")
+        self.logger.info(f"Skipping files newer than: {min_age_time.isoformat()} (minimum age safeguard)")
+
+        try:
+            for filepath in self.output_dir.iterdir():
+                if not filepath.is_file():
+                    continue
+
+                try:
+                    # Get file modification time
+                    file_mtime = datetime.fromtimestamp(filepath.stat().st_mtime)
+
+                    # Check minimum age safeguard
+                    if file_mtime > min_age_time:
+                        self.logger.debug(f"Skipping (too young): {filepath.name}")
+                        continue
+
+                    # Check if file is old enough for cleanup
+                    if file_mtime < cutoff_time:
+                        file_size = filepath.stat().st_size
+
+                        if self.dry_run:
+                            self.logger.info(f"Would delete: {filepath.name} ({file_size:,} bytes)")
+                        else:
+                            filepath.unlink()
+                            self.logger.info(f"Deleted: {filepath.name} ({file_size:,} bytes)")
+                            compressed_deleted += 1
+                            space_freed += file_size
+
+                except Exception as e:
+                    self.logger.warning(f"Error processing {filepath.name}: {e}")
+
+        except Exception as e:
+            self.logger.error(f"Error scanning compressed directory: {e}")
+
+        return compressed_deleted, space_freed
+
+    def _cleanup_archived_files(self) -> tuple[int, int]:
+        """Clean up archived files older than retention period.
+
+        Returns:
+            Tuple of (files_deleted, space_freed)
+        """
+        from datetime import datetime, timedelta
+
+        archived_deleted = 0
+        space_freed = 0
+        cutoff_time = datetime.now() - timedelta(days=self.archive_retention_days)
+        min_age_time = datetime.now() - timedelta(hours=self.min_age_hours)
+
+        self.logger.info(f"Scanning archive directory: {self.archive_dir}")
+        self.logger.info(f"Deleting files older than: {cutoff_time.isoformat()}")
+        self.logger.info(f"Skipping files newer than: {min_age_time.isoformat()} (minimum age safeguard)")
+
+        try:
+            for filepath in self.archive_dir.iterdir():
+                if not filepath.is_file():
+                    continue
+
+                try:
+                    # Get file modification time
+                    file_mtime = datetime.fromtimestamp(filepath.stat().st_mtime)
+
+                    # Check minimum age safeguard
+                    if file_mtime > min_age_time:
+                        self.logger.debug(f"Skipping (too young): {filepath.name}")
+                        continue
+
+                    # Check if file is old enough for cleanup
+                    if file_mtime < cutoff_time:
+                        file_size = filepath.stat().st_size
+
+                        if self.dry_run:
+                            self.logger.info(f"Would delete: {filepath.name} ({file_size:,} bytes)")
+                        else:
+                            filepath.unlink()
+                            self.logger.info(f"Deleted: {filepath.name} ({file_size:,} bytes)")
+                            archived_deleted += 1
+                            space_freed += file_size
+
+                except Exception as e:
+                    self.logger.warning(f"Error processing {filepath.name}: {e}")
+
+        except Exception as e:
+            self.logger.error(f"Error scanning archive directory: {e}")
+
+        return archived_deleted, space_freed
+
+
 class DirectoryWatcher(StateProvider):
     """Watcher for monitoring directories and compressing files."""
 
@@ -483,6 +766,9 @@ class DirectoryWatcher(StateProvider):
         self._poll_interval = self.config.get('service.poll_interval', 300)  # Default: 5 minutes
         self._last_poll_time = 0
 
+        # Initialize retention manager
+        self._retention_manager = RetentionManager(self.config, self.output_dir, self.logger)
+
     def _add_processed_file(self, filename: str, success: bool):
         """Add a processed file to the tracking list (thread-safe).
 
@@ -529,6 +815,9 @@ class DirectoryWatcher(StateProvider):
             with self.event_handler._lock:
                 processing = list(self.event_handler._processing)
 
+            # Get cleanup stats from retention manager
+            cleanup_stats = self._retention_manager.get_cleanup_stats()
+
             return ServiceState(
                 running=self._running,
                 input_dir=self.input_dir,
@@ -537,7 +826,8 @@ class DirectoryWatcher(StateProvider):
                 processed_files=list(self._processed_files),  # Thread-safe copy
                 completed_count=self._completed_count,
                 failed_count=self._failed_count,
-                uptime=uptime
+                uptime=uptime,
+                cleanup_stats=cleanup_stats
             )
 
     def start(self):
@@ -562,6 +852,9 @@ class DirectoryWatcher(StateProvider):
         if self._poll_interval > 0:
             self._start_polling_thread()
 
+        # Start retention manager for periodic cleanup
+        self._retention_manager.start()
+
         self.logger.info("=" * 60)
         self.logger.info("Press Ctrl+C to stop...")
 
@@ -569,6 +862,10 @@ class DirectoryWatcher(StateProvider):
         """Stop watching the directory."""
         if self._running:
             self._running = False
+
+            # Stop retention manager
+            self._retention_manager.stop()
+
             self.observer.stop()
             self.observer.join()
             self.logger.info("Watch mode stopped")
