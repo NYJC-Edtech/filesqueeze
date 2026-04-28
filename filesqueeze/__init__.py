@@ -31,11 +31,11 @@ start = handlers.selectAnalyzer
 
 StateMachine(start=handlers.selectAnalyzer)
 
-def make_video(filepath: str, callback: Optional[Callable] = None, config: Optional[Config] = None, output_path: Optional[str] = None) -> str:
-    """Entry point to the compression pipeline for video files.
+def _make_file(filepath: str, callback: Optional[Callable] = None, config: Optional[Config] = None, output_path: Optional[str] = None) -> str:
+    """Generic entry point for the file compression pipeline.
 
     Args:
-        filepath: Path to the video file to compress.
+        filepath: Path to the file to compress.
         callback: Optional callback function for state updates.
         config: Optional Config object for compression settings.
         output_path: Optional output path for compressed file.
@@ -48,6 +48,20 @@ def make_video(filepath: str, callback: Optional[Callable] = None, config: Optio
         sm.onupdate = callback
     final = sm.run(filepath, config=config, output_path=output_path)
     return final.target
+
+def make_video(filepath: str, callback: Optional[Callable] = None, config: Optional[Config] = None, output_path: Optional[str] = None) -> str:
+    """Entry point to the compression pipeline for video files.
+
+    Args:
+        filepath: Path to the video file to compress.
+        callback: Optional callback function for state updates.
+        config: Optional Config object for compression settings.
+        output_path: Optional output path for compressed file.
+
+    Returns:
+        Path to the final compressed file.
+    """
+    return _make_file(filepath, callback, config, output_path)
 
 def make_pdf(filepath: str, callback: Optional[Callable] = None, config: Optional[Config] = None, output_path: Optional[str] = None) -> str:
     """Entry point to the compression pipeline for PDF files.
@@ -61,11 +75,7 @@ def make_pdf(filepath: str, callback: Optional[Callable] = None, config: Optiona
     Returns:
         Path to the final compressed file.
     """
-    sm = StateMachine(start=handlers.selectAnalyzer)
-    if callback:
-        sm.onupdate = callback
-    final = sm.run(filepath, config=config, output_path=output_path)
-    return final.target
+    return _make_file(filepath, callback, config, output_path)
 
 def make_image(filepath: str, callback: Optional[Callable] = None, config: Optional[Config] = None, output_path: Optional[str] = None) -> str:
     """Entry point to the compression pipeline for image files.
@@ -79,11 +89,7 @@ def make_image(filepath: str, callback: Optional[Callable] = None, config: Optio
     Returns:
         Path to the final compressed file.
     """
-    sm = StateMachine(start=handlers.selectAnalyzer)
-    if callback:
-        sm.onupdate = callback
-    final = sm.run(filepath, config=config, output_path=output_path)
-    return final.target
+    return _make_file(filepath, callback, config, output_path)
 
 def make_presentation(filepath: str, callback: Optional[Callable] = None, config: Optional[Config] = None, output_path: Optional[str] = None) -> str:
     """Entry point to the compression pipeline for PowerPoint files.
@@ -97,11 +103,7 @@ def make_presentation(filepath: str, callback: Optional[Callable] = None, config
     Returns:
         Path to the final compressed file.
     """
-    sm = StateMachine(start=handlers.selectAnalyzer)
-    if callback:
-        sm.onupdate = callback
-    final = sm.run(filepath, config=config, output_path=output_path)
-    return final.target
+    return _make_file(filepath, callback, config, output_path)
 
 
 __all__ = [
