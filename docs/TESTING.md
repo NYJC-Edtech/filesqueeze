@@ -1,188 +1,464 @@
-# Safe Testing Guidelines for FileSqueeze
-
-## ⚠️ CRITICAL WARNING
-
-**PRODUCTION USER CONFIG LOCATION:**
-- Windows: `C:\Users\<username>\.config\filesqueeze\config.toml`
-- Linux/Mac: `~/.config/filesqueeze/config.toml`
-
-**This file MUST NEVER be modified by tests.** The production config contains:
-- Custom input/output directories (e.g., network drives)
-- Auto-detected binary paths
-- User-specific settings
-
-If this file gets wiped or modified:
-1. FileSqueeze service will stop working correctly
-2. Custom directory mappings are lost
-3. Binary detection settings are lost
-4. User must manually restore the file
+# FileSqueeze Testing Guidelines
 
 ## Golden Rule
-**NEVER modify production state during tests, even temporarily.**
 
-## What NOT To Do
+**NEVER modify production state during tests.**
 
-❌ **Dangerous: Moving/hiding user config files**
-```python
-# BAD: Risk of leaving system in broken state if test fails
-import shutil
-user_config = Path('~/.config/filesqueeze/config.toml')
-shutil.move(user_config, backup_path)  # DANGEROUS!
-try:
-    # ... tests ...
-finally:
-    shutil.move(backup_path, user_config)  # May not run if test crashes!
+This includes:
+- User config files (`~/.config/filesqueeze/config.toml`)
+- User data directories
+- System-wide settings
+- Any files outside the test temp directory
+
+## Test Safety Mechanisms
+
+### Automatic Protection
+
+The `tests/conftest.py` file includes automatic protection that patches `Path.write_text()` and `Path.write_bytes()` to prevent tests from writing to protected paths:
+
+**Protected Paths**:
+- `~/.config/filesqueeze/config.toml`
+- `./filesqueeze.toml` (in project root)
+
+**If a test tries to write to these paths**, it will fail immediately with:
+```
+TEST SAFETY VIOLATION: Attempted to write to protected config file!
 ```
 
-**Why this is dangerous:**
-- If test crashes or is interrupted, config stays moved
-- Production FileSqueeze may be running and will fail
-- User's custom settings disappear
-- Hard to debug what went wrong
+## Using tmp_path Fixture
 
-## SAFE Testing Patterns
-
-### ✅ Pattern 1: Use Mock Config (Recommended)
+**Always use the `tmp_path` fixture for test-specific files:**
 
 ```python
-from filesqueeze.config import Config
+def test_something(tmp_path):
+    # Create test config in temp directory
+    config_file = tmp_path / 'test_config.toml'
+    config_file.write_text('[test]\nkey = "value"')
 
-# Pass test config directly - NO filesystem touched
-test_config = Config({
-    'directories': {
-        'input': '/tmp/test/input',
-        'output': '/tmp/test/output'
-    },
-    'processing': {
-        'timeout_seconds': 100
-    }
-})
+    # Use the test config
+    config = Config(config_path=config_file)
 
-# Test behavior with isolated config
-assert test_config.get('processing.timeout_seconds') == 100
+    # Test logic here
+    assert config.get('test.key') == 'value'
 ```
 
-**Benefits:**
-- Zero risk to production state
-- Tests run in complete isolation
-- Fast - no file I/O
-- Can test edge cases easily
+## Test Structure
 
-### ✅ Pattern 2: Test with Actual Config (Read-Only)
+### Unit Tests
+
+Test individual functions and classes in isolation:
 
 ```python
-from filesqueeze.config import Config
+class TestVideoCompression:
+    def test_compress_without_ffmpeg(self, tmp_path):
+        """Test that compress raises error without FFmpeg."""
+        from filesqueeze.ops.video import compress
 
-# Verify config loading works (READ-ONLY)
-config = Config()
+        input_file = tmp_path / "input.mp4"
+        input_file.write_bytes(b"fake video")
 
-# Verify defaults are loaded correctly
-assert config.get('processing.pdf_timeout_seconds') == 300
-assert config.get('processing.ocr_timeout_seconds') == 300
+        output_file = tmp_path / "output.mp4"
 
-# Verify user config overrides work
-user_input = config.get('directories.input')
-# Just read, never write!
+        with pytest.raises(RuntimeError):
+            compress(str(input_file), str(output_file))
 ```
 
-**Benefits:**
-- Tests real config loading
-- Zero risk (read-only)
-- Verifies cascade works
+### Integration Tests
 
-### ✅ Pattern 3: Use Temporary Directories for File Operations
+Test multiple components working together:
 
 ```python
-import tempfile
-from pathlib import Path
+class TestRealFileCompression:
+    def test_compress_video(self, sample_video, tmp_path):
+        """Test actual video compression."""
+        from filesqueeze.ops.video import compress
 
-# Create isolated temp directory
-with tempfile.TemporaryDirectory() as tmpdir:
-    test_config_path = Path(tmpdir) / 'config.toml'
-    test_config_path.write_text('[directories]\ninput = "/tmp/test"\n')
+        output_path = tmp_path / "compressed.mp4"
 
-    # Load from test location
-    config = Config(test_config_path)
-    assert config.get('directories.input') == '/tmp/test'
+        # Compress
+        compress(sample_video, str(output_path))
 
-# Temp dir auto-cleanup - zero risk to production
+        # Verify output exists and is valid
+        assert output_path.exists()
+        assert output_path.stat().st_size > 0
 ```
 
-**Benefits:**
-- Safe file operations in isolated space
-- Auto-cleanup guaranteed
-- No risk to user config
+### Regression Tests
 
-## Testing Checklist
+Establish baseline behavior before refactoring, verify no regressions after:
 
-Before running any test that touches config:
+```python
+class TestBehavioralRegression:
+    def test_video_compression_regression(self, baseline_data):
+        """Verify video compression matches baseline."""
+        # Load baseline
+        baseline = load_baseline('video_compression')
 
-- [ ] Am I modifying `~/.config/filesqueeze/config.toml`? → **STOP**
-- [ ] Am I modifying project `filesqueeze.toml`? → **Use temp dir instead**
-- [ ] Am I modifying `default.toml`? → **Use temp dir instead**
-- [ ] Can I use a mock dict instead? → **DO THAT**
-- [ ] Can I use tempfile.TemporaryDirectory? → **DO THAT**
+        # Run compression
+        result = compress_video(...)
 
-## Safe Test Examples
+        # Compare with baseline
+        assert result['compression_ratio'] >= baseline['min_ratio']
+```
+
+## Configuration in Tests
+
+### Safe Config Patterns
+
+**✅ DO: Use tmp_path for config files**
+```python
+def test_with_custom_config(tmp_path):
+    config_file = tmp_path / 'config.toml'
+    config_file.write_text('[ffmpeg]\ncrf = 25\n')
+    config = Config(config_path=config_file)
+```
+
+**✅ DO: Use dict for inline config**
+```python
+def test_with_dict_config():
+    config = Config({'ffmpeg': {'crf': 25}})
+    assert config.get('ffmpeg.crf') == 25
+```
+
+**✅ DO: Use default config (no args)**
+```python
+def test_with_defaults():
+    config = Config()  # Loads from default.toml
+    assert config.get('ffmpeg.crf') is not None
+```
+
+**❌ DON'T: Write to actual user config**
+```python
+def test_bad_example():
+    # This will FAIL with safety violation!
+    user_config = Path.home() / '.config' / 'filesqueeze' / 'config.toml'
+    user_config.write_text('[test]\n')  # ❌ TEST SAFETY VIOLATION!
+```
+
+## Test Fixtures
+
+### Sample Files
+
+Use fixtures for sample test files:
+
+```python
+@pytest.fixture
+def sample_video():
+    """Path to sample video file for testing."""
+    video_path = FIXTURES_DIR / "testvideo61.mp4"
+    if video_path.exists():
+        return str(video_path)
+    pytest.skip("Sample video not found")
+```
+
+### Mock Config
+
+Create mock config for testing:
+
+```python
+@pytest.fixture
+def mock_config(tmp_path):
+    """Create a mock config for testing."""
+    config_file = tmp_path / 'test_config.toml'
+    config_file.write_text('''
+        [ffmpeg]
+        crf = 25
+        preset = "medium"
+
+        [document]
+        image_quality = 85
+    ''')
+    return Config(config_path=config_file)
+```
+
+## Test Isolation
+
+Each test should be independent:
+
+```python
+@pytest.fixture(autouse=True)
+def reset_state():
+    """Reset global state before each test."""
+    # Reset logger
+    from filesqueeze.system import logger as logger_module
+    logger_module._logger = None
+
+    # Reset binary finder
+    from filesqueeze.system import binaries as binaries_module
+    binaries_module._binary_finder = None
+
+    yield
+
+    # Cleanup after test
+    logger_module._logger = None
+    binaries_module._binary_finder = None
+```
+
+## Test Markers
+
+Use pytest markers to categorize tests:
+
+```python
+@pytest.mark.unit
+def test_video_config_validation():
+    """Unit test for video config validation."""
+
+@pytest.mark.integration
+def test_real_video_compression():
+    """Integration test with actual FFmpeg."""
+
+@pytest.mark.regression
+def test_behavioral_baseline():
+    """Regression test for behavior verification."""
+```
+
+Run specific categories:
+```bash
+pytest -m unit           # Run only unit tests
+pytest -m integration    # Run only integration tests
+pytest -m "not regression"  # Skip regression tests
+```
+
+## Common Test Patterns
+
+### Testing Error Conditions
+
+```python
+def test_invalid_crf_raises_error():
+    """Test that invalid CRF value raises error."""
+    from filesqueeze.system.config_adapters import VideoConfig
+
+    with pytest.raises(ValueError, match="CRF must be 0-51"):
+        VideoConfig({'crf': -1})
+```
+
+### Testing with Missing Binaries
+
+```python
+def test_compress_without_ffmpeg(tmp_path):
+    """Test compress raises error when FFmpeg missing."""
+    from filesqueeze.ops.video import compress
+
+    # Skip if FFmpeg is installed
+    if shutil.which('ffmpeg'):
+        pytest.skip("FFmpeg installed, cannot test missing binary")
+
+    # Test error handling
+    input_file = tmp_path / "input.mp4"
+    input_file.write_bytes(b"fake video")
+
+    with pytest.raises(RuntimeError):
+        compress(str(input_file), str(tmp_path / "output.mp4"))
+```
 
 ### Testing Config Loading
+
 ```python
-# SAFE: Read-only verification
-config = Config()
-assert config.get('processing.pdf_timeout_seconds') == 300
-assert config.get('processing.ocr_timeout_seconds') == 300
+def test_config_cascade(tmp_path):
+    """Test that project config overrides user config."""
+    # Create user config
+    user_config = tmp_path / 'user.toml'
+    user_config.write_text('[ffmpeg]\ncrf = 25\n')
+
+    # Create project config
+    project_config = tmp_path / 'project.toml'
+    project_config.write_text('[ffmpeg]\ncrf = 23\n')
+
+    # Load project config (should override user)
+    config = Config(config_path=project_config)
+    assert config.get('ffmpeg.crf') == 23  # Project wins
 ```
 
-### Testing Config with Custom Values
-```python
-# SAFE: Use mock dict
-config = Config({
-    'processing': {
-        'pdf_timeout_seconds': 999
-    }
-})
-assert config.get('processing.pdf_timeout_seconds') == 999
+## Running Tests
+
+### Run All Tests
+```bash
+pytest tests/
 ```
 
-### Testing Config from File
-```python
-# SAFE: Use temp directory
-import tempfile
-from pathlib import Path
-
-with tempfile.TemporaryDirectory() as tmpdir:
-    config_path = Path(tmpdir) / 'test.toml'
-    config_path.write_text('[processing]\npdf_timeout_seconds = 999\n')
-
-    config = Config(config_path)
-    assert config.get('processing.pdf_timeout_seconds') == 999
+### Run Specific Test File
+```bash
+pytest tests/test_video.py
 ```
 
-## Production Safety
+### Run with Verbose Output
+```bash
+pytest tests/ -v
+```
 
-If you suspect tests may have touched production:
+### Run and Stop on First Failure
+```bash
+pytest tests/ -x
+```
 
-1. **Check user config exists:**
-   ```python
-   from pathlib import Path
-   user_config = Path('~/.config/filesqueeze/config.toml').expanduser()
-   print(f'Config exists: {user_config.exists()}')
-   ```
+### Run with Coverage
+```bash
+pytest tests/ --cov=filesqueeze --cov-report=html
+```
 
-2. **Check FileSqueeze service status:**
-   ```bash
-   filesqueeze service status
-   ```
+## Debugging Tests
 
-3. **If missing, restore from backup or reinstall**
+### Print Debug Info
+```python
+def test_with_debug(tmp_path):
+    config_file = tmp_path / 'config.toml'
+    config_file.write_text('[test]\nkey = "value"')
 
-## Summary
+    # Debug: print what was written
+    print(f"Config file: {config_file}")
+    print(f"Content: {config_file.read_text()}")
 
-- ✅ Use mock configs for testing
-- ✅ Use read-only checks for verification
-- ✅ Use temp directories for file operations
-- ❌ NEVER touch user config files
-- ❌ NEVER move/hide production files
-- ❌ NEVER assume cleanup will run
+    config = Config(config_path=config_file)
+    assert config.get('test.key') == 'value'
+```
 
-**Tests should be safe to run on a production system.**
+### Use pdb Debugger
+```python
+def test_with_breakpoint():
+    import pdb; pdb.set_trace()
+
+    # Test will stop here for debugging
+    result = some_function()
+    assert result == expected
+```
+
+### Run with pdb on Failure
+```bash
+pytest tests/ --pdb
+```
+
+## Test Cleanup
+
+### Cleanup After Tests
+
+```python
+def test_with_cleanup(tmp_path):
+    """Test that cleans up resources."""
+    log_file = tmp_path / 'test.log'
+    logger = setup_logging(log_file=log_file)
+
+    try:
+        # Test code here
+        logger.info("Test message")
+    finally:
+        # Always cleanup
+        for handler in logger.handlers[:]:
+            handler.close()
+            logger.removeHandler(handler)
+```
+
+## Best Practices
+
+### 1. Use Descriptive Test Names
+```python
+# ✅ Good
+def test_compress_video_raises_error_when_ffmpeg_missing():
+
+# ❌ Bad
+def test_video_1():
+```
+
+### 2. Test One Thing Per Test
+```python
+# ✅ Good - one assertion
+def test_crf_validation_accepts_valid_range():
+    config = VideoConfig({'crf': 23})
+    assert config.crf == 23
+
+# ❌ Bad - multiple unrelated assertions
+def test_video_config():
+    config = VideoConfig({'crf': 23})
+    assert config.crf == 23
+    assert config.preset == "medium"  # Different concern
+    assert config.threads == 4  # Different concern
+```
+
+### 3. Use Fixtures for Setup
+```python
+# ✅ Good - reusable fixture
+@pytest.fixture
+def video_config():
+    return VideoConfig({'crf': 23, 'preset': 'medium'})
+
+def test_with_fixture(video_config):
+    assert video_config.crf == 23
+
+# ❌ Bad - duplicated setup
+def test_without_fixture():
+    config = VideoConfig({'crf': 23, 'preset': 'medium'})
+    assert config.crf == 23
+```
+
+### 4. Make Tests Independent
+```python
+# ✅ Good - independent
+def test_feature_a(tmp_path):
+    file_a = tmp_path / 'a.txt'
+    file_a.write_text('content a')
+
+def test_feature_b(tmp_path):
+    file_b = tmp_path / 'b.txt'
+    file_b.write_text('content b')
+
+# ❌ Bad - tests share state
+shared_state = []
+
+def test_feature_a():
+    shared_state.append('a')
+
+def test_feature_b():
+    shared_state.append('b')  # Depends on test_a running first
+```
+
+## Safety Checklist
+
+Before committing a test, verify:
+
+- [ ] Test uses `tmp_path` for all file operations
+- [ ] Test does NOT write to `~/.config/filesqueeze/`
+- [ ] Test does NOT write to project root `filesqueeze.toml`
+- [ ] Test cleans up its own resources (if needed)
+- [ ] Test is independent (can run alone)
+- [ ] Test has descriptive name explaining what it tests
+- [ ] Test follows AAA pattern (Arrange, Act, Assert)
+
+## Troubleshooting
+
+### Test Fails with "TEST SAFETY VIOLATION"
+
+**Problem**: Test tried to write to protected config path.
+
+**Solution**: Use `tmp_path` fixture instead:
+
+```python
+# ❌ Wrong
+def test_bad():
+    config_path = Path.home() / '.config' / 'filesqueeze' / 'config.toml'
+    config_path.write_text('content')
+
+# ✅ Correct
+def test_good(tmp_path):
+    config_path = tmp_path / 'config.toml'
+    config_path.write_text('content')
+```
+
+### Tests Pass in Isolation but Fail in Suite
+
+**Problem**: Tests are sharing state or not cleaning up properly.
+
+**Solution**: Ensure each test cleans up after itself. Use fixtures for setup/teardown.
+
+### Tests are Slow
+
+**Problem**: Tests doing unnecessary I/O or setup.
+
+**Solution**:
+- Mock expensive operations
+- Use fixtures to share setup
+- Only test what's necessary
+
+## Resources
+
+- [pytest documentation](https://docs.pytest.org/)
+- [pytest fixtures](https://docs.pytest.org/en/stable/fixture.html)
+- [pytest markers](https://docs.pytest.org/en/stable/mark.html)

@@ -1,0 +1,119 @@
+name: CI
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  quick-checks:
+    name: Smoke, Unit & Code Quality
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'poetry'
+
+      - name: Install Poetry
+        run: |
+          curl -sSL https://install.python-poetry.org | python3 -
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+      - name: Install dependencies
+        run: poetry install --with dev
+
+      - name: Run smoke tests
+        run: poetry run pytest tests/smoke/ -v
+
+      - name: Run unit tests
+        run: poetry run pytest tests/unit/ -v
+
+      - name: Run system tests
+        run: poetry run pytest tests/system/ -v
+
+      - name: Check code style with Black
+        run: |
+          poetry run pip install black
+          poetry run black --check filesqueeze/ tests/
+
+      - name: Lint with flake8
+        run: |
+          poetry run pip install flake8
+          poetry run flake8 filesqueeze/ tests/ --count --select=E9,F63,F7,F82 --show-source --statistics
+          poetry run flake8 filesqueeze/ tests/ --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+
+  integration-tests:
+    name: Integration Tests (Linux)
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'poetry'
+
+      - name: Install Poetry
+        run: |
+          curl -sSL https://install.python-poetry.org | python3 -
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+      - name: Install dependencies
+        run: poetry install --with dev
+
+      - name: Install FFmpeg
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+
+      - name: Install Ghostscript
+        run: sudo apt-get install -y ghostscript
+
+      - name: Run integration tests
+        run: poetry run pytest tests/integration/ -v --ignore=tests/integration/test_gui_behavior.py --ignore=tests/integration/test_service.py --ignore=tests/integration/test_single_instance.py
+
+      - name: Run regression tests
+        run: poetry run pytest tests/regression/ -v
+
+  coverage:
+    name: Coverage Report
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'poetry'
+
+      - name: Install Poetry
+        run: |
+          curl -sSL https://install.python-poetry.org | python3 -
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+      - name: Install dependencies
+        run: poetry install --with dev
+
+      - name: Run coverage
+        run: |
+          poetry run pytest tests/unit/ tests/smoke/ tests/system/ \
+            --cov=filesqueeze \
+            --cov-report=xml \
+            --cov-report=term-missing \
+            --cov-report=html
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          file: ./coverage.xml
+          fail_ci_if_error: false

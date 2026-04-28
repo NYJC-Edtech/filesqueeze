@@ -18,6 +18,8 @@ dependencies = [
 dev = [
     "pytest>=7.0.0",
     "pytest-cov>=4.0.0",
+    "black>=23.0.0",
+    "flake8>=6.0.0",
 ]
 ocr = [
     "pdfminer.six>=20231228",
@@ -44,6 +46,8 @@ pytest = "^7.0.0"
 pytest-cov = "^4.0.0"
 pdfminer-six = "^20231228"
 tomli-w = "^1.2.0"
+black = "^23.0.0"
+flake8 = "^6.0.0"
 
 [tool.poetry.scripts]
 # Project task scripts - use with: poetry run <task>
@@ -60,3 +64,18 @@ python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
 addopts = "-v --tb=short"
+
+[tool.black]
+line-length = 127
+target-version = ['py311']
+include = '\.pyi?$'
+extend-exclude = '''
+/(
+  \.git
+  | \.venv
+  | venv
+  | build
+  | dist
+  | __pycache__
+)/
+'''
