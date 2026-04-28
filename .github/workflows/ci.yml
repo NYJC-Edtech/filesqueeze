@@ -11,6 +11,8 @@ jobs:
     name: Smoke, Unit & Code Quality
     runs-on: ubuntu-latest
     if: github.event_name != 'pull_request'
+    env:
+      CI: true
     steps:
       - name: Checkout code
         uses: actions/checkout@v4

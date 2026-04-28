@@ -10,6 +10,8 @@ without errors. Import failures indicate show-stopper issues like:
 Users cannot fix these issues themselves - they require proper installation.
 """
 
+import os
+import sys
 import pytest
 
 
@@ -73,6 +75,10 @@ def test_service_classes_import():
     assert RetentionManager is not None
 
 
+@pytest.mark.skipif(
+    os.environ.get('CI') == 'true',
+    reason="GUI modules require display server (skip in CI)"
+)
 def test_gui_modules_import():
     """GUI modules must be importable (even if not used on all platforms)."""
     try:
