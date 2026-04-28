@@ -11,6 +11,8 @@ import threading
 from pathlib import Path
 from typing import Optional, Tuple
 
+from filesqueeze.constants import ConfigKeys
+
 # Global binary finder instance (None until registered)
 _binary_finder: Optional['BinaryFinder'] = None
 # Lock for thread-safe registration
@@ -128,7 +130,7 @@ class BinaryFinder:
         Raises:
             RuntimeError: If FFmpeg not found
         """
-        return self._get_binary_path('ffmpeg', 'ffmpeg.path', self.find_ffmpeg)
+        return self._get_binary_path('ffmpeg', ConfigKeys.FFMPEG_PATH, self.find_ffmpeg)
 
     def get_ffprobe_path(self) -> str:
         """Get ffprobe executable path.
@@ -168,7 +170,7 @@ class BinaryFinder:
         Raises:
             RuntimeError: If Ghostscript not found
         """
-        return self._get_binary_path('ghostscript', 'document.ghostscript_path', self.find_ghostscript)
+        return self._get_binary_path('ghostscript', ConfigKeys.DOCUMENT_GHOSTSCRIPT_PATH, self.find_ghostscript)
 
     def get_tesseract_path(self) -> str:
         """Get Tesseract executable path.
@@ -179,7 +181,7 @@ class BinaryFinder:
         Raises:
             RuntimeError: If Tesseract not found
         """
-        return self._get_binary_path('tesseract', 'ocr.tesseract_path', self.find_tesseract)
+        return self._get_binary_path('tesseract', ConfigKeys.OCR_TESSERACT_PATH, self.find_tesseract)
 
     def get_powershell_path(self) -> str:
         """Get PowerShell executable path.
@@ -190,7 +192,7 @@ class BinaryFinder:
         Raises:
             RuntimeError: If PowerShell not found
         """
-        return self._get_binary_path('powershell', 'presentation.powershell_path', self.find_powershell)
+        return self._get_binary_path('powershell', ConfigKeys.PRESENTATION_POWERSHELL_PATH, self.find_powershell)
 
     def _get_binary_path(self, binary_name: str, config_key: str, finder_method: callable) -> str:
         """Generic binary path finder with caching.
