@@ -223,6 +223,31 @@ class BinaryFinder:
 
         return self._cached_paths['tesseract']
 
+    def get_powershell_path(self) -> str:
+        """Get PowerShell executable path.
+
+        Returns:
+            Path to PowerShell executable
+
+        Raises:
+            RuntimeError: If PowerShell not found
+        """
+        if 'powershell' not in self._cached_paths:
+            # Check config first
+            if self.config:
+                config_path = self.config.get('presentation.powershell_path')
+                if config_path:
+                    self._cached_paths['powershell'] = config_path
+                    return config_path
+
+            # Auto-detect (PowerShell is built into Windows)
+            path, msg = self.find_powershell()
+            if path is None:
+                raise RuntimeError(f"PowerShell not found: {msg}")
+            self._cached_paths['powershell'] = path
+
+        return self._cached_paths['powershell']
+
     def verify_all(self) -> dict:
         """Verify all binaries are available.
 
@@ -248,6 +273,11 @@ class BinaryFinder:
             results['tesseract'] = self.get_tesseract_path()
         except RuntimeError as e:
             results['tesseract'] = f"Error: {e}"
+
+        try:
+            results['powershell'] = self.get_powershell_path()
+        except RuntimeError as e:
+            results['powershell'] = f"Error: {e}"
 
         return results
 
@@ -298,6 +328,22 @@ class BinaryFinder:
             return self._find_tesseract_windows()
         else:
             return self._find_tesseract_linux()
+
+    def find_powershell(self) -> Tuple[Optional[str], str]:
+        """Find PowerShell executable.
+
+        Returns:
+            Tuple of (path to powershell, status message).
+        """
+        # PowerShell is built into Windows, so check if it's in PATH
+        if self._check_command("powershell.exe"):
+            return "powershell.exe", "Found in PATH"
+
+        # If not in PATH (unlikely on Windows), try common paths
+        if self.system == "Windows":
+            return self._find_powershell_windows()
+        else:
+            return None, "PowerShell is only available on Windows"
 
     def _check_command(self, command: str) -> bool:
         """Check if a command is available in PATH.
@@ -421,6 +467,25 @@ class BinaryFinder:
                 tesseract_bin = base_path / "tesseract"
                 if tesseract_bin.exists() and os.access(tesseract_bin, os.X_OK):
                     return str(tesseract_bin), f"Found at {tesseract_bin}"
+
+        return None, "Not found in common locations"
+
+    def _find_powershell_windows(self) -> Tuple[Optional[str], str]:
+        """Find PowerShell on Windows.
+
+        Returns:
+            Tuple of (path to powershell, status message).
+        """
+        # Common PowerShell installation paths
+        powershell_paths = [
+            Path("C:/Windows/System32/WindowsPowerShell/v1.0/powershell.exe"),
+            Path("C:/Windows/SysWOW64/WindowsPowerShell/v1.0/powershell.exe"),
+            Path("C:/Windows/System32/powershell.exe"),
+        ]
+
+        for ps_path in powershell_paths:
+            if ps_path.exists():
+                return str(ps_path), f"Found at {ps_path}"
 
         return None, "Not found in common locations"
 

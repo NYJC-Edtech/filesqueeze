@@ -259,7 +259,7 @@ class CompressionHandler(FileSystemEventHandler):
         try:
             # Import here to avoid circular imports
             from .scanner import FileScanner
-            from . import make_video, make_pdf, make_image
+            from . import make_video, make_pdf, make_image, make_presentation
 
             scanner = FileScanner(self.config)
 
@@ -304,8 +304,7 @@ class CompressionHandler(FileSystemEventHandler):
                 elif ext in ['jpg', 'jpeg', 'png']:
                     result_path = make_image(str(filepath), config=self.config, output_path=str(output_path))
                 elif ext in ['ppt', 'pptx']:
-                    self.logger.warning(f"PowerPoint files not yet supported: {filepath.name}")
-                    return
+                    result_path = make_presentation(str(filepath), config=self.config, output_path=str(output_path))
                 else:
                     self.logger.warning(f"Unsupported file type: {ext}")
                     return
