@@ -22,7 +22,7 @@ class TestSubprocessBehaviorPreserved:
 
     def test_windows_console_hiding_works(self, tmp_path):
         """Windows subprocess calls should hide console windows during actual operations."""
-        if os.name != 'nt':
+        if os.name != "nt":
             pytest.skip("Windows-specific test")
 
         # Test that we can run a subprocess without showing console window
@@ -32,16 +32,10 @@ class TestSubprocessBehaviorPreserved:
         # Use the utility function to run subprocess
         from filesqueeze.utils.subprocess_helper import run_subprocess, SubprocessError
 
-        cmd = [sys.executable, '-c', 'print("hidden window test")']
+        cmd = [sys.executable, "-c", 'print("hidden window test")']
         try:
             run_subprocess(
-                cmd,
-                timeout=5,
-                tool_name="Python",
-                input_file=str(test_file),
-                capture_output=True,
-                text_mode=True,
-                check=True
+                cmd, timeout=5, tool_name="Python", input_file=str(test_file), capture_output=True, text_mode=True, check=True
             )
             # If we get here without console window appearing, success
             assert True
@@ -55,15 +49,10 @@ class TestSubprocessBehaviorPreserved:
         test_file = tmp_path / "test.txt"
 
         # Create a command that will timeout
-        cmd = [sys.executable, '-c', 'import time; time.sleep(10)']
+        cmd = [sys.executable, "-c", "import time; time.sleep(10)"]
 
         with pytest.raises(SubprocessTimeout) as exc_info:
-            run_subprocess(
-                cmd,
-                timeout=0.1,
-                tool_name="TestTool",
-                input_file=str(test_file)
-            )
+            run_subprocess(cmd, timeout=0.1, tool_name="TestTool", input_file=str(test_file))
 
         # Verify the error message has the right information
         error_msg = str(exc_info.value)
@@ -77,19 +66,14 @@ class TestSubprocessBehaviorPreserved:
         test_file = tmp_path / "test.txt"
 
         # Create a command that will fail
-        cmd = [sys.executable, '-c', 'import sys; sys.exit(1)']
+        cmd = [sys.executable, "-c", "import sys; sys.exit(1)"]
 
         with pytest.raises(SubprocessError) as exc_info:
-            run_subprocess(
-                cmd,
-                timeout=5,
-                tool_name="TestTool",
-                input_file=str(test_file)
-            )
+            run_subprocess(cmd, timeout=5, tool_name="TestTool", input_file=str(test_file))
 
         # Verify the error has context
         error = exc_info.value
-        assert hasattr(error, 'return_code')
+        assert hasattr(error, "return_code")
         assert error.return_code == 1
         assert "TestTool" in str(error)
 
@@ -100,16 +84,10 @@ class TestSubprocessBehaviorPreserved:
         test_file = tmp_path / "test.txt"
 
         # Test that we can capture output
-        cmd = [sys.executable, '-c', 'print("test output")']
+        cmd = [sys.executable, "-c", 'print("test output")']
 
         result = run_subprocess(
-            cmd,
-            timeout=5,
-            tool_name="Python",
-            input_file=str(test_file),
-            capture_output=True,
-            text_mode=True,
-            check=True
+            cmd, timeout=5, tool_name="Python", input_file=str(test_file), capture_output=True, text_mode=True, check=True
         )
 
         # Verify we got the output
@@ -162,10 +140,7 @@ class TestErrorMessagesPreserved:
         """Failure error messages should include return code and context."""
         from filesqueeze.utils.subprocess_helper import SubprocessError
 
-        error = SubprocessError(
-            "FFmpeg failed with return code 1: video.mp4",
-            return_code=1
-        )
+        error = SubprocessError("FFmpeg failed with return code 1: video.mp4", return_code=1)
 
         # Verify error message is helpful
         error_str = str(error)
@@ -189,12 +164,13 @@ class TestPlatformBehaviorConsistency:
         assert os.name == os.name  # Obviously true, but verifies access
 
         # On Windows, all should have access to the same subprocess flags
-        if os.name == 'nt':
+        if os.name == "nt":
             import subprocess
+
             # Verify Windows-specific features are available everywhere
-            assert hasattr(subprocess, 'STARTUPINFO')
-            assert hasattr(subprocess, 'STARTF_USESHOWWINDOW')
-            assert hasattr(subprocess, 'SW_HIDE')
+            assert hasattr(subprocess, "STARTUPINFO")
+            assert hasattr(subprocess, "STARTF_USESHOWWINDOW")
+            assert hasattr(subprocess, "SW_HIDE")
 
     def test_cross_platform_behavior(self):
         """Subprocess behavior should work correctly on all platforms."""
@@ -203,16 +179,10 @@ class TestPlatformBehaviorConsistency:
         test_file = "test.txt"
 
         # Test a simple cross-platform command
-        cmd = [sys.executable, '-c', 'print("platform test")']
+        cmd = [sys.executable, "-c", 'print("platform test")']
 
         result = run_subprocess(
-            cmd,
-            timeout=5,
-            tool_name="Python",
-            input_file=test_file,
-            capture_output=True,
-            text_mode=True,
-            check=True
+            cmd, timeout=5, tool_name="Python", input_file=test_file, capture_output=True, text_mode=True, check=True
         )
 
         # Should work on any platform
@@ -228,21 +198,15 @@ def test_refactoring_successful():
     # Verify utility functions exist and work
     test_file = "test.txt"
 
-    cmd = [sys.executable, '-c', 'print("success")']
+    cmd = [sys.executable, "-c", 'print("success")']
     result = run_subprocess(
-        cmd,
-        timeout=5,
-        tool_name="Python",
-        input_file=test_file,
-        capture_output=True,
-        text_mode=True,
-        check=True
+        cmd, timeout=5, tool_name="Python", input_file=test_file, capture_output=True, text_mode=True, check=True
     )
     assert "success" in result
 
     # Verify ops files import the utility
-    assert hasattr(compress_pdf, '__module__')
-    assert hasattr(compress, '__module__')
+    assert hasattr(compress_pdf, "__module__")
+    assert hasattr(compress, "__module__")
 
 
 if __name__ == "__main__":

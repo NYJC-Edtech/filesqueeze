@@ -20,11 +20,7 @@ class TestServiceState:
         """Test that ServiceState can be created with all fields."""
         from filesqueeze.service import ServiceState, ProcessedFile
 
-        processed_file = ProcessedFile(
-            filename="test.mp4",
-            timestamp="2026-01-27T10:30:00",
-            success=True
-        )
+        processed_file = ProcessedFile(filename="test.mp4", timestamp="2026-01-27T10:30:00", success=True)
 
         state = ServiceState(
             running=True,
@@ -34,7 +30,7 @@ class TestServiceState:
             processed_files=[processed_file],
             completed_count=5,
             failed_count=1,
-            uptime=timedelta(hours=1)
+            uptime=timedelta(hours=1),
         )
 
         assert state.running is True
@@ -51,11 +47,7 @@ class TestServiceState:
         """Test that ServiceState has sensible defaults."""
         from filesqueeze.service import ServiceState
 
-        state = ServiceState(
-            running=False,
-            input_dir=Path("/input"),
-            output_dir=Path("/output")
-        )
+        state = ServiceState(running=False, input_dir=Path("/input"), output_dir=Path("/output"))
 
         assert state.processing_files == []
         assert state.completed_count == 0
@@ -215,6 +207,7 @@ class TestDirectoryWatcherState:
             try:
                 # Concurrent queries from multiple threads
                 states = []
+
                 def query_state():
                     for _ in range(50):
                         states.append(watcher.get_state())
@@ -268,12 +261,13 @@ class TestStateProviderInterface:
             watcher = DirectoryWatcher(input_dir, output_dir)
 
             # Verify get_state method exists
-            assert hasattr(watcher, 'get_state')
+            assert hasattr(watcher, "get_state")
             assert callable(watcher.get_state)
 
             # Verify it returns ServiceState
             state = watcher.get_state()
             from filesqueeze.service import ServiceState
+
             assert isinstance(state, ServiceState)
 
     def test_state_is_immutable_snapshot(self):

@@ -40,15 +40,21 @@ Runs on pull requests to main/develop branches:
 
 ## Code Quality Tools
 
+### Pre-commit Hooks
+- **Purpose**: Automatically format code before commits
+- **Tools**: Black (formatting) + flake8 (linting)
+- **Setup**: Run `pip install pre-commit && pre-commit install` once after cloning
+- **Action**: Automatically formats Python files on every commit
+
 ### Black
 - **Purpose**: Code formatting consistency
 - **Config**: 127 character line length, Python 3.11 target
-- **Action**: Fails if code isn't properly formatted
+- **Action**: Automatically formats code via pre-commit hooks
 
 ### flake8
 - **Purpose**: Python linting
 - **Config**: 127 character line length, ignores E203/E501/W503
-- **Action**: Shows errors/warnings but doesn't fail on style issues
+- **Action**: Runs via pre-commit hooks to catch code quality issues
 
 ## Platform Support
 
@@ -99,11 +105,29 @@ poetry run flake8 filesqueeze/ tests/
 
 ## Local Testing
 
+### Setup Pre-commit Hooks (Recommended)
+```bash
+# Install pre-commit and set up hooks
+pip install pre-commit
+pre-commit install
+
+# Now your code will be automatically formatted before each commit
+```
+
 ### Quick Check (What runs on push)
 ```bash
+# Pre-commit hooks handle formatting automatically
+# Just run tests
 poetry run pytest tests/smoke/ tests/unit/ tests/system/ -v
+```
+
+### Manual Formatting (If needed)
+```bash
+# Format all files manually
+poetry run black filesqueeze/ tests/
+
+# Check formatting without making changes
 poetry run black --check filesqueeze/ tests/
-poetry run flake8 filesqueeze/ tests/
 ```
 
 ### Full Test Suite (What runs on PR)

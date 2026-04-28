@@ -18,8 +18,9 @@ logger = logging.getLogger(__name__)
 class SubprocessError(RuntimeError):
     """Base class for subprocess-related errors."""
 
-    def __init__(self, message: str, return_code: Optional[int] = None,
-                 stdout: Optional[str] = None, stderr: Optional[str] = None):
+    def __init__(
+        self, message: str, return_code: Optional[int] = None, stdout: Optional[str] = None, stderr: Optional[str] = None
+    ):
         super().__init__(message)
         self.return_code = return_code
         self.stdout = stdout
@@ -28,6 +29,7 @@ class SubprocessError(RuntimeError):
 
 class SubprocessTimeout(SubprocessError):
     """Raised when subprocess execution times out."""
+
     pass
 
 
@@ -38,7 +40,7 @@ def run_subprocess(
     input_file: str,
     capture_output: bool = False,
     text_mode: bool = False,
-    check: bool = True
+    check: bool = True,
 ) -> Union[subprocess.CompletedProcess, str]:
     """Run subprocess with platform-specific configuration and error handling.
 
@@ -60,24 +62,24 @@ def run_subprocess(
     """
     # Platform-specific subprocess configuration
     subprocess_kwargs = {
-        'timeout': timeout,
-        'check': False,  # We'll handle errors ourselves for better messages
+        "timeout": timeout,
+        "check": False,  # We'll handle errors ourselves for better messages
     }
 
     if capture_output:
-        subprocess_kwargs['capture_output'] = True
+        subprocess_kwargs["capture_output"] = True
         if text_mode:
-            subprocess_kwargs['text'] = True
+            subprocess_kwargs["text"] = True
 
     # Windows: Hide console window using startupinfo (most robust approach)
-    if os.name == 'nt':
+    if os.name == "nt":
         startupinfo = subprocess.STARTUPINFO()
         startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
         startupinfo.wShowWindow = subprocess.SW_HIDE
-        subprocess_kwargs['startupinfo'] = startupinfo
+        subprocess_kwargs["startupinfo"] = startupinfo
 
     # Log command for debugging (without sensitive paths)
-    cmd_display = [tool_name] + (['...'] if len(cmd) > 1 else [])
+    cmd_display = [tool_name] + (["..."] if len(cmd) > 1 else [])
     logger.debug(f"Running: {' '.join(cmd_display)}")
 
     try:
@@ -88,8 +90,10 @@ def run_subprocess(
             error_msg = f"{tool_name} failed with return code {result.returncode}: {input_file}"
 
             # Add stderr if available
-            if hasattr(result, 'stderr') and result.stderr:
-                stderr_text = result.stderr if isinstance(result.stderr, str) else result.stderr.decode('utf-8', errors='replace')
+            if hasattr(result, "stderr") and result.stderr:
+                stderr_text = (
+                    result.stderr if isinstance(result.stderr, str) else result.stderr.decode("utf-8", errors="replace")
+                )
                 error_msg += f"\nstderr: {stderr_text.strip()}"
 
             raise SubprocessError(error_msg, return_code=result.returncode)
@@ -101,10 +105,7 @@ def run_subprocess(
 
 
 def verify_output_file(
-    output_path: str,
-    min_size: int = 0,
-    max_size_ratio: float = float('inf'),
-    input_size: Optional[int] = None
+    output_path: str, min_size: int = 0, max_size_ratio: float = float("inf"), input_size: Optional[int] = None
 ) -> Path:
     """Verify output file was created successfully.
 
@@ -143,9 +144,9 @@ def get_windows_subprocess_config() -> dict:
     Returns:
         Dictionary with startupinfo configuration for Windows, empty dict for other platforms.
     """
-    if os.name == 'nt':
+    if os.name == "nt":
         startupinfo = subprocess.STARTUPINFO()
         startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
         startupinfo.wShowWindow = subprocess.SW_HIDE
-        return {'startupinfo': startupinfo}
+        return {"startupinfo": startupinfo}
     return {}

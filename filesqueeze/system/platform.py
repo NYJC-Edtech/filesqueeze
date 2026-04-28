@@ -13,7 +13,7 @@ def is_windows() -> bool:
     Returns:
         True if on Windows, False otherwise.
     """
-    return sys.platform == 'win32'
+    return sys.platform == "win32"
 
 
 def is_linux() -> bool:
@@ -22,7 +22,7 @@ def is_linux() -> bool:
     Returns:
         True if on Linux, False otherwise.
     """
-    return sys.platform.startswith('linux')
+    return sys.platform.startswith("linux")
 
 
 def is_mac() -> bool:
@@ -31,7 +31,7 @@ def is_mac() -> bool:
     Returns:
         True if on macOS, False otherwise.
     """
-    return sys.platform == 'darwin'
+    return sys.platform == "darwin"
 
 
 def get_platform() -> str:
@@ -41,13 +41,13 @@ def get_platform() -> str:
         Platform name: 'windows', 'linux', or 'macos'
     """
     if is_windows():
-        return 'windows'
+        return "windows"
     elif is_linux():
-        return 'linux'
+        return "linux"
     elif is_mac():
-        return 'macos'
+        return "macos"
     else:
-        return 'unknown'
+        return "unknown"
 
 
 def get_architecture() -> str:

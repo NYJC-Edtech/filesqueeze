@@ -11,10 +11,8 @@ from filesqueeze.service import RetentionManager
 import logging
 
 # Setup logging to see what's happening
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+
 
 def main():
     print("=" * 60)
@@ -37,7 +35,7 @@ def main():
     print(f"  Minimum age safeguard: {config.get('retention.min_age_hours', 1)} hours")
 
     # Create retention manager
-    logger = logging.getLogger('filesqueeze')
+    logger = logging.getLogger("filesqueeze")
     manager = RetentionManager(config, output_dir, logger)
 
     # Set first run confirmed to bypass confirmation
@@ -67,6 +65,7 @@ def main():
         print("\n✅ No files needed cleanup.")
 
     print("=" * 60)
+
 
 if __name__ == "__main__":
     main()

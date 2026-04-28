@@ -28,35 +28,31 @@ def test_service_state_fields():
         output_dir=Path("/test/output"),
         processing_files=[],
         processed_files=[],
-        cleanup_stats=None
+        cleanup_stats=None,
     )
 
     # Verify all critical fields exist and are accessible
-    assert hasattr(state, 'running')
-    assert hasattr(state, 'uptime')
-    assert hasattr(state, 'completed_count')
-    assert hasattr(state, 'failed_count')
-    assert hasattr(state, 'input_dir')
-    assert hasattr(state, 'output_dir')
-    assert hasattr(state, 'processing_files')
-    assert hasattr(state, 'processed_files')
-    assert hasattr(state, 'cleanup_stats')
+    assert hasattr(state, "running")
+    assert hasattr(state, "uptime")
+    assert hasattr(state, "completed_count")
+    assert hasattr(state, "failed_count")
+    assert hasattr(state, "input_dir")
+    assert hasattr(state, "output_dir")
+    assert hasattr(state, "processing_files")
+    assert hasattr(state, "processed_files")
+    assert hasattr(state, "cleanup_stats")
 
 
 def test_processed_file_fields():
     """ProcessedFile must have all required fields."""
     from filesqueeze.service import ProcessedFile
 
-    processed = ProcessedFile(
-        filename="test.mp4",
-        timestamp="2026-04-28T10:00:00",
-        success=True
-    )
+    processed = ProcessedFile(filename="test.mp4", timestamp="2026-04-28T10:00:00", success=True)
 
     # Verify all critical fields exist
-    assert hasattr(processed, 'filename')
-    assert hasattr(processed, 'timestamp')
-    assert hasattr(processed, 'success')
+    assert hasattr(processed, "filename")
+    assert hasattr(processed, "timestamp")
+    assert hasattr(processed, "success")
     assert processed.filename == "test.mp4"
     assert processed.success is True
 
@@ -69,14 +65,14 @@ def test_cleanup_stats_fields():
         last_cleanup_time="2026-04-28T10:00:00",
         compressed_files_deleted=5,
         archived_files_deleted=2,
-        total_space_freed=1024000
+        total_space_freed=1024000,
     )
 
     # Verify all critical fields exist
-    assert hasattr(stats, 'last_cleanup_time')
-    assert hasattr(stats, 'compressed_files_deleted')
-    assert hasattr(stats, 'archived_files_deleted')
-    assert hasattr(stats, 'total_space_freed')
+    assert hasattr(stats, "last_cleanup_time")
+    assert hasattr(stats, "compressed_files_deleted")
+    assert hasattr(stats, "archived_files_deleted")
+    assert hasattr(stats, "total_space_freed")
     assert stats.compressed_files_deleted == 5
     assert stats.total_space_freed == 1024000
 
@@ -95,13 +91,13 @@ def test_state_object_mutability():
         state = State(str(test_file))
 
         # Verify we can modify critical state properties
-        assert hasattr(state, 'status')
-        assert hasattr(state, 'format')
-        assert hasattr(state, 'metadata')
+        assert hasattr(state, "status")
+        assert hasattr(state, "format")
+        assert hasattr(state, "metadata")
 
         # State should be mutable (this is expected behavior)
-        state.metadata['test'] = 'value'
-        assert state.metadata['test'] == 'value'
+        state.metadata["test"] = "value"
+        assert state.metadata["test"] == "value"
     finally:
         # Clean up
         Path(test_file).unlink(missing_ok=True)
@@ -130,9 +126,9 @@ def test_config_get_method():
     config = Config()
 
     # Test that get method exists and handles missing keys gracefully
-    assert hasattr(config, 'get')
+    assert hasattr(config, "get")
     assert callable(config.get)
 
     # Should return default for missing keys
-    result = config.get('nonexistent.key', 'default_value')
-    assert result == 'default_value'
+    result = config.get("nonexistent.key", "default_value")
+    assert result == "default_value"

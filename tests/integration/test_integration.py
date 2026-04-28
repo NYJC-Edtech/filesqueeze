@@ -107,9 +107,9 @@ class TestRealFileCompression:
         compress_pdf(
             sample_generated_pdf,
             str(output_path),
-            quality='printer',  # Higher quality, less blurry
+            quality="printer",  # Higher quality, less blurry
             compression_level=2,
-            ghostscript_path=gs_path
+            ghostscript_path=gs_path,
         )
         elapsed = time.time() - start
 
@@ -145,11 +145,7 @@ class TestRealFileCompression:
 
             start = time.time()
             compress_pdf(
-                sample_scanned_pdf,
-                str(output_path),
-                quality='printer',
-                compression_level=level,
-                ghostscript_path=gs_path
+                sample_scanned_pdf, str(output_path), quality="printer", compression_level=level, ghostscript_path=gs_path
             )
             elapsed = time.time() - start
 
@@ -182,18 +178,14 @@ class TestRealFileCompression:
         gs_path = config.ghostscript_path
         original_size = Path(sample_generated_pdf).stat().st_size
 
-        qualities = ['screen', 'ebook', 'printer', 'prepress']
+        qualities = ["screen", "ebook", "printer", "prepress"]
         results = []
 
         for quality in qualities:
             output_path = tmp_path / f"compressed_{quality}.pdf"
 
             compress_pdf(
-                sample_generated_pdf,
-                str(output_path),
-                quality=quality,
-                compression_level=2,
-                ghostscript_path=gs_path
+                sample_generated_pdf, str(output_path), quality=quality, compression_level=2, ghostscript_path=gs_path
             )
 
             compressed_size = output_path.stat().st_size
@@ -212,7 +204,7 @@ class TestRealFileCompression:
         from filesqueeze.ocr import has_text_layer
 
         # Check Tesseract availability - fail if not available
-        if not shutil.which('tesseract'):
+        if not shutil.which("tesseract"):
             pytest.fail(
                 "Tesseract OCR is not installed or not in PATH. "
                 "OCR is a critical feature - install Tesseract to run this test. "
@@ -243,7 +235,7 @@ class TestRealFileCompression:
         from filesqueeze.ocr import process_pdf_with_ocr, needs_ocr
 
         # Check Tesseract availability - fail if not available
-        if not shutil.which('tesseract'):
+        if not shutil.which("tesseract"):
             pytest.fail(
                 "Tesseract OCR is not installed or not in PATH. "
                 "OCR is a critical feature - install Tesseract to run this test. "
@@ -267,12 +259,7 @@ class TestRealFileCompression:
 
         # If PDF truly needs OCR, run the OCR process
         start = time.time()
-        success, message = process_pdf_with_ocr(
-            sample_scanned_pdf,
-            str(output_path),
-            config=config,
-            ocr_only=True
-        )
+        success, message = process_pdf_with_ocr(sample_scanned_pdf, str(output_path), config=config, ocr_only=True)
         elapsed = time.time() - start
 
         print(f"OCR Result: {message}")
@@ -286,6 +273,7 @@ class TestRealFileCompression:
             assert ocr_size > 1024
 
             from filesqueeze.ocr import has_text_layer
+
             has_text = has_text_layer(str(output_path))
             print(f"OCR'd PDF has text layer: {has_text}")
             assert has_text, "OCR'd PDF should have text layer"
@@ -304,7 +292,7 @@ class TestRealFileCompression:
         from filesqueeze.ops.document import compress_pdf
 
         # Check Tesseract availability - fail if not available
-        if not shutil.which('tesseract'):
+        if not shutil.which("tesseract"):
             pytest.fail(
                 "Tesseract OCR is not installed or not in PATH. "
                 "OCR is a critical feature - install Tesseract to run this test. "
@@ -329,13 +317,7 @@ class TestRealFileCompression:
         # Compress with ebook quality (good for scanned/image-based PDFs)
         start = time.time()
         gs_path = config.ghostscript_path
-        compress_pdf(
-            sample_scanned_pdf,
-            str(output_path),
-            quality='ebook',
-            compression_level=2,
-            ghostscript_path=gs_path
-        )
+        compress_pdf(sample_scanned_pdf, str(output_path), quality="ebook", compression_level=2, ghostscript_path=gs_path)
         elapsed = time.time() - start
 
         # Check result
@@ -349,6 +331,7 @@ class TestRealFileCompression:
 
         # Verify text layer is preserved
         from filesqueeze.ocr import has_text_layer
+
         has_text = has_text_layer(str(output_path))
         print(f"Compressed PDF has searchable text: {has_text}")
         assert has_text, "Text layer should be preserved after compression"

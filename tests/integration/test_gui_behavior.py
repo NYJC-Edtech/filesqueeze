@@ -40,21 +40,22 @@ class TestSingletonStatusWindow:
 
         # CRITICAL CHECK 1: _on_show_status must check for existing window
         # The singleton check MUST happen before creating a new window
-        assert '_status_window' in on_show_status_source, \
-            "_on_show_status must check _status_window for singleton enforcement"
+        assert "_status_window" in on_show_status_source, "_on_show_status must check _status_window for singleton enforcement"
 
-        assert 'is not None' in on_show_status_source or '_status_window' in on_show_status_source, \
-            "_on_show_status must check if _status_window already exists"
+        assert (
+            "is not None" in on_show_status_source or "_status_window" in on_show_status_source
+        ), "_on_show_status must check if _status_window already exists"
 
         # CRITICAL CHECK 2: Must return early if window exists
-        assert 'return' in on_show_status_source, \
-            "_on_show_status must return early if window already exists (singleton enforcement)"
+        assert (
+            "return" in on_show_status_source
+        ), "_on_show_status must return early if window already exists (singleton enforcement)"
 
         # Verify the check happens at the BEGINNING (before thread creation)
-        lines = on_show_status_source.split('\n')
+        lines = on_show_status_source.split("\n")
         check_line = None
         for i, line in enumerate(lines):
-            if '_status_window' in line and ('is not None' in line or 'if' in line):
+            if "_status_window" in line and ("is not None" in line or "if" in line):
                 check_line = i
                 break
 
@@ -65,13 +66,14 @@ class TestSingletonStatusWindow:
         # BUG: The current implementation calls show_status_window() but doesn't
         # store the return value in self._status_window
         # This test will FAIL until the bug is fixed
-        has_window_assignment = 'self._status_window' in show_status_window_source
+        has_window_assignment = "self._status_window" in show_status_window_source
 
-        assert has_window_assignment, \
-            "BUG: _show_status_window must store the window in self._status_window " \
-            "for singleton enforcement to work. The current implementation calls " \
-            "show_status_window() but doesn't store the return value, so " \
+        assert has_window_assignment, (
+            "BUG: _show_status_window must store the window in self._status_window "
+            "for singleton enforcement to work. The current implementation calls "
+            "show_status_window() but doesn't store the return value, so "
             "_status_window is always None and the singleton check never works."
+        )
 
     def test_status_window_checks_before_creating(self, tmp_path):
         """Status window creation - TrayService handles singleton, not GUI.
@@ -86,8 +88,10 @@ class TestSingletonStatusWindow:
         # We verify this in test_tray_service_enforces_singleton_window
         assert True  # Placeholder to document the design
 
-    @pytest.mark.skipif(sys.platform != 'win32', reason="Windows-specific")
-    @pytest.mark.skip(reason="Skipping due to Windows mutex persistence issues when run with full suite. Run in isolation: pytest tests/integration/test_gui_behavior.py::TestSingletonStatusWindow::test_tray_icon_click_creates_single_window -v")
+    @pytest.mark.skipif(sys.platform != "win32", reason="Windows-specific")
+    @pytest.mark.skip(
+        reason="Skipping due to Windows mutex persistence issues when run with full suite. Run in isolation: pytest tests/integration/test_gui_behavior.py::TestSingletonStatusWindow::test_tray_icon_click_creates_single_window -v"
+    )
     def test_tray_icon_click_creates_single_window(self, tmp_path):
         """Multiple tray icon clicks should result in single window.
 
@@ -116,7 +120,7 @@ class TestSingletonStatusWindow:
             stored_window[0] = fake_window
             service._status_window = fake_window
 
-        with patch.object(service, '_show_status_window', side_effect=mock_show_status):
+        with patch.object(service, "_show_status_window", side_effect=mock_show_status):
             # Simulate multiple rapid clicks
             for _ in range(5):
                 service._on_show_status()
@@ -125,8 +129,7 @@ class TestSingletonStatusWindow:
             time.sleep(0.2)  # Let all threads run
 
             # Key assertion: should only create ONE window despite 5 clicks
-            assert creation_count[0] == 1, \
-                f"Should create only 1 window, but created {creation_count[0]}"
+            assert creation_count[0] == 1, f"Should create only 1 window, but created {creation_count[0]}"
 
 
 class TestStatusWindowRefresh:
@@ -149,15 +152,13 @@ class TestStatusWindowRefresh:
         sig = inspect.signature(StatusWindow.__init__)
         params = sig.parameters
 
-        assert 'refresh_interval' in params, \
-            "StatusWindow should accept refresh_interval parameter"
+        assert "refresh_interval" in params, "StatusWindow should accept refresh_interval parameter"
 
         # Verify default value
-        default_value = params['refresh_interval'].default
+        default_value = params["refresh_interval"].default
         # PRD specifies 1 second = 1000ms
         # (The actual default might be 2000ms, that's okay as long as parameter exists)
-        assert default_value is not inspect.Parameter.empty, \
-            "refresh_interval should have a default value"
+        assert default_value is not inspect.Parameter.empty, "refresh_interval should have a default value"
 
 
 class TestStatusWindowContent:
@@ -176,23 +177,24 @@ class TestStatusWindowContent:
 
         # Get all methods that update display
         update_methods = [
-            name for name, method in inspect.getmembers(StatusWindow, predicate=inspect.ismethod)
-            if 'update' in name.lower() or name.startswith('_')
+            name
+            for name, method in inspect.getmembers(StatusWindow, predicate=inspect.ismethod)
+            if "update" in name.lower() or name.startswith("_")
         ]
 
         # Verify key update methods exist
         # The PRD specifies these sections should be displayed
         required_sections = [
-            'update_display',  # Main update method
+            "update_display",  # Main update method
         ]
 
         for section in required_sections:
-            assert hasattr(StatusWindow, section), \
-                f"StatusWindow should have {section} method for updating display"
+            assert hasattr(StatusWindow, section), f"StatusWindow should have {section} method for updating display"
 
         # Verify update_display exists (this is what refreshes all sections)
-        assert hasattr(StatusWindow, 'update_display'), \
-            "StatusWindow must have update_display() method to refresh all sections"
+        assert hasattr(
+            StatusWindow, "update_display"
+        ), "StatusWindow must have update_display() method to refresh all sections"
 
 
 if __name__ == "__main__":

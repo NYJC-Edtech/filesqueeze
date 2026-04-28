@@ -22,6 +22,7 @@ def trace_function(func: Callable) -> Callable:
         def compress_video(input_path: str, output_path: str, config: Config) -> bool:
             ...
     """
+
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
         # Import here to avoid circular dependency
@@ -32,12 +33,7 @@ def trace_function(func: Callable) -> Callable:
 
         # Log entry
         logger.debug(
-            f"Function entry: {func_name}",
-            extra={
-                'function': func_name,
-                'event': 'entry',
-                'module': func.__module__
-            }
+            f"Function entry: {func_name}", extra={"function": func_name, "event": "entry", "module": func.__module__}
         )
 
         start_time = time.time()
@@ -50,11 +46,11 @@ def trace_function(func: Callable) -> Callable:
             logger.debug(
                 f"Function exit: {func_name}",
                 extra={
-                    'function': func_name,
-                    'event': 'exit',
-                    'duration_ms': duration_ms,
-                    'result': str(result) if result is not None else None
-                }
+                    "function": func_name,
+                    "event": "exit",
+                    "duration_ms": duration_ms,
+                    "result": str(result) if result is not None else None,
+                },
             )
             return result
 
@@ -66,12 +62,12 @@ def trace_function(func: Callable) -> Callable:
                 f"Function failed: {func_name}",
                 exc_info=True,
                 extra={
-                    'function': func_name,
-                    'event': 'exception',
-                    'duration_ms': duration_ms,
-                    'exception_type': type(e).__name__,
-                    'exception_message': str(e)
-                }
+                    "function": func_name,
+                    "event": "exception",
+                    "duration_ms": duration_ms,
+                    "exception_type": type(e).__name__,
+                    "exception_message": str(e),
+                },
             )
             raise
 
@@ -89,6 +85,7 @@ def trace_function_async(func: Callable) -> Callable:
         async def compress_video_async(...) -> bool:
             ...
     """
+
     @functools.wraps(func)
     async def wrapper(*args, **kwargs):
         # Import here to avoid circular dependency
@@ -99,12 +96,7 @@ def trace_function_async(func: Callable) -> Callable:
 
         # Log entry
         logger.debug(
-            f"Async function entry: {func_name}",
-            extra={
-                'function': func_name,
-                'event': 'entry',
-                'module': func.__module__
-            }
+            f"Async function entry: {func_name}", extra={"function": func_name, "event": "entry", "module": func.__module__}
         )
 
         start_time = time.time()
@@ -117,11 +109,11 @@ def trace_function_async(func: Callable) -> Callable:
             logger.debug(
                 f"Async function exit: {func_name}",
                 extra={
-                    'function': func_name,
-                    'event': 'exit',
-                    'duration_ms': duration_ms,
-                    'result': str(result) if result is not None else None
-                }
+                    "function": func_name,
+                    "event": "exit",
+                    "duration_ms": duration_ms,
+                    "result": str(result) if result is not None else None,
+                },
             )
             return result
 
@@ -133,12 +125,12 @@ def trace_function_async(func: Callable) -> Callable:
                 f"Async function failed: {func_name}",
                 exc_info=True,
                 extra={
-                    'function': func_name,
-                    'event': 'exception',
-                    'duration_ms': duration_ms,
-                    'exception_type': type(e).__name__,
-                    'exception_message': str(e)
-                }
+                    "function": func_name,
+                    "event": "exception",
+                    "duration_ms": duration_ms,
+                    "exception_type": type(e).__name__,
+                    "exception_message": str(e),
+                },
             )
             raise
 

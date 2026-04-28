@@ -21,7 +21,7 @@ def test_config_class_instantiation():
     # Should create with default configuration
     config = Config()
     assert config is not None
-    assert hasattr(config, 'get')
+    assert hasattr(config, "get")
 
 
 def test_service_state_instantiation():
@@ -38,7 +38,7 @@ def test_service_state_instantiation():
         output_dir=Path("/test/output"),
         processing_files=[],
         processed_files=[],
-        cleanup_stats=None
+        cleanup_stats=None,
     )
     assert state is not None
     assert state.running is False
@@ -48,11 +48,7 @@ def test_processed_file_instantiation():
     """ProcessedFile dataclass must be instantiable."""
     from filesqueeze.service import ProcessedFile
 
-    processed = ProcessedFile(
-        filename="test.pdf",
-        timestamp="2026-04-28T10:00:00",
-        success=True
-    )
+    processed = ProcessedFile(filename="test.pdf", timestamp="2026-04-28T10:00:00", success=True)
     assert processed is not None
     assert processed.filename == "test.pdf"
 
@@ -82,20 +78,15 @@ def test_enums_exist():
     from filesqueeze.fsm.enums import Document, Video
 
     # Check that enum values exist
-    assert hasattr(Document, 'PDF')
-    assert hasattr(Video, 'MP4')
+    assert hasattr(Document, "PDF")
+    assert hasattr(Video, "MP4")
 
 
 def test_cleanup_stats_instantiation():
     """CleanupStats must be instantiable."""
     from filesqueeze.service import CleanupStats
 
-    stats = CleanupStats(
-        last_cleanup_time=None,
-        compressed_files_deleted=0,
-        archived_files_deleted=0,
-        total_space_freed=0
-    )
+    stats = CleanupStats(last_cleanup_time=None, compressed_files_deleted=0, archived_files_deleted=0, total_space_freed=0)
     assert stats is not None
     assert stats.compressed_files_deleted == 0
 
@@ -112,13 +103,14 @@ def test_handler_classes_instantiable():
 
     try:
         from filesqueeze.fsm.default import State
+
         state = State(str(test_file))
 
         # Verify handler modules are accessible
         assert handlers is not None
-        assert hasattr(handlers, 'video')
-        assert hasattr(handlers, 'document')
-        assert hasattr(handlers, 'image')
+        assert hasattr(handlers, "video")
+        assert hasattr(handlers, "document")
+        assert hasattr(handlers, "image")
     finally:
         # Clean up
         Path(test_file).unlink(missing_ok=True)

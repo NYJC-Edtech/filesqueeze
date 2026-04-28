@@ -44,7 +44,7 @@ def temp_dirs():
             "old_file": old_file,
             "recent_file": recent_file,
             "old_archived": old_archived,
-            "recent_archived": archive_dir / "recent_original.mp4"
+            "recent_archived": archive_dir / "recent_original.mp4",
         }
 
 
@@ -59,12 +59,9 @@ def retention_config(temp_dirs):
             "archive_retention_days": 30,  # Keep archived for 30 days
             "min_age_hours": 1,  # Minimum age safeguard
             "dry_run": True,  # Don't actually delete in tests
-            "require_confirmation": False  # Skip confirmation for tests
+            "require_confirmation": False,  # Skip confirmation for tests
         },
-        "directories": {
-            "output": str(temp_dirs["output_dir"]),
-            "archive": str(temp_dirs["archive_dir"])
-        }
+        "directories": {"output": str(temp_dirs["output_dir"]), "archive": str(temp_dirs["archive_dir"])},
     }
     return Config(config_dict)
 
@@ -72,13 +69,10 @@ def retention_config(temp_dirs):
 def test_retention_manager_initialization(retention_config, temp_dirs):
     """Test that RetentionManager initializes correctly."""
     import logging
+
     logger = logging.getLogger(__name__)
 
-    manager = RetentionManager(
-        retention_config,
-        temp_dirs["output_dir"],
-        logger
-    )
+    manager = RetentionManager(retention_config, temp_dirs["output_dir"], logger)
 
     assert manager.enable_cleanup is True
     assert manager.compressed_retention_hours == 48
@@ -93,7 +87,7 @@ def test_cleanup_stats_creation():
         last_cleanup_time="2024-01-01T12:00:00",
         compressed_files_deleted=5,
         archived_files_deleted=3,
-        total_space_freed=1024000
+        total_space_freed=1024000,
     )
 
     assert stats.compressed_files_deleted == 5
@@ -106,9 +100,9 @@ def test_retention_config_loading():
     config = Config()
 
     # Check that retention config exists with defaults
-    enable_cleanup = config.get('retention.enable_cleanup', True)
-    compressed_retention = config.get('retention.compressed_retention_hours', 48)
-    archive_retention = config.get('retention.archive_retention_days', 30)
+    enable_cleanup = config.get("retention.enable_cleanup", True)
+    compressed_retention = config.get("retention.compressed_retention_hours", 48)
+    archive_retention = config.get("retention.archive_retention_days", 30)
 
     assert enable_cleanup is True
     assert compressed_retention == 48
@@ -123,11 +117,7 @@ def test_dry_run_mode(retention_config, temp_dirs, caplog):
     logger = logging.getLogger(__name__)
     logger.setLevel(logging.DEBUG)
 
-    manager = RetentionManager(
-        retention_config,
-        temp_dirs["output_dir"],
-        logger
-    )
+    manager = RetentionManager(retention_config, temp_dirs["output_dir"], logger)
 
     # Run cleanup in dry-run mode
     manager._run_cleanup()
@@ -147,11 +137,7 @@ def test_minimum_age_safeguard(retention_config, temp_dirs):
 
     logger = logging.getLogger(__name__)
 
-    manager = RetentionManager(
-        retention_config,
-        temp_dirs["output_dir"],
-        logger
-    )
+    manager = RetentionManager(retention_config, temp_dirs["output_dir"], logger)
 
     # Recent file should not be deleted even if retention period is 0
     manager.compressed_retention_hours = 0
@@ -167,11 +153,7 @@ def test_cleanup_stats_tracking(retention_config, temp_dirs):
 
     logger = logging.getLogger(__name__)
 
-    manager = RetentionManager(
-        retention_config,
-        temp_dirs["output_dir"],
-        logger
-    )
+    manager = RetentionManager(retention_config, temp_dirs["output_dir"], logger)
 
     # Run cleanup
     manager._run_cleanup()
@@ -188,4 +170,5 @@ def test_cleanup_stats_tracking(retention_config, temp_dirs):
 
 if __name__ == "__main__":
     import os
+
     pytest.main([__file__, "-v"])

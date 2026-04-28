@@ -60,13 +60,7 @@ def test_state_machine_imports():
 
 def test_service_classes_import():
     """Service classes must be importable."""
-    from filesqueeze.service import (
-        ServiceState,
-        ProcessedFile,
-        DirectoryWatcher,
-        CompressionHandler,
-        RetentionManager
-    )
+    from filesqueeze.service import ServiceState, ProcessedFile, DirectoryWatcher, CompressionHandler, RetentionManager
 
     assert ServiceState is not None
     assert ProcessedFile is not None
@@ -75,14 +69,12 @@ def test_service_classes_import():
     assert RetentionManager is not None
 
 
-@pytest.mark.skipif(
-    os.environ.get('CI') == 'true',
-    reason="GUI modules require display server (skip in CI)"
-)
+@pytest.mark.skipif(os.environ.get("CI") == "true", reason="GUI modules require display server (skip in CI)")
 def test_gui_modules_import():
     """GUI modules must be importable (even if not used on all platforms)."""
     try:
         from filesqueeze import gui, tray
+
         # If we get here, GUI modules imported successfully
         assert gui is not None
         assert tray is not None
@@ -94,12 +86,7 @@ def test_gui_modules_import():
 
 def test_main_api_imports():
     """Main API functions must be importable."""
-    from filesqueeze import (
-        make_video,
-        make_pdf,
-        make_image,
-        make_presentation
-    )
+    from filesqueeze import make_video, make_pdf, make_image, make_presentation
 
     # Main API functions must be available
     assert make_video is not None

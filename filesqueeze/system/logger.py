@@ -34,10 +34,10 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional, Dict, Any, Callable
 
-
 # ============================================================================
 # Trace Context Support
 # ============================================================================
+
 
 class TraceContext:
     """Holds trace context for a single file processing workflow.
@@ -58,7 +58,7 @@ class TraceContext:
         trace_id: Optional[str] = None,
         file_path: Optional[Path] = None,
         workflow: str = "unknown",
-        metadata: Optional[Dict[str, Any]] = None
+        metadata: Optional[Dict[str, Any]] = None,
     ):
         self.trace_id = trace_id or str(uuid.uuid4())[:8]
         self.file_path = file_path
@@ -75,7 +75,7 @@ class TraceContext:
             "workflow": self.workflow,
             "handler": self._current_handler,
             "elapsed_ms": int((time.time() - self.start_time) * 1000),
-            **self.metadata
+            **self.metadata,
         }
 
 
@@ -105,14 +105,10 @@ def trace_context(file_path: Optional[Path] = None, workflow: str = "unknown", *
             logger.info("Finished")  # Auto-includes elapsed_ms
     """
     # Build context
-    context = TraceContext(
-        file_path=file_path,
-        workflow=workflow,
-        metadata=kwargs
-    )
+    context = TraceContext(file_path=file_path, workflow=workflow, metadata=kwargs)
 
     # Set context in thread-local storage
-    old_context = getattr(_trace_context, 'context', None)
+    old_context = getattr(_trace_context, "context", None)
     _trace_context.context = context
 
     try:
@@ -124,12 +120,13 @@ def trace_context(file_path: Optional[Path] = None, workflow: str = "unknown", *
 
 def get_trace_context() -> Optional[TraceContext]:
     """Get the current trace context."""
-    return getattr(_trace_context, 'context', None)
+    return getattr(_trace_context, "context", None)
 
 
 # ============================================================================
 # Structured Formatter
 # ============================================================================
+
 
 class StructuredFormatter(logging.Formatter):
     """JSON formatter for structured logging.
@@ -149,7 +146,7 @@ class StructuredFormatter(logging.Formatter):
         }
 
         # Add structured context if present
-        if hasattr(record, 'context'):
+        if hasattr(record, "context"):
             log_entry.update(record.context)
 
         # Add exception info if present
@@ -213,7 +210,7 @@ def get_logger() -> logging.Logger:
         return _logger
 
     # Return default logger if not yet registered
-    return logging.getLogger('filesqueeze')
+    return logging.getLogger("filesqueeze")
 
 
 class _LazyLogger:
@@ -240,13 +237,13 @@ class _LazyLogger:
 
         context = get_trace_context()
         if context:
-            extra['context'] = context.to_dict()
+            extra["context"] = context.to_dict()
         return extra
 
     def _log(self, level_method, msg: str, *args, **kwargs):
         """Log a message with automatic context enrichment."""
         actual_logger = get_logger()
-        extra = self._add_context(kwargs.pop('extra', None))
+        extra = self._add_context(kwargs.pop("extra", None))
         level_method(msg, *args, extra=extra, **kwargs)
 
     def debug(self, msg: str, *args, **kwargs):
@@ -272,7 +269,7 @@ class _LazyLogger:
     def exception(self, msg: str, *args, **kwargs):
         """Log exception message with automatic context."""
         actual_logger = get_logger()
-        extra = self._add_context(kwargs.pop('extra', None))
+        extra = self._add_context(kwargs.pop("extra", None))
         actual_logger.exception(msg, *args, extra=extra, exc_info=True, **kwargs)
 
     def __getattr__(self, name):
@@ -293,6 +290,7 @@ logger = _LazyLogger()
 # Handler Tracing Decorator
 # ============================================================================
 
+
 def trace_handler(func: Callable) -> Callable:
     """Decorator for automatic handler entry/exit logging.
 
@@ -312,12 +310,13 @@ def trace_handler(func: Callable) -> Callable:
         def compressVideo(state: State) -> Handler:
             ...  # Entry/exit automatically logged
     """
+
     @functools.wraps(func)
     def wrapper(state, *args, **kwargs):
         # Get or create trace context
         context = get_trace_context()
         if not context and state:
-            context = TraceContext(file_path=getattr(state, 'origin', None))
+            context = TraceContext(file_path=getattr(state, "origin", None))
             _trace_context.context = context
 
         # Set current handler name
@@ -325,11 +324,7 @@ def trace_handler(func: Callable) -> Callable:
             context._current_handler = func.__name__
 
         # Log entry
-        logger.info(
-            f"Handler entry: {func.__name__}",
-            operation=func.__name__,
-            event="entry"
-        )
+        logger.info(f"Handler entry: {func.__name__}", operation=func.__name__, event="entry")
 
         # Track timing
         start_time = time.time()
@@ -353,7 +348,7 @@ def trace_handler(func: Callable) -> Callable:
                 event="exception",
                 exception_type=type(e).__name__,
                 exception_message=str(e),
-                duration_ms=duration_ms
+                duration_ms=duration_ms,
             )
 
             # Re-raise to maintain existing error handling
@@ -363,14 +358,14 @@ def trace_handler(func: Callable) -> Callable:
             # Log exit (only if no exception, to avoid duplicate logs)
             if not exception_occurred:
                 duration_ms = int((time.time() - start_time) * 1000)
-                next_handler = result.__name__ if hasattr(result, '__name__') else None
+                next_handler = result.__name__ if hasattr(result, "__name__") else None
 
                 logger.info(
                     f"Handler exit: {func.__name__}",
                     operation=func.__name__,
                     event="exit",
                     duration_ms=duration_ms,
-                    next_handler=next_handler
+                    next_handler=next_handler,
                 )
 
             # Clear current handler
@@ -395,5 +390,5 @@ def log_transition(from_handler: str, to_handler: str, state):
         event="transition",
         from_handler=from_handler,
         to_handler=to_handler,
-        status=str(state.status) if hasattr(state, 'status') else None
+        status=str(state.status) if hasattr(state, "status") else None,
     )

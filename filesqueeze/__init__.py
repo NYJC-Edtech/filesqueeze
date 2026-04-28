@@ -26,12 +26,14 @@ from .system import (
     trace_handler,
 )
 
-
 start = handlers.selectAnalyzer
 
 StateMachine(start=handlers.selectAnalyzer)
 
-def _make_file(filepath: str, callback: Optional[Callable] = None, config: Optional[Config] = None, output_path: Optional[str] = None) -> str:
+
+def _make_file(
+    filepath: str, callback: Optional[Callable] = None, config: Optional[Config] = None, output_path: Optional[str] = None
+) -> str:
     """Generic entry point for the file compression pipeline.
 
     Args:
@@ -49,7 +51,10 @@ def _make_file(filepath: str, callback: Optional[Callable] = None, config: Optio
     final = sm.run(filepath, config=config, output_path=output_path)
     return final.target
 
-def make_video(filepath: str, callback: Optional[Callable] = None, config: Optional[Config] = None, output_path: Optional[str] = None) -> str:
+
+def make_video(
+    filepath: str, callback: Optional[Callable] = None, config: Optional[Config] = None, output_path: Optional[str] = None
+) -> str:
     """Entry point to the compression pipeline for video files.
 
     Args:
@@ -63,7 +68,10 @@ def make_video(filepath: str, callback: Optional[Callable] = None, config: Optio
     """
     return _make_file(filepath, callback, config, output_path)
 
-def make_pdf(filepath: str, callback: Optional[Callable] = None, config: Optional[Config] = None, output_path: Optional[str] = None) -> str:
+
+def make_pdf(
+    filepath: str, callback: Optional[Callable] = None, config: Optional[Config] = None, output_path: Optional[str] = None
+) -> str:
     """Entry point to the compression pipeline for PDF files.
 
     Args:
@@ -77,7 +85,10 @@ def make_pdf(filepath: str, callback: Optional[Callable] = None, config: Optiona
     """
     return _make_file(filepath, callback, config, output_path)
 
-def make_image(filepath: str, callback: Optional[Callable] = None, config: Optional[Config] = None, output_path: Optional[str] = None) -> str:
+
+def make_image(
+    filepath: str, callback: Optional[Callable] = None, config: Optional[Config] = None, output_path: Optional[str] = None
+) -> str:
     """Entry point to the compression pipeline for image files.
 
     Args:
@@ -91,7 +102,10 @@ def make_image(filepath: str, callback: Optional[Callable] = None, config: Optio
     """
     return _make_file(filepath, callback, config, output_path)
 
-def make_presentation(filepath: str, callback: Optional[Callable] = None, config: Optional[Config] = None, output_path: Optional[str] = None) -> str:
+
+def make_presentation(
+    filepath: str, callback: Optional[Callable] = None, config: Optional[Config] = None, output_path: Optional[str] = None
+) -> str:
     """Entry point to the compression pipeline for PowerPoint files.
 
     Args:
@@ -107,19 +121,19 @@ def make_presentation(filepath: str, callback: Optional[Callable] = None, config
 
 
 __all__ = [
-    'video',
-    'document',
-    'image',
-    'pptx',  # Alias for presentation
-    'logger',
-    'platform',
-    'binaries',
-    'make_video',
-    'make_pdf',
-    'make_image',
-    'make_presentation',
-    'register_logger',
-    'register_binary_finder',
-    'trace_context',
-    'trace_handler',
+    "video",
+    "document",
+    "image",
+    "pptx",  # Alias for presentation
+    "logger",
+    "platform",
+    "binaries",
+    "make_video",
+    "make_pdf",
+    "make_image",
+    "make_presentation",
+    "register_logger",
+    "register_binary_finder",
+    "trace_context",
+    "trace_handler",
 ]

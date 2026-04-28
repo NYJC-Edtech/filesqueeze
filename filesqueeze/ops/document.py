@@ -11,11 +11,12 @@ from typing import Optional
 
 # Import from system package
 from filesqueeze.system import get_binary_finder, logger
+
 # Import subprocess utilities
 from filesqueeze.utils.subprocess_helper import run_subprocess, verify_output_file, SubprocessTimeout, SubprocessError
 
 
-def get_ghostscript_path(config_path: str = '') -> str:
+def get_ghostscript_path(config_path: str = "") -> str:
     """Get the Ghostscript executable path.
 
     Args:
@@ -41,13 +42,7 @@ def get_ghostscript_path(config_path: str = '') -> str:
 
 
 def compress_pdf(
-    infile: str,
-    outfile: str,
-    *,
-    quality: str = 'ebook',
-    compression_level: int = 2,
-    ghostscript_path: str = '',
-    config=None
+    infile: str, outfile: str, *, quality: str = "ebook", compression_level: int = 2, ghostscript_path: str = "", config=None
 ) -> None:
     """Compress a PDF file using Ghostscript.
 
@@ -72,10 +67,10 @@ def compress_pdf(
         infile: str,
         outfile: str,
         *,
-        quality: str = 'ebook',
+        quality: str = "ebook",
         compression_level: int = 2,
-        ghostscript_path: str = '',
-        config=None
+        ghostscript_path: str = "",
+        config=None,
     ) -> None:
         # Use config adapter if config provided
         if config:
@@ -87,11 +82,11 @@ def compress_pdf(
 
         # Map quality levels to Ghostscript PDFSETTINGS
         quality_settings = {
-            'screen': '/screen',
-            'ebook': '/ebook',
-            'printer': '/printer',
-            'prepress': '/prepress',
-            'default': '/default'
+            "screen": "/screen",
+            "ebook": "/ebook",
+            "printer": "/printer",
+            "prepress": "/prepress",
+            "default": "/default",
         }
 
         # Validate quality parameter before trying to find Ghostscript
@@ -102,14 +97,14 @@ def compress_pdf(
 
         cmd = [
             gs,
-            '-sDEVICE=pdfwrite',
-            '-dCompatibilityLevel=1.4',
-            f'-dPDFSETTINGS={quality_settings[quality]}',
-            f'-dCompressionLevel={compression_level}',
-            '-dNOPAUSE',
-            '-dQUIET',
-            '-dBATCH',
-            '-sOutputFile=' + outfile,
+            "-sDEVICE=pdfwrite",
+            "-dCompatibilityLevel=1.4",
+            f"-dPDFSETTINGS={quality_settings[quality]}",
+            f"-dCompressionLevel={compression_level}",
+            "-dNOPAUSE",
+            "-dQUIET",
+            "-dBATCH",
+            "-sOutputFile=" + outfile,
             infile,
         ]
 
@@ -117,12 +112,7 @@ def compress_pdf(
         input_size = Path(infile).stat().st_size
 
         try:
-            run_subprocess(
-                cmd,
-                timeout=timeout,
-                tool_name="Ghostscript",
-                input_file=infile
-            )
+            run_subprocess(cmd, timeout=timeout, tool_name="Ghostscript", input_file=infile)
         except SubprocessTimeout:
             raise
         except SubprocessError:
@@ -138,15 +128,12 @@ def compress_pdf(
         output_size = Path(outfile).stat().st_size
         if output_size >= input_size:
             import shutil
+
             # Compression didn't help, copy original instead
             shutil.copy2(infile, outfile)
 
     _compress_pdf(
-        infile, outfile,
-        quality=quality,
-        compression_level=compression_level,
-        ghostscript_path=ghostscript_path,
-        config=config
+        infile, outfile, quality=quality, compression_level=compression_level, ghostscript_path=ghostscript_path, config=config
     )
 
 

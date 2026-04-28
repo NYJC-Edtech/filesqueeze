@@ -12,12 +12,11 @@ from typing import Optional
 # Import subprocess utilities
 from filesqueeze.utils.subprocess_helper import run_subprocess, verify_output_file, SubprocessTimeout, SubprocessError
 
-
 # Constants
-SCRIPTPATH = str(Path(__file__).parent.parent.joinpath('bin', 'pptx2mp4.ps1'))
+SCRIPTPATH = str(Path(__file__).parent.parent.joinpath("bin", "pptx2mp4.ps1"))
 
 
-def get_powershell_path(config_path: str = '') -> str:
+def get_powershell_path(config_path: str = "") -> str:
     """Get the PowerShell executable path.
 
     Args:
@@ -42,12 +41,7 @@ def get_powershell_path(config_path: str = '') -> str:
     return finder.get_powershell_path()
 
 
-def to_mp4(
-    infile: str,
-    outfile: str = "",
-    *,
-    config=None
-) -> None:
+def to_mp4(infile: str, outfile: str = "", *, config=None) -> None:
     """Convert a PowerPoint presentation to MP4 video.
 
     Args:
@@ -63,26 +57,21 @@ def to_mp4(
     from filesqueeze.system.config_adapters import PresentationConfig
 
     @trace_function
-    def _to_mp4(
-        infile: str,
-        outfile: str = "",
-        *,
-        config=None
-    ) -> None:
+    def _to_mp4(infile: str, outfile: str = "", *, config=None) -> None:
         # Validation & defaults
         infile = Path(infile)
         if not infile.exists():
-            raise FileNotFoundError(f'{infile}: Input file not found')
-        outfile = Path(outfile) if outfile else infile.parent.joinpath(infile.stem + '.mp4')
+            raise FileNotFoundError(f"{infile}: Input file not found")
+        outfile = Path(outfile) if outfile else infile.parent.joinpath(infile.stem + ".mp4")
 
         # Use config adapter if config provided
         if config:
             pres_config = PresentationConfig(config)
             timeout = pres_config.timeout
-            powershell_path = config.powershell_path if hasattr(config, 'powershell_path') else ''
+            powershell_path = config.powershell_path if hasattr(config, "powershell_path") else ""
         else:
             timeout = 1800  # 30 minutes default for PPT conversion
-            powershell_path = ''
+            powershell_path = ""
 
         # Get PowerShell path with fallback to PATH detection
         powershell = get_powershell_path(powershell_path)
@@ -95,12 +84,7 @@ def to_mp4(
         ]
 
         try:
-            run_subprocess(
-                cmd,
-                timeout=timeout,
-                tool_name="PowerShell",
-                input_file=str(infile)
-            )
+            run_subprocess(cmd, timeout=timeout, tool_name="PowerShell", input_file=str(infile))
         except SubprocessTimeout:
             raise RuntimeError(f"PowerShell timeout converting presentation: {infile}")
         except SubprocessError as e:

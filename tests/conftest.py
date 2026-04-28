@@ -13,8 +13,8 @@ FIXTURES_DIR = Path(__file__).parent / "fixtures"
 
 # Protected paths that should never be modified by tests
 PROTECTED_CONFIG_PATHS = [
-    Path.home() / '.config' / 'filesqueeze' / 'config.toml',
-    Path.cwd() / 'filesqueeze.toml',
+    Path.home() / ".config" / "filesqueeze" / "config.toml",
+    Path.cwd() / "filesqueeze.toml",
 ]
 
 
@@ -63,6 +63,7 @@ def protect_user_config(monkeypatch):
     write to the protected config paths will fail immediately with
     a clear error message.
     """
+
     def safe_write_text(self, content, *args, **kwargs):
         # Check if this is a protected path
         for protected in PROTECTED_CONFIG_PATHS:
@@ -133,7 +134,7 @@ def cleanup_windows_mutex():
 
     Only runs on Windows.
     """
-    if sys.platform != 'win32':
+    if sys.platform != "win32":
         yield
         return
 
@@ -144,11 +145,7 @@ def cleanup_windows_mutex():
 
     # Cleanup before test
     try:
-        existing_mutex = ctypes.windll.kernel32.OpenMutexW(
-            0x00100000,  # MUTEX_ALL_ACCESS
-            False,
-            mutex_name
-        )
+        existing_mutex = ctypes.windll.kernel32.OpenMutexW(0x00100000, False, mutex_name)  # MUTEX_ALL_ACCESS
         if existing_mutex:
             ctypes.windll.kernel32.CloseHandle(existing_mutex)
             # Wait for mutex to be fully released
@@ -160,11 +157,7 @@ def cleanup_windows_mutex():
 
     # Cleanup after test
     try:
-        existing_mutex = ctypes.windll.kernel32.OpenMutexW(
-            0x00100000,
-            False,
-            mutex_name
-        )
+        existing_mutex = ctypes.windll.kernel32.OpenMutexW(0x00100000, False, mutex_name)
         if existing_mutex:
             ctypes.windll.kernel32.CloseHandle(existing_mutex)
     except:
@@ -173,51 +166,50 @@ def cleanup_windows_mutex():
 
 def pytest_configure(config):
     """Configure pytest with custom markers."""
-    config.addinivalue_line(
-        "markers", "unit: mark test as a unit test"
-    )
-    config.addinivalue_line(
-        "markers", "integration: mark test as an integration test"
-    )
+    config.addinivalue_line("markers", "unit: mark test as a unit test")
+    config.addinivalue_line("markers", "integration: mark test as an integration test")
 
 
 def pytest_collection_modifyitems(config, items):
     """Skip tests that require FFmpeg to be missing if FFmpeg is present."""
-    ffmpeg_available = shutil.which('ffmpeg') is not None
-    ffprobe_available = shutil.which('ffprobe') is not None
-    gs_available = shutil.which('gs') is not None or shutil.which('gswin64c') is not None or shutil.which('gswin32c') is not None
+    ffmpeg_available = shutil.which("ffmpeg") is not None
+    ffprobe_available = shutil.which("ffprobe") is not None
+    gs_available = (
+        shutil.which("gs") is not None or shutil.which("gswin64c") is not None or shutil.which("gswin32c") is not None
+    )
 
     for item in items:
         # Skip tests that require FFmpeg to NOT be available
-        if (ffmpeg_available and 'ffmpeg_path_not_found' in item.name) or \
-           (ffprobe_available and 'ffprobe_path_not_found' in item.name) or \
-           (gs_available and 'ghostscript_path_not_found' in item.name):
-            item.add_marker(
-                pytest.mark.skip(
-                    reason=f"Binary is installed on system, cannot test 'not found' scenario"
-                )
-            )
+        if (
+            (ffmpeg_available and "ffmpeg_path_not_found" in item.name)
+            or (ffprobe_available and "ffprobe_path_not_found" in item.name)
+            or (gs_available and "ghostscript_path_not_found" in item.name)
+        ):
+            item.add_marker(pytest.mark.skip(reason=f"Binary is installed on system, cannot test 'not found' scenario"))
 
         # Skip tests that try to compress without binaries but binaries are available
         # These tests expect RuntimeError from missing binaries, but binaries exist
-        if (ffmpeg_available and 'without_ffmpeg' in item.name and 'compress' in item.name) or \
-           (ffprobe_available and 'without_ffprobe' in item.name) or \
-           (ffmpeg_available and 'without_ffmpeg' in item.name and 'invalid_config' in item.name):
+        if (
+            (ffmpeg_available and "without_ffmpeg" in item.name and "compress" in item.name)
+            or (ffprobe_available and "without_ffprobe" in item.name)
+            or (ffmpeg_available and "without_ffmpeg" in item.name and "invalid_config" in item.name)
+        ):
             item.add_marker(
-                pytest.mark.skip(
-                    reason=f"FFmpeg/ffprobe is installed, cannot test error handling for missing binaries"
-                )
+                pytest.mark.skip(reason=f"FFmpeg/ffprobe is installed, cannot test error handling for missing binaries")
             )
 
         # Skip tests that expect errors with invalid config when binary is in PATH
-        if (ffmpeg_available and 'invalid_config' in item.name and 'ffmpeg' in item.name) or \
-           (ffprobe_available and 'invalid_config' in item.name and 'ffprobe' in item.name) or \
-           (ffmpeg_available and 'with_config' in item.name and 'ffmpeg' in item.name and item.parent.name == 'TestDocumentHelpers'):
-            item.add_marker(
-                pytest.mark.skip(
-                    reason=f"Binary is in PATH, invalid config falls back successfully"
-                )
+        if (
+            (ffmpeg_available and "invalid_config" in item.name and "ffmpeg" in item.name)
+            or (ffprobe_available and "invalid_config" in item.name and "ffprobe" in item.name)
+            or (
+                ffmpeg_available
+                and "with_config" in item.name
+                and "ffmpeg" in item.name
+                and item.parent.name == "TestDocumentHelpers"
             )
+        ):
+            item.add_marker(pytest.mark.skip(reason=f"Binary is in PATH, invalid config falls back successfully"))
 
         # Note: OCR tests are NOT skipped when Tesseract is missing
         # They should FAIL to alert the team that OCR functionality is broken
@@ -236,7 +228,7 @@ def reset_logger_state():
 
     # Reset before test
     try:
-        logger_module = sys.modules['filesqueeze.system.logger']
+        logger_module = sys.modules["filesqueeze.system.logger"]
         logger_module._logger = None
     except (KeyError, AttributeError):
         # Module not yet imported or not yet created (during Phase 1)
@@ -246,7 +238,7 @@ def reset_logger_state():
 
     # Reset after test
     try:
-        logger_module = sys.modules['filesqueeze.system.logger']
+        logger_module = sys.modules["filesqueeze.system.logger"]
         logger_module._logger = None
     except (KeyError, AttributeError):
         # Module not yet imported or not yet created (during Phase 1)
@@ -265,7 +257,7 @@ def reset_binary_finder_state():
 
     # Reset before test
     try:
-        binaries_module = sys.modules['filesqueeze.system.binaries']
+        binaries_module = sys.modules["filesqueeze.system.binaries"]
         binaries_module._binary_finder = None
     except (KeyError, AttributeError):
         # Module not yet imported or not yet created (during Phase 1)
@@ -275,9 +267,8 @@ def reset_binary_finder_state():
 
     # Reset after test
     try:
-        binaries_module = sys.modules['filesqueeze.system.binaries']
+        binaries_module = sys.modules["filesqueeze.system.binaries"]
         binaries_module._binary_finder = None
     except (KeyError, AttributeError):
         # Module not yet imported or not yet created (during Phase 1)
         pass
-

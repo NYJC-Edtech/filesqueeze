@@ -26,7 +26,6 @@ from filesqueeze.ops.video import compress as compress_video
 from filesqueeze.ops.document import compress_pdf
 from filesqueeze.ops.image import compress_image
 
-
 BASELINE_DIR = Path(__file__).parent.parent.parent / "test_baselines"
 BASELINE_DIR.mkdir(exist_ok=True)
 
@@ -39,7 +38,7 @@ def calculate_file_hash(filepath: Path) -> str:
 def save_baseline(name: str, data: Dict[str, Any]) -> None:
     """Save baseline data to JSON file."""
     baseline_file = BASELINE_DIR / f"{name}.json"
-    with open(baseline_file, 'w') as f:
+    with open(baseline_file, "w") as f:
         json.dump(data, f, indent=2)
 
 
@@ -48,7 +47,7 @@ def load_baseline(name: str) -> Dict[str, Any]:
     baseline_file = BASELINE_DIR / f"{name}.json"
     if not baseline_file.exists():
         raise FileNotFoundError(f"Baseline not found: {baseline_file}")
-    with open(baseline_file, 'r') as f:
+    with open(baseline_file, "r") as f:
         return json.load(f)
 
 
@@ -62,7 +61,7 @@ class TestBehavioralBaseline:
     @pytest.mark.baseline
     @pytest.mark.skipif(
         True,  # Always skip when running normal tests
-        reason="Run manually with: pytest tests/regression/test_behavioral_baseline.py::TestBehavioralBaseline -v --run-baseline"
+        reason="Run manually with: pytest tests/regression/test_behavioral_baseline.py::TestBehavioralBaseline -v --run-baseline",
     )
     def test_video_compression_baseline(self, sample_video, tmp_path):
         """Establish baseline for video compression behavior.
@@ -81,11 +80,7 @@ class TestBehavioralBaseline:
         output = tmp_path / "baseline_video_output.mp4"
 
         # Compress with default settings
-        result = compress_video(
-            str(sample_video),
-            str(output),
-            config=config
-        )
+        result = compress_video(str(sample_video), str(output), config=config)
 
         # Gather baseline data
         baseline_data = {
@@ -96,9 +91,9 @@ class TestBehavioralBaseline:
             "output_size": output.stat().st_size if output.exists() else 0,
             "output_hash": calculate_file_hash(output) if output.exists() else None,
             "config": {
-                "video.crf": config.get('video.crf', 23),
-                "video.preset": config.get('video.preset', 'medium'),
-            }
+                "video.crf": config.get("video.crf", 23),
+                "video.preset": config.get("video.preset", "medium"),
+            },
         }
 
         # Save baseline
@@ -114,7 +109,7 @@ class TestBehavioralBaseline:
     @pytest.mark.baseline
     @pytest.mark.skipif(
         True,
-        reason="Run manually with: pytest tests/regression/test_behavioral_baseline.py::TestBehavioralBaseline -v --run-baseline"
+        reason="Run manually with: pytest tests/regression/test_behavioral_baseline.py::TestBehavioralBaseline -v --run-baseline",
     )
     def test_video_compression_with_custom_crf(self, sample_video, tmp_path):
         """Establish baseline for video compression with custom CRF."""
@@ -127,12 +122,7 @@ class TestBehavioralBaseline:
         output = tmp_path / "baseline_video_crf30.mp4"
 
         # Compress with CRF=30
-        result = compress_video(
-            str(sample_video),
-            str(output),
-            config=config,
-            crf=30
-        )
+        result = compress_video(str(sample_video), str(output), config=config, crf=30)
 
         baseline_data = {
             "test_name": "video_compression_crf30",
@@ -141,7 +131,7 @@ class TestBehavioralBaseline:
             "output_exists": output.exists() if result else False,
             "output_size": output.stat().st_size if output.exists() else 0,
             "output_hash": calculate_file_hash(output) if output.exists() else None,
-            "override_params": {"crf": 30}
+            "override_params": {"crf": 30},
         }
 
         save_baseline("video_compression_crf30", baseline_data)
@@ -154,7 +144,7 @@ class TestBehavioralBaseline:
     @pytest.mark.baseline
     @pytest.mark.skipif(
         True,
-        reason="Run manually with: pytest tests/regression/test_behavioral_baseline.py::TestBehavioralBaseline -v --run-baseline"
+        reason="Run manually with: pytest tests/regression/test_behavioral_baseline.py::TestBehavioralBaseline -v --run-baseline",
     )
     def test_pdf_compression_baseline(self, sample_generated_pdf, tmp_path):
         """Establish baseline for PDF compression behavior."""
@@ -167,11 +157,7 @@ class TestBehavioralBaseline:
         output = tmp_path / "baseline_pdf_output.pdf"
 
         # Compress with default settings
-        result = compress_pdf(
-            str(sample_generated_pdf),
-            str(output),
-            config=config
-        )
+        result = compress_pdf(str(sample_generated_pdf), str(output), config=config)
 
         baseline_data = {
             "test_name": "pdf_compression_default",
@@ -181,8 +167,8 @@ class TestBehavioralBaseline:
             "output_size": output.stat().st_size if output.exists() else 0,
             "output_hash": calculate_file_hash(output) if output.exists() else None,
             "config": {
-                "document.quality": config.get('document.quality', 75),
-            }
+                "document.quality": config.get("document.quality", 75),
+            },
         }
 
         save_baseline("pdf_compression_default", baseline_data)
@@ -195,7 +181,7 @@ class TestBehavioralBaseline:
     @pytest.mark.baseline
     @pytest.mark.skipif(
         True,
-        reason="Run manually with: pytest tests/regression/test_behavioral_baseline.py::TestBehavioralBaseline -v --run-baseline"
+        reason="Run manually with: pytest tests/regression/test_behavioral_baseline.py::TestBehavioralBaseline -v --run-baseline",
     )
     def test_image_compression_baseline(self, sample_image, tmp_path):
         """Establish baseline for image compression behavior."""
@@ -208,11 +194,7 @@ class TestBehavioralBaseline:
         output = tmp_path / "baseline_image_output.jpg"
 
         # Compress with default settings
-        result = compress_image(
-            str(sample_image),
-            str(output),
-            config=config
-        )
+        result = compress_image(str(sample_image), str(output), config=config)
 
         baseline_data = {
             "test_name": "image_compression_default",
@@ -222,8 +204,8 @@ class TestBehavioralBaseline:
             "output_size": output.stat().st_size if output.exists() else 0,
             "output_hash": calculate_file_hash(output) if output.exists() else None,
             "config": {
-                "image.quality": config.get('image.quality', 85),
-            }
+                "image.quality": config.get("image.quality", 85),
+            },
         }
 
         save_baseline("image_compression_default", baseline_data)
@@ -256,29 +238,27 @@ class TestBehavioralRegression:
         config = Config()
         output = tmp_path / "regression_video_output.mp4"
 
-        result = compress_video(
-            str(sample_video),
-            str(output),
-            config=config
-        )
+        result = compress_video(str(sample_video), str(output), config=config)
 
         # Verify behavior matches baseline
-        assert result == baseline["success"], \
-            f"Success status differs! Expected {baseline['success']}, got {result}"
+        assert result == baseline["success"], f"Success status differs! Expected {baseline['success']}, got {result}"
 
-        assert output.exists() == baseline["output_exists"], \
-            f"Output existence differs! Expected {baseline['output_exists']}, got {output.exists()}"
+        assert (
+            output.exists() == baseline["output_exists"]
+        ), f"Output existence differs! Expected {baseline['output_exists']}, got {output.exists()}"
 
         if output.exists():
             new_size = output.stat().st_size
-            assert new_size == baseline["output_size"], \
-                f"Output size differs! Expected {baseline['output_size']}, got {new_size}"
+            assert (
+                new_size == baseline["output_size"]
+            ), f"Output size differs! Expected {baseline['output_size']}, got {new_size}"
 
             new_hash = calculate_file_hash(output)
-            assert new_hash == baseline["output_hash"], \
-                f"Output hash differs! File content changed.\n" \
-                f"Expected: {baseline['output_hash']}\n" \
+            assert new_hash == baseline["output_hash"], (
+                f"Output hash differs! File content changed.\n"
+                f"Expected: {baseline['output_hash']}\n"
                 f"Got:      {new_hash}"
+            )
 
     def test_video_compression_crf30_regression(self, sample_video, tmp_path):
         """Verify: Video compression with CRF=30 matches baseline."""
@@ -293,22 +273,16 @@ class TestBehavioralRegression:
         config = Config()
         output = tmp_path / "regression_video_crf30.mp4"
 
-        result = compress_video(
-            str(sample_video),
-            str(output),
-            config=config,
-            crf=30
-        )
+        result = compress_video(str(sample_video), str(output), config=config, crf=30)
 
         assert result == baseline["success"]
         assert output.exists() == baseline["output_exists"]
 
         if output.exists():
             new_hash = calculate_file_hash(output)
-            assert new_hash == baseline["output_hash"], \
-                f"Output with CRF=30 differs from baseline!\n" \
-                f"Expected: {baseline['output_hash']}\n" \
-                f"Got:      {new_hash}"
+            assert new_hash == baseline["output_hash"], (
+                f"Output with CRF=30 differs from baseline!\n" f"Expected: {baseline['output_hash']}\n" f"Got:      {new_hash}"
+            )
 
     def test_pdf_compression_regression(self, sample_generated_pdf, tmp_path):
         """Verify: PDF compression matches baseline after refactor."""
@@ -323,21 +297,16 @@ class TestBehavioralRegression:
         config = Config()
         output = tmp_path / "regression_pdf_output.pdf"
 
-        result = compress_pdf(
-            str(sample_generated_pdf),
-            str(output),
-            config=config
-        )
+        result = compress_pdf(str(sample_generated_pdf), str(output), config=config)
 
         assert result == baseline["success"]
         assert output.exists() == baseline["output_exists"]
 
         if output.exists():
             new_hash = calculate_file_hash(output)
-            assert new_hash == baseline["output_hash"], \
-                f"PDF output differs from baseline!\n" \
-                f"Expected: {baseline['output_hash']}\n" \
-                f"Got:      {new_hash}"
+            assert new_hash == baseline["output_hash"], (
+                f"PDF output differs from baseline!\n" f"Expected: {baseline['output_hash']}\n" f"Got:      {new_hash}"
+            )
 
     def test_image_compression_regression(self, sample_image, tmp_path):
         """Verify: Image compression matches baseline after refactor."""
@@ -352,21 +321,16 @@ class TestBehavioralRegression:
         config = Config()
         output = tmp_path / "regression_image_output.jpg"
 
-        result = compress_image(
-            str(sample_image),
-            str(output),
-            config=config
-        )
+        result = compress_image(str(sample_image), str(output), config=config)
 
         assert result == baseline["success"]
         assert output.exists() == baseline["output_exists"]
 
         if output.exists():
             new_hash = calculate_file_hash(output)
-            assert new_hash == baseline["output_hash"], \
-                f"Image output differs from baseline!\n" \
-                f"Expected: {baseline['output_hash']}\n" \
-                f"Got:      {new_hash}"
+            assert new_hash == baseline["output_hash"], (
+                f"Image output differs from baseline!\n" f"Expected: {baseline['output_hash']}\n" f"Got:      {new_hash}"
+            )
 
 
 # Helper function to run baseline tests manually
@@ -377,13 +341,12 @@ def run_baseline_tests():
         python -c "from tests.regression.test_behavioral_baseline import run_baseline_tests; run_baseline_tests()"
     """
     import sys
-    sys.exit(pytest.main([
-        __file__,
-        "::TestBehavioralBaseline",
-        "-v",
-        "--tb=short",
-        "-p", "no:skip"  # Override @pytest.mark.skipif
-    ]))
+
+    sys.exit(
+        pytest.main(
+            [__file__, "::TestBehavioralBaseline", "-v", "--tb=short", "-p", "no:skip"]  # Override @pytest.mark.skipif
+        )
+    )
 
 
 def run_regression_tests():
@@ -393,16 +356,13 @@ def run_regression_tests():
         python -c "from tests.regression.test_behavioral_baseline import run_regression_tests; run_regression_tests()"
     """
     import sys
-    sys.exit(pytest.main([
-        __file__,
-        "::TestBehavioralRegression",
-        "-v",
-        "--tb=short"
-    ]))
+
+    sys.exit(pytest.main([__file__, "::TestBehavioralRegression", "-v", "--tb=short"]))
 
 
 if __name__ == "__main__":
     import sys
+
     if len(sys.argv) > 1 and sys.argv[1] == "--baseline":
         print("Creating behavioral baseline...")
         print("=" * 60)

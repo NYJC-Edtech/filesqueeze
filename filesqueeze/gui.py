@@ -28,11 +28,7 @@ class StatusWindow:
     ensuring loose coupling with the service implementation.
     """
 
-    def __init__(
-        self,
-        state_provider: StateProvider,
-        refresh_interval: Optional[int] = 2000
-    ):
+    def __init__(self, state_provider: StateProvider, refresh_interval: Optional[int] = 2000):
         """Initialize the status window.
 
         Args:
@@ -47,6 +43,7 @@ class StatusWindow:
 
         # Cache config and log file path (avoid creating new Config every refresh)
         from .config import Config
+
         self._config = Config()
         self._log_file = self._config.log_file
 
@@ -75,11 +72,7 @@ class StatusWindow:
         main_frame.rowconfigure(1, weight=1)  # Tab control expands
 
         # Title
-        title_label = ttk.Label(
-            main_frame,
-            text="FileSqueeze Service Status",
-            font=('Helvetica', 14, 'bold')
-        )
+        title_label = ttk.Label(main_frame, text="FileSqueeze Service Status", font=("Helvetica", 14, "bold"))
         title_label.grid(row=0, column=0, pady=(0, 10))
 
         # Create notebook (tabs)
@@ -109,7 +102,7 @@ class StatusWindow:
 
         # Running status
         ttk.Label(status_frame, text="State:").grid(row=0, column=0, sticky=tk.W, padx=(0, 5))
-        self.status_value = ttk.Label(status_frame, text="", font=('Helvetica', 10, 'bold'))
+        self.status_value = ttk.Label(status_frame, text="", font=("Helvetica", 10, "bold"))
         self.status_value.grid(row=0, column=1, sticky=tk.W)
 
         # Uptime
@@ -139,22 +132,22 @@ class StatusWindow:
 
         # Last cleanup time
         ttk.Label(cleanup_frame, text="Last cleanup:").grid(row=0, column=0, sticky=tk.W, padx=(0, 5))
-        self.last_cleanup_value = ttk.Label(cleanup_frame, text="", font=('Helvetica', 9))
+        self.last_cleanup_value = ttk.Label(cleanup_frame, text="", font=("Helvetica", 9))
         self.last_cleanup_value.grid(row=0, column=1, sticky=tk.W)
 
         # Compressed files deleted
         ttk.Label(cleanup_frame, text="Compressed deleted:").grid(row=1, column=0, sticky=tk.W, padx=(0, 5))
-        self.compressed_deleted_value = ttk.Label(cleanup_frame, text="", font=('Helvetica', 9))
+        self.compressed_deleted_value = ttk.Label(cleanup_frame, text="", font=("Helvetica", 9))
         self.compressed_deleted_value.grid(row=1, column=1, sticky=tk.W)
 
         # Archived files deleted
         ttk.Label(cleanup_frame, text="Archived deleted:").grid(row=2, column=0, sticky=tk.W, padx=(0, 5))
-        self.archived_deleted_value = ttk.Label(cleanup_frame, text="", font=('Helvetica', 9))
+        self.archived_deleted_value = ttk.Label(cleanup_frame, text="", font=("Helvetica", 9))
         self.archived_deleted_value.grid(row=2, column=1, sticky=tk.W)
 
         # Total space freed
         ttk.Label(cleanup_frame, text="Space freed:").grid(row=3, column=0, sticky=tk.W, padx=(0, 5))
-        self.space_freed_value = ttk.Label(cleanup_frame, text="", font=('Helvetica', 9))
+        self.space_freed_value = ttk.Label(cleanup_frame, text="", font=("Helvetica", 9))
         self.space_freed_value.grid(row=3, column=1, sticky=tk.W)
 
         # Directories section
@@ -177,12 +170,7 @@ class StatusWindow:
         processing_frame.grid(row=4, column=0, sticky=(tk.W, tk.E), pady=(0, 10))
         processing_frame.columnconfigure(0, weight=1)
 
-        self.processing_value = ttk.Label(
-            processing_frame,
-            text="",
-            font=('Helvetica', 9),
-            anchor=tk.W
-        )
+        self.processing_value = ttk.Label(processing_frame, text="", font=("Helvetica", 9), anchor=tk.W)
         self.processing_value.grid(row=0, column=0, sticky=(tk.W, tk.E))
 
         # Processed files section (scrollable)
@@ -193,11 +181,7 @@ class StatusWindow:
 
         # Processed files list (scrollable)
         self.processed_text = scrolledtext.ScrolledText(
-            processed_frame,
-            height=15,
-            wrap=tk.WORD,
-            state=tk.DISABLED,
-            font=('Consolas', 9)
+            processed_frame, height=15, wrap=tk.WORD, state=tk.DISABLED, font=("Consolas", 9)
         )
         self.processed_text.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
 
@@ -219,17 +203,12 @@ class StatusWindow:
         instructions = ttk.Label(
             logs_tab,
             text="Showing last 1000 lines. Auto-refreshes every 2s. At bottom = follows new logs. Scrolled up = freezes position.",
-            font=('Helvetica', 9)
+            font=("Helvetica", 9),
         )
         instructions.grid(row=0, column=0, sticky=tk.W, pady=(0, 10))
 
         # Log content (scrollable)
-        self.logs_text = scrolledtext.ScrolledText(
-            logs_tab,
-            wrap=tk.WORD,
-            state=tk.DISABLED,
-            font=('Consolas', 8)
-        )
+        self.logs_text = scrolledtext.ScrolledText(logs_tab, wrap=tk.WORD, state=tk.DISABLED, font=("Consolas", 8))
         self.logs_text.grid(row=1, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
 
     def update_display(self):
@@ -284,6 +263,7 @@ class StatusWindow:
             # Format the timestamp for display
             try:
                 from datetime import datetime
+
                 dt = datetime.fromisoformat(cleanup_stats.last_cleanup_time)
                 time_str = dt.strftime("%Y-%m-%d %H:%M:%S")
                 self.last_cleanup_value.config(text=time_str)
@@ -328,9 +308,7 @@ class StatusWindow:
 
             # If there are more files, indicate it
             if len(state.processing_files) > 1:
-                self.processing_value.config(
-                    text=f"{filename} (+{len(state.processing_files) - 1} more)"
-                )
+                self.processing_value.config(text=f"{filename} (+{len(state.processing_files) - 1} more)")
 
     def _update_processed_files(self, state: ServiceState):
         """Update processed files list with timestamps.
@@ -357,10 +335,7 @@ class StatusWindow:
                 status_icon = "✓" if processed_file.success else "✗"
 
                 # Insert line with timestamp and filename
-                self.processed_text.insert(
-                    tk.END,
-                    f"{timestamp_str} {status_icon} {processed_file.filename}\n"
-                )
+                self.processed_text.insert(tk.END, f"{timestamp_str} {status_icon} {processed_file.filename}\n")
 
             # Auto-scroll to bottom (newest)
             self.processed_text.see(tk.END)
@@ -380,7 +355,7 @@ class StatusWindow:
 
             # Read last 1000 lines
             if log_file.exists():
-                with open(log_file, 'r', encoding='utf-8', errors='replace') as f:
+                with open(log_file, "r", encoding="utf-8", errors="replace") as f:
                     lines = f.readlines()
                     last_1000 = lines[-1000:] if len(lines) > 1000 else lines
 
@@ -391,7 +366,7 @@ class StatusWindow:
                 was_at_bottom = last_fraction >= 0.98  # Within 2% of bottom
 
                 # Update content
-                new_content = ''.join(last_1000)
+                new_content = "".join(last_1000)
                 self.logs_text.config(state=tk.NORMAL)
                 self.logs_text.delete(1.0, tk.END)
                 self.logs_text.insert(tk.END, new_content)
@@ -452,10 +427,7 @@ class StatusWindow:
         """Schedule the next refresh."""
         if self.root.winfo_exists():
             self.update_display()
-            self._auto_refresh_job = self.root.after(
-                self.refresh_interval,
-                self._schedule_refresh
-            )
+            self._auto_refresh_job = self.root.after(self.refresh_interval, self._schedule_refresh)
 
     def stop_auto_refresh(self):
         """Stop automatic state refresh."""

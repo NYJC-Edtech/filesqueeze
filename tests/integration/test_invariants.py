@@ -36,7 +36,7 @@ class TestInstallationInvariants:
 class TestServiceExecutionInvariants:
     """Tests for Service Execution invariant (Windows only)."""
 
-    @pytest.mark.skipif(sys.platform != 'win32', reason="Windows-specific")
+    @pytest.mark.skipif(sys.platform != "win32", reason="Windows-specific")
     def test_service_runs_with_tray_icon(self, tmp_path):
         """Service should start and show tray icon within 5 seconds."""
         # This test would need to:
@@ -45,7 +45,7 @@ class TestServiceExecutionInvariants:
         # 3. Verify the icon is visible in system tray
         pytest.skip("Requires GUI testing framework")
 
-    @pytest.mark.skipif(sys.platform != 'win32', reason="Windows-specific")
+    @pytest.mark.skipif(sys.platform != "win32", reason="Windows-specific")
     def test_status_window_opens_from_tray_icon(self):
         """Double-clicking tray icon should open status window."""
         pytest.skip("Requires GUI automation (e.g., pywinauto)")
@@ -71,43 +71,46 @@ class TestServiceExecutionInvariants:
         # OR _on_show_status IS called directly
 
         # Check for direct call to _show_status_window
-        has_show_status_window = 'self._show_status_window(' in start_source
+        has_show_status_window = "self._show_status_window(" in start_source
 
         # Check for direct call to _on_show_status (excluding menu definitions)
-        lines = start_source.split('\n')
+        lines = start_source.split("\n")
         direct_calls = [
-            line for line in lines
-            if 'self._on_show_status(' in line  # Called with parens = direct call
-            and 'MenuItem' not in line           # Exclude menu item definitions
+            line
+            for line in lines
+            if "self._on_show_status(" in line  # Called with parens = direct call
+            and "MenuItem" not in line  # Exclude menu item definitions
         ]
         has_direct_on_show_status = len(direct_calls) > 0
 
         # At least one method should be called directly
-        assert has_show_status_window or has_direct_on_show_status, \
-            "TrayService.start() MUST automatically show status window by calling " \
-            "either _show_status_window() or _on_show_status(). " \
-            f"Found has_show_status_window={has_show_status_window}, " \
-            f"has_direct_on_show_status={has_direct_on_show_status}, " \
+        assert has_show_status_window or has_direct_on_show_status, (
+            "TrayService.start() MUST automatically show status window by calling "
+            "either _show_status_window() or _on_show_status(). "
+            f"Found has_show_status_window={has_show_status_window}, "
+            f"has_direct_on_show_status={has_direct_on_show_status}, "
             f"direct_calls={direct_calls}"
+        )
 
         # Verify that the start method focuses on tray icon creation
-        assert 'icon' in start_source.lower() or 'pystray' in start_source.lower(), \
-            "TrayService.start() should create the tray icon"
+        assert (
+            "icon" in start_source.lower() or "pystray" in start_source.lower()
+        ), "TrayService.start() should create the tray icon"
 
         # The invariant: status window opens AUTOMATICALLY when service starts
         # This provides immediate visual feedback to users
 
-    @pytest.mark.skipif(sys.platform != 'win32', reason="Windows-specific")
+    @pytest.mark.skipif(sys.platform != "win32", reason="Windows-specific")
     def test_closing_status_window_keeps_tray_icon(self):
         """Closing status window should leave tray icon active."""
         pytest.skip("Requires GUI automation")
 
-    @pytest.mark.skipif(sys.platform != 'win32', reason="Windows-specific")
+    @pytest.mark.skipif(sys.platform != "win32", reason="Windows-specific")
     def test_single_status_window_instance(self):
         """Clicking tray icon repeatedly should not open multiple status windows."""
         pytest.skip("Requires GUI automation")
 
-    @pytest.mark.skipif(sys.platform != 'win32', reason="Windows-specific")
+    @pytest.mark.skipif(sys.platform != "win32", reason="Windows-specific")
     def test_no_console_window_in_service_mode(self):
         """Service mode should never show console windows."""
         # Start service with pythonw
@@ -118,8 +121,10 @@ class TestServiceExecutionInvariants:
 class TestWindowsIntegrationInvariants:
     """Tests for Windows Integration invariant."""
 
-    @pytest.mark.skipif(sys.platform != 'win32', reason="Windows-specific")
-    @pytest.mark.skip(reason="Skipping due to Windows mutex persistence issues when run with full suite. Run in isolation: pytest tests/integration/test_invariants.py::TestWindowsIntegrationInvariants::test_appusermodelid_set_before_icon_creation -v")
+    @pytest.mark.skipif(sys.platform != "win32", reason="Windows-specific")
+    @pytest.mark.skip(
+        reason="Skipping due to Windows mutex persistence issues when run with full suite. Run in isolation: pytest tests/integration/test_invariants.py::TestWindowsIntegrationInvariants::test_appusermodelid_set_before_icon_creation -v"
+    )
     def test_appusermodelid_set_before_icon_creation(self, tmp_path):
         """AppUserModelID should be set before tray icon is created.
 
@@ -144,11 +149,8 @@ class TestWindowsIntegrationInvariants:
 
         # Setup logging to our temp file
         from filesqueeze.logger import Logger
-        logger = Logger.setup(
-            log_file=str(log_file),
-            level="INFO",
-            format_type="detailed"
-        )
+
+        logger = Logger.setup(log_file=str(log_file), level="INFO", format_type="detailed")
 
         # Create and start the service (this sets AppUserModelID)
         service = TrayService(input_dir, output_dir, config)
@@ -159,38 +161,38 @@ class TestWindowsIntegrationInvariants:
 
         # Verify the code has the AppUserModelID setting logic
         import inspect
+
         source = inspect.getsource(service.start)
 
         # Verify AppUserModelID code exists before icon creation
-        assert 'AppUserModelID' in source or 'APP_USER_MODEL_ID' in source, \
-            "TrayService.start() should set AppUserModelID"
+        assert "AppUserModelID" in source or "APP_USER_MODEL_ID" in source, "TrayService.start() should set AppUserModelID"
 
         # Verify logging happens at INFO level
-        assert 'logger.info' in source or 'logger.warning' in source or 'logger.error' in source, \
-            "AppUserModelID setting should be logged"
+        assert (
+            "logger.info" in source or "logger.warning" in source or "logger.error" in source
+        ), "AppUserModelID setting should be logged"
 
         # The key invariant: AppUserModelID must be set BEFORE icon creation
         # We verify this by checking the code structure
-        lines = source.split('\n')
+        lines = source.split("\n")
 
         appusermodelid_line = None
         icon_line = None
 
         for i, line in enumerate(lines):
-            if 'AppUserModelID' in line or 'APP_USER_MODEL_ID' in line:
+            if "AppUserModelID" in line or "APP_USER_MODEL_ID" in line:
                 appusermodelid_line = i
-            if 'pystray.Icon' in line or 'self.icon = ' in line:
+            if "pystray.Icon" in line or "self.icon = " in line:
                 icon_line = i
 
         # Verify AppUserModelID code exists
-        assert appusermodelid_line is not None, \
-            "AppUserModelID setting code should exist in start() method"
+        assert appusermodelid_line is not None, "AppUserModelID setting code should exist in start() method"
 
         # Note: We can't verify the actual icon creation happens after
         # because that would require running the GUI, but we've verified
         # the code structure enforces the ordering
 
-    @pytest.mark.skipif(sys.platform != 'win32', reason="Windows-specific")
+    @pytest.mark.skipif(sys.platform != "win32", reason="Windows-specific")
     def test_windows_remembers_app_identity(self):
         """Windows should remember FileSqueeze across restarts."""
         # This is a manual test requiring:
@@ -212,11 +214,7 @@ class TestLogFileLocationInvariant:
         log_file = tmp_path / "filesqueeze.log"
 
         # Setup logging with explicit log file
-        logger = Logger.setup(
-            log_file=str(log_file),
-            level="INFO",
-            format_type="detailed"
-        )
+        logger = Logger.setup(log_file=str(log_file), level="INFO", format_type="detailed")
 
         # Write a test log entry
         logger.info("Test log entry")
@@ -235,11 +233,7 @@ class TestLogFileLocationInvariant:
         user_config_dir.mkdir(parents=True)
         log_file = user_config_dir / "filesqueeze.log"
 
-        logger = Logger.setup(
-            level="INFO",
-            log_file=str(log_file),
-            format_type="detailed"
-        )
+        logger = Logger.setup(level="INFO", log_file=str(log_file), format_type="detailed")
         logger.info("Test entry")
 
         # Verify log is in user config, not project dir
@@ -254,52 +248,50 @@ class TestLogFileLocationInvariant:
         config_output = tmp_path / "config.toml"
 
         # Generate config
-        args = argparse.Namespace(
-            output=str(config_output),
-            force=True
-        )
+        args = argparse.Namespace(output=str(config_output), force=True)
         cmd_init_config(args)
 
         # Read generated config
         import tomllib
-        with open(config_output, 'rb') as f:
+
+        with open(config_output, "rb") as f:
             config_data = tomllib.load(f)
 
         # Verify log path is expanded (no tilde)
-        log_path = config_data['logging']['file']
-        assert not log_path.startswith('~'), "Log path should be expanded"
+        log_path = config_data["logging"]["file"]
+        assert not log_path.startswith("~"), "Log path should be expanded"
         assert os.path.isabs(log_path), "Log path should be absolute"
 
 
 class TestStatusWindowUIInvariant:
     """Tests for Status Window UI invariant."""
 
-    @pytest.mark.skipif(sys.platform != 'win32', reason="Windows-specific GUI test")
+    @pytest.mark.skipif(sys.platform != "win32", reason="Windows-specific GUI test")
     def test_status_window_shows_service_state(self):
         """Status window should display Running or Stopped state."""
         pytest.skip("Requires GUI testing")
 
-    @pytest.mark.skipif(sys.platform != 'win32', reason="Windows-specific GUI test")
+    @pytest.mark.skipif(sys.platform != "win32", reason="Windows-specific GUI test")
     def test_status_window_shows_statistics(self):
         """Status window should show completed/failed counts."""
         pytest.skip("Requires GUI testing")
 
-    @pytest.mark.skipif(sys.platform != 'win32', reason="Windows-specific GUI test")
+    @pytest.mark.skipif(sys.platform != "win32", reason="Windows-specific GUI test")
     def test_status_window_shows_directories(self):
         """Status window should show input/output directories."""
         pytest.skip("Requires GUI testing")
 
-    @pytest.mark.skipif(sys.platform != 'win32', reason="Windows-specific GUI test")
+    @pytest.mark.skipif(sys.platform != "win32", reason="Windows-specific GUI test")
     def test_status_window_shows_processing_files(self):
         """Status window should show currently processing files."""
         pytest.skip("Requires GUI testing")
 
-    @pytest.mark.skipif(sys.platform != 'win32', reason="Windows-specific GUI test")
+    @pytest.mark.skipif(sys.platform != "win32", reason="Windows-specific GUI test")
     def test_status_window_auto_refreshes_every_second(self):
         """Status window should refresh every 1 second."""
         pytest.skip("Requires GUI testing")
 
-    @pytest.mark.skipif(sys.platform != 'win32', reason="Windows-specific GUI test")
+    @pytest.mark.skipif(sys.platform != "win32", reason="Windows-specific GUI test")
     def test_status_window_has_close_button(self):
         """Status window should have a close button."""
         pytest.skip("Requires GUI testing")
@@ -308,7 +300,7 @@ class TestStatusWindowUIInvariant:
 class TestBuildInstallWorkflowInvariant:
     """Tests for Build/Install Workflow invariant."""
 
-    @pytest.mark.skipif(sys.platform != 'win32', reason="Windows-specific")
+    @pytest.mark.skipif(sys.platform != "win32", reason="Windows-specific")
     def test_uninstallation_stops_all_processes(self):
         """Uninstallation should stop all FileSqueeze processes."""
         # Start service
@@ -316,7 +308,7 @@ class TestBuildInstallWorkflowInvariant:
         # Verify no filesqueeze.exe processes remain
         pytest.skip("Requires process management testing")
 
-    @pytest.mark.skipif(sys.platform != 'win32', reason="Windows-specific")
+    @pytest.mark.skipif(sys.platform != "win32", reason="Windows-specific")
     def test_uninstallation_enables_fresh_installation(self):
         """After uninstall, should be able to install again without errors."""
         pytest.skip("Requires full installation cycle")
@@ -358,8 +350,8 @@ output = "/test/output"
         config = Config(config_path=str(config_file))
 
         # Verify values from user config
-        assert config.get('directories.input') == "/test/input"
-        assert config.get('directories.output') == "/test/output"
+        assert config.get("directories.input") == "/test/input"
+        assert config.get("directories.output") == "/test/output"
 
     def test_tilde_expanded_once_at_init(self, tmp_path):
         """Tilde paths expanded during init-config, not at runtime."""
@@ -370,23 +362,21 @@ output = "/test/output"
         config_output = tmp_path / "config.toml"
 
         # Generate config with tilde
-        args = argparse.Namespace(
-            output=str(config_output),
-            force=True
-        )
+        args = argparse.Namespace(output=str(config_output), force=True)
         cmd_init_config(args)
 
         # Read and verify expansion happened
-        with open(config_output, 'rb') as f:
+        with open(config_output, "rb") as f:
             config_data = tomllib.load(f)
 
-        log_path = config_data['logging']['file']
-        assert not log_path.startswith('~'), "Tilde should be expanded"
+        log_path = config_data["logging"]["file"]
+        assert not log_path.startswith("~"), "Tilde should be expanded"
 
         # Verify runtime doesn't expand again (no ~ in path to expand)
         from filesqueeze.config import Config
+
         config = Config(config_path=str(config_output))
-        runtime_log_path = config.get('logging.file')
+        runtime_log_path = config.get("logging.file")
         assert runtime_log_path == log_path, "Path should match expanded version"
 
 
@@ -418,7 +408,7 @@ class TestArchiveInvariant:
         config = Config()
 
         # Override archive_dir to None for this test
-        with mock.patch.object(Config, 'archive_dir', return_value=None):
+        with mock.patch.object(Config, "archive_dir", return_value=None):
             watcher = Mock()
             logger = Mock()
             handler = CompressionHandler(config, input_dir, output_dir, logger, watcher)
@@ -460,7 +450,7 @@ class TestArchiveInvariant:
         config = Config()
 
         # Mock the archive_dir property
-        with patch.object(Config, 'archive_dir', return_value=archive_dir):
+        with patch.object(Config, "archive_dir", return_value=archive_dir):
             watcher = Mock()
             logger = Mock()
             handler = CompressionHandler(config, input_dir, output_dir, logger, watcher)
