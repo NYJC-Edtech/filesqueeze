@@ -3,20 +3,43 @@
 Presentation compression functions for PowerPoint files.
 
 This module provides PowerPoint to MP4 conversion operations using PowerShell.
-It uses the system package for logging.
+It uses the system package for logging and subprocess utilities.
 """
 
-import os
-import subprocess
 from pathlib import Path
+from typing import Optional
 
-# Import from system package
-from filesqueeze.system import logger
+# Import subprocess utilities
+from filesqueeze.utils.subprocess_helper import run_subprocess, verify_output_file, SubprocessTimeout, SubprocessError
 
 
 # Constants
-POWERSHELL = 'powershell.exe'
 SCRIPTPATH = str(Path(__file__).parent.parent.joinpath('bin', 'pptx2mp4.ps1'))
+
+
+def get_powershell_path(config_path: str = '') -> str:
+    """Get the PowerShell executable path.
+
+    Args:
+        config_path: Path from config, or empty string to use PATH.
+
+    Returns:
+        Path to PowerShell executable.
+
+    Raises:
+        RuntimeError: If PowerShell is not found.
+
+    Note:
+        If config_path is provided and it exists, it will be used.
+        Otherwise, uses the registered BinaryFinder to auto-detect.
+    """
+    # If explicit path provided and it exists, use it
+    if config_path and Path(config_path).exists():
+        return config_path
+
+    # Otherwise use registered finder
+    finder = get_binary_finder()
+    return finder.get_powershell_path()
 
 
 def to_mp4(
@@ -34,7 +57,7 @@ def to_mp4(
 
     Raises:
         FileNotFoundError: If input file doesn't exist or output file is not created.
-        ChildProcessError: If PowerShell script fails.
+        RuntimeError: If PowerShell script fails or times out.
     """
     from filesqueeze.system.decorators import trace_function
     from filesqueeze.system.config_adapters import PresentationConfig
@@ -52,28 +75,42 @@ def to_mp4(
             raise FileNotFoundError(f'{infile}: Input file not found')
         outfile = Path(outfile) if outfile else infile.parent.joinpath(infile.stem + '.mp4')
 
+        # Use config adapter if config provided
+        if config:
+            pres_config = PresentationConfig(config)
+            timeout = pres_config.timeout
+            powershell_path = config.powershell_path if hasattr(config, 'powershell_path') else ''
+        else:
+            timeout = 1800  # 30 minutes default for PPT conversion
+            powershell_path = ''
+
+        # Get PowerShell path with fallback to PATH detection
+        powershell = get_powershell_path(powershell_path)
+
         cmd = [
-            POWERSHELL,
+            powershell,
             SCRIPTPATH,
             str(infile),
             str(outfile),
         ]
 
         try:
-            proc = subprocess.run(
+            run_subprocess(
                 cmd,
-                cwd='.',
-                check=True,
+                timeout=timeout,
+                tool_name="PowerShell",
+                input_file=str(infile)
             )
-        except subprocess.CalledProcessError:
-            raise ChildProcessError("PowerShell script failed")
-        else:
-            if proc.returncode != 0:
-                raise ChildProcessError(f"PowerShell script returned non-zero exit code: {proc.returncode}")
+        except SubprocessTimeout:
+            raise RuntimeError(f"PowerShell timeout converting presentation: {infile}")
+        except SubprocessError as e:
+            raise RuntimeError(f"PowerShell failed to convert presentation: {infile}") from e
 
-        # Verification
-        if not Path(outfile).exists():
-            raise FileNotFoundError(f'{infile}: Output file not created')
+        # Verify output file exists and has reasonable size
+        try:
+            verify_output_file(str(outfile), min_size=1000)
+        except FileNotFoundError:
+            raise
 
     _to_mp4(infile, outfile, config=config)
 

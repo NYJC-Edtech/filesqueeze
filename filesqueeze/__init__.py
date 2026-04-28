@@ -85,6 +85,24 @@ def make_image(filepath: str, callback: Optional[Callable] = None, config: Optio
     final = sm.run(filepath, config=config, output_path=output_path)
     return final.target
 
+def make_presentation(filepath: str, callback: Optional[Callable] = None, config: Optional[Config] = None, output_path: Optional[str] = None) -> str:
+    """Entry point to the compression pipeline for PowerPoint files.
+
+    Args:
+        filepath: Path to the PowerPoint file to compress.
+        callback: Optional callback function for state updates.
+        config: Optional Config object for compression settings.
+        output_path: Optional output path for compressed file.
+
+    Returns:
+        Path to the final compressed file.
+    """
+    sm = StateMachine(start=handlers.selectAnalyzer)
+    if callback:
+        sm.onupdate = callback
+    final = sm.run(filepath, config=config, output_path=output_path)
+    return final.target
+
 
 __all__ = [
     'video',
@@ -97,6 +115,7 @@ __all__ = [
     'make_video',
     'make_pdf',
     'make_image',
+    'make_presentation',
     'register_logger',
     'register_binary_finder',
     'trace_context',
