@@ -19,6 +19,10 @@ filesqueeze/
 │   ├── config_adapters.py     # Type-safe config adapters
 │   └── decorators.py          # Function tracing decorators
 │
+├── utils/                     # Utility modules (shared functionality)
+│   ├── __init__.py
+│   └── subprocess_helper.py   # Centralized subprocess execution
+│
 ├── ops/                       # Business logic operations
 │   ├── __init__.py
 │   ├── video.py               # Video compression operations
@@ -119,6 +123,52 @@ Infrastructure services that support business logic. These are registered at sta
 - `trace_handler` - Decorator for FSM handler tracing
 - `log_transition()` - Log state machine transitions
 - `StructuredFormatter` - JSON formatter for production logs
+
+## Utils Package (`utils/`)
+
+### Purpose
+Shared utility modules providing common functionality across the application. These modules contain reusable components that are used by multiple other packages.
+
+### Modules
+
+#### `subprocess_helper.py` - Subprocess Utilities
+- **Functions**:
+  - `run_subprocess(cmd, timeout, tool_name, input_file, ...)` - Centralized subprocess execution
+  - `verify_output_file(output_path, min_size, ...)` - Standardized file verification
+  - `get_windows_subprocess_config()` - Windows subprocess configuration
+
+- **Classes**:
+  - `SubprocessError` - Enhanced error class with return_code, stdout, stderr
+  - `SubprocessTimeout` - Timeout-specific error class
+
+- **Features**:
+  - Platform-specific subprocess configuration (Windows console hiding)
+  - Consistent error handling across all operations
+  - Enhanced error messages with context (return codes, stderr, tool names)
+  - Standardized timeout and failure behavior
+  - Thread-safe subprocess execution
+
+- **Design Benefits**:
+  - **Eliminates code duplication** - Single implementation of subprocess logic
+  - **Improves consistency** - All operations use same approach
+  - **Enhances testability** - Mockable utility functions
+  - **Better error context** - More debugging information in errors
+
+### Usage Pattern
+```python
+# Instead of duplicated subprocess.run() calls:
+from filesqueeze.utils.subprocess_helper import run_subprocess, verify_output_file
+
+# In ops modules:
+run_subprocess(cmd, timeout=60, tool_name="FFmpeg", input_file=infile)
+verify_output_file(outfile, min_size=100)
+```
+
+### Dependency Rules
+- **system** → **utils** ✅ (allowed)
+- **ops** → **utils** ✅ (allowed)
+- **utils** → **system** ✅ (allowed)
+- **utils** → **ops** ❌ (FORBIDDEN - would create circular dependency)
 
 ## Ops Package (`ops/`)
 
