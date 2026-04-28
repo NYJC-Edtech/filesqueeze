@@ -19,7 +19,7 @@ dev = [
     "pytest>=7.0.0",
     "pytest-cov>=4.0.0",
     "black==26.3.1",
-    "flake8>=6.0.0",
+    "ruff>=0.0.0",
 ]
 ocr = [
     "pdfminer.six>=20231228",
@@ -47,7 +47,7 @@ pytest-cov = "^4.0.0"
 pdfminer-six = "^20231228"
 tomli-w = "^1.2.0"
 black = "26.3.1"
-flake8 = "^6.0.0"
+ruff = ">=0.0.0"
 
 [tool.poetry.scripts]
 # Project task scripts - use with: poetry run <task>
@@ -64,6 +64,32 @@ python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
 addopts = "-v --tb=short"
+
+[tool.ruff]
+line-length = 127
+target-version = "py311"
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort
+    "B",   # flake8-bugbear
+    "C4",  # flake8-comprehensions
+    "UP",  # pyupgrade
+]
+ignore = [
+    "E203",  # whitespace before ':'
+    "E501",  # line too long (handled by black)
+    "W503",  # line break before binary operator
+]
+exclude = [
+    ".git",
+    ".venv",
+    "venv",
+    "build",
+    "dist",
+    "__pycache__",
+]
 
 [tool.black]
 line-length = 127

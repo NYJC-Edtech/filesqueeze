@@ -11,7 +11,7 @@ Runs on every push to any branch:
 - **Smoke Tests**: Critical imports and basic functionality
 - **Unit Tests**: Fast, isolated component tests  
 - **System Tests**: Configuration, circular imports, logger tests
-- **Code Quality**: Black formatting checks + flake8 linting
+- **Code Quality**: Black formatting checks + ruff linting
 
 ### 2. Integration Tests (PRs Only)
 Runs on pull requests to main/develop branches:
@@ -42,7 +42,7 @@ Runs on pull requests to main/develop branches:
 
 ### Pre-commit Hooks
 - **Purpose**: Automatically format code before commits
-- **Tools**: Black (formatting) + flake8 (linting)
+- **Tools**: Black (formatting) + ruff (linting)
 - **Setup**: Run `pip install pre-commit && pre-commit install` once after cloning
 - **Action**: Automatically formats Python files on every commit
 
@@ -51,8 +51,8 @@ Runs on pull requests to main/develop branches:
 - **Config**: 127 character line length, Python 3.11 target
 - **Action**: Automatically formats code via pre-commit hooks
 
-### flake8
-- **Purpose**: Python linting
+### ruff
+- **Purpose**: Fast Python linting (replaces flake8)
 - **Config**: 127 character line length, ignores E203/E501/W503
 - **Action**: Runs via pre-commit hooks to catch code quality issues
 
@@ -86,10 +86,13 @@ Runs on pull requests to main/develop branches:
 poetry run black filesqueeze/ tests/
 ```
 
-**flake8 warnings:**
+**ruff warnings:**
 ```bash
 # Run linting locally
-poetry run flake8 filesqueeze/ tests/
+poetry run ruff check filesqueeze/ tests/
+
+# Auto-fix issues where possible
+poetry run ruff check --fix filesqueeze/ tests/
 ```
 
 **Integration test failures:**
@@ -141,7 +144,7 @@ poetry run pytest tests/ -v --ignore=tests/integration/test_gui_behavior.py
 
 ## Future Improvements
 
-- [ ] Add pre-commit hooks configuration
+- [x] Add pre-commit hooks configuration
 - [ ] Add security scanning (bandit)
 - [ ] Add type checking (mypy)
 - [ ] Windows CI runner for GUI/service tests

@@ -43,11 +43,10 @@ jobs:
           poetry run pip install black==26.3.1
           poetry run black --check --diff --config pyproject.toml filesqueeze/ tests/
 
-      - name: Lint with flake8
+      - name: Lint with ruff
         run: |
-          poetry run pip install flake8
-          poetry run flake8 filesqueeze/ tests/ --count --select=E9,F63,F7,F82 --show-source --statistics
-          poetry run flake8 filesqueeze/ tests/ --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+          poetry run pip install ruff
+          poetry run ruff check filesqueeze/ tests/ --select=E9,F63,F7,F82 --output-format=concise
 
   integration-tests:
     name: Integration & Regression Tests
