@@ -1,0 +1,21 @@
+#!/bin/bash
+# FileSqueeze pre-commit hook
+# Runs smoke tests to ensure commits don't break critical system functionality
+
+set -e  # Exit on error
+
+echo "🔥 Running FileSqueeze smoke tests..."
+
+# Run smoke tests with quiet output
+if pytest tests/smoke/ -q; then
+    echo "✅ Smoke tests passed - commit approved"
+    exit 0
+else
+    echo "❌ Smoke tests failed - commit rejected"
+    echo ""
+    echo "Smoke tests check for critical system issues that users cannot fix themselves."
+    echo "Please fix the failing tests before committing."
+    echo ""
+    echo "Run 'pytest tests/smoke/ -v' to see detailed failure information."
+    exit 1
+fi

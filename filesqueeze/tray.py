@@ -189,15 +189,20 @@ class TrayService:
         """Handle show status action - opens GUI status window.
 
         Enforces singleton pattern: only one status window can exist.
-        If window is already open, this method returns without doing anything.
+        If window is already open but not focused, brings it to the foreground.
 
         Args:
             icon: Tray icon instance.
             item: Menu item instance (for menu clicks) or event (for icon clicks).
         """
-        # Singleton enforcement: Check if status window already exists
+        # If window already exists, bring it to the foreground
         if self._status_window is not None:
-            self.logger.debug("Status window already open, ignoring duplicate request")
+            self.logger.debug("Status window already open, bringing to foreground")
+            try:
+                # Use after() to schedule UI operations on the Tkinter main thread
+                self._status_window.root.after(0, self._bring_to_foreground, self._status_window.root)
+            except Exception as e:
+                self.logger.error(f"Failed to bring window to foreground: {e}", exc_info=True)
             return
 
         self.logger.info("Opening status window")
@@ -209,6 +214,33 @@ class TrayService:
             daemon=True
         )
         status_thread.start()
+
+    def _bring_to_foreground(self, root_window):
+        """Bring a Tkinter window to the foreground.
+
+        This method must be called from the Tkinter main thread using after().
+        It restores a minimized window, brings it to the top, and forces focus.
+
+        Args:
+            root_window: The Tkinter root window to bring to foreground.
+        """
+        try:
+            # Restore if minimized
+            root_window.deiconify()
+
+            # Bring window to the top of the stacking order
+            root_window.lift()
+
+            # Force the window to be on top of all other windows
+            root_window.attributes('-topmost', True)
+            root_window.after_idle(root_window.attributes, '-topmost', False)
+
+            # Force focus on the window
+            root_window.focus_force()
+
+            self.logger.debug("Window brought to foreground successfully")
+        except Exception as e:
+            self.logger.error(f"Error bringing window to foreground: {e}", exc_info=True)
 
     def _show_status_window(self):
         """Show the GUI status window.
