@@ -3,8 +3,6 @@ name: CI
 on:
   push:
     branches: ['**']
-  pull_request:
-    branches: [main, develop]
 
 jobs:
   quick-checks:
@@ -52,9 +50,8 @@ jobs:
           poetry run flake8 filesqueeze/ tests/ --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
 
   integration-tests:
-    name: Integration & Regression Tests (PRs only)
+    name: Integration & Regression Tests
     runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request'
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -86,7 +83,6 @@ jobs:
   coverage:
     name: Coverage Report
     runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request'
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
