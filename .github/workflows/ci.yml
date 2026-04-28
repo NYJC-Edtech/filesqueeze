@@ -41,7 +41,7 @@ jobs:
       - name: Check code style with Black
         run: |
           poetry run pip install black
-          poetry run black --check --config pyproject.toml filesqueeze/ tests/
+          poetry run black --check --diff --config pyproject.toml filesqueeze/ tests/
 
       - name: Lint with flake8
         run: |
