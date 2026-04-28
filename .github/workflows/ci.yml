@@ -29,6 +29,9 @@ jobs:
       - name: Install dependencies
         run: poetry install --with dev
 
+      - name: Install FFmpeg and Ghostscript
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg ghostscript
+
       - name: Run smoke tests
         run: poetry run pytest tests/smoke/ -v
 
@@ -120,6 +123,9 @@ jobs:
 
       - name: Install dependencies
         run: poetry install --with dev
+
+      - name: Install FFmpeg and Ghostscript
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg ghostscript
 
       - name: Run coverage
         run: |
