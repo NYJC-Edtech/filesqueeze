@@ -6,13 +6,13 @@ This module provides video compression operations using FFmpeg.
 It uses the system package for binary detection and logging.
 """
 
-import os
-import subprocess
 from pathlib import Path
 from typing import Tuple, Optional
 
 # Import from system package
 from filesqueeze.system import get_binary_finder, logger
+# Import subprocess utilities
+from filesqueeze.utils.subprocess_helper import run_subprocess, verify_output_file, SubprocessTimeout, SubprocessError
 
 
 def get_ffmpeg_path(config_path: str = '') -> str:
@@ -267,24 +267,24 @@ def compress(
         ])
 
         try:
-            subprocess.run(
+            run_subprocess(
                 cmd,
                 timeout=timeout,
-                check=True,
-                creationflags=subprocess.CREATE_NO_WINDOW if os.name == 'nt' else 0
+                tool_name="FFmpeg",
+                input_file=infile
             )
-        except subprocess.TimeoutExpired:
+        except SubprocessTimeout:
             raise RuntimeError(f"FFmpeg timeout compressing video: {infile}")
-        except subprocess.CalledProcessError as e:
-            raise RuntimeError(f"FFmpeg failed with return code {e.returncode}: {infile}")
+        except SubprocessError:
+            raise RuntimeError(f"FFmpeg failed to compress video: {infile}")
 
-        # Verify output file exists
-        if not Path(outfile).exists():
-            raise FileNotFoundError(f"Output file not created: {outfile}")
-
-        # Verify output file is not too small
-        if Path(outfile).stat().st_size < min_size:
-            raise RuntimeError(f"Output file is too small (< {min_size} bytes): {outfile}")
+        # Verify output file exists and meets size requirements
+        try:
+            verify_output_file(outfile, min_size=min_size)
+        except FileNotFoundError:
+            raise
+        except RuntimeError as e:
+            raise
 
     _compress(
         infile, outfile,
