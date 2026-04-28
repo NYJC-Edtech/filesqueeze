@@ -55,7 +55,9 @@ class Enum(metaclass=EnumMeta):
     def validate(cls, member: str) -> None:
         """Validate if a member is in the enum."""
         if member not in cls.__dict__:
-            raise ValueError(f"'{member!r}' is not a valid member of {cls.__name__}.")
+            raise ValueError(
+                f"{member!r} is not a valid member of {cls.__name__}."
+            )
 
 
 class Video(Enum):
