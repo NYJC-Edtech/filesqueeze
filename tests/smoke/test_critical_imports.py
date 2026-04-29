@@ -11,15 +11,15 @@ Users cannot fix these issues themselves - they require proper installation.
 """
 
 import os
-import sys
+
 import pytest
 
 
 def test_core_modules_import():
     """All core modules must be importable."""
     # Core application modules
-    from filesqueeze import config, service, logger
-    from filesqueeze.fsm import enums, default
+    from filesqueeze import config, logger, service
+    from filesqueeze.fsm import default, enums
 
     # These imports should never fail in a working installation
     assert config is not None
@@ -31,7 +31,7 @@ def test_core_modules_import():
 
 def test_operations_modules_import():
     """All operation modules must be importable."""
-    from filesqueeze.ops import video, document, image
+    from filesqueeze.ops import document, image, video
 
     assert video is not None
     assert document is not None
@@ -40,7 +40,7 @@ def test_operations_modules_import():
 
 def test_system_modules_import():
     """All system modules must be importable."""
-    from filesqueeze.system import binaries, register_binary_finder, get_binary_finder
+    from filesqueeze.system import binaries, get_binary_finder, register_binary_finder
 
     assert binaries is not None
     assert register_binary_finder is not None
@@ -49,8 +49,8 @@ def test_system_modules_import():
 
 def test_state_machine_imports():
     """State machine components must be importable."""
-    from filesqueeze.fsm.enums import Document, Video
     from filesqueeze.fsm.default import State as DefaultState
+    from filesqueeze.fsm.enums import Document, Video
 
     # Verify enums are accessible
     assert Document is not None
@@ -60,7 +60,7 @@ def test_state_machine_imports():
 
 def test_service_classes_import():
     """Service classes must be importable."""
-    from filesqueeze.service import ServiceState, ProcessedFile, DirectoryWatcher, CompressionHandler, RetentionManager
+    from filesqueeze.service import CompressionHandler, DirectoryWatcher, ProcessedFile, RetentionManager, ServiceState
 
     assert ServiceState is not None
     assert ProcessedFile is not None
@@ -86,7 +86,7 @@ def test_gui_modules_import():
 
 def test_main_api_imports():
     """Main API functions must be importable."""
-    from filesqueeze import make_video, make_pdf, make_image, make_presentation
+    from filesqueeze import make_image, make_pdf, make_presentation, make_video
 
     # Main API functions must be available
     assert make_video is not None

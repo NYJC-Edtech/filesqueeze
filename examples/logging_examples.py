@@ -5,31 +5,25 @@ Run this file to see structured logging output.
 """
 
 import sys
-import logging
 from pathlib import Path
 
 # Add filesqueeze to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from filesqueeze.tracelogger import (
-    setup_tracelogging,
-    trace_handler,
-    trace_context,
-    get_logger
-)
-from filesqueeze.fsm import StateMachine, Handler, State
-
+from filesqueeze.fsm import Handler, State, StateMachine
+from filesqueeze.tracelogger import setup_tracelogging, trace_context, trace_handler
 
 # ============================================================================
 # Example 1: Handler with Automatic Logging
 # ============================================================================
 
+
 @trace_handler
 def analyzeFile(state: State) -> Handler:
     """Analyze a file - entry/exit automatically logged."""
     print(f"  Analyzing: {state.origin}")
-    state.metadata['size'] = 1024
-    state.metadata['format'] = 'mp4'
+    state.metadata["size"] = 1024
+    state.metadata["format"] = "mp4"
     return compressFile
 
 
@@ -40,10 +34,11 @@ def compressFile(state: State) -> Handler:
 
     # Simulate work
     import time
+
     time.sleep(0.1)
 
     # Simulate error scenario
-    if state.metadata.get('format') == 'corrupt':
+    if state.metadata.get("format") == "corrupt":
         raise ValueError("File format is corrupt")
 
     return cleanupFiles
@@ -58,16 +53,12 @@ def cleanupFiles(state: State) -> Handler:
 
 def example_handler_logging():
     """Example: Automatic handler logging with @log_handler."""
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("EXAMPLE 1: Handler Decorator - Automatic Entry/Exit Logging")
-    print("="*70)
+    print("=" * 70)
 
     # Setup logging
-    logger = setup_tracelogging(
-        log_file=None,  # Console only for this example
-        level="INFO",
-        console_format="human"
-    )
+    logger = setup_tracelogging(log_file=None, level="INFO", console_format="human")  # Console only for this example
 
     # Run state machine (logging enabled by default via system logger)
     state_machine = StateMachine(start=analyzeFile)
@@ -82,6 +73,7 @@ def example_handler_logging():
 # Example 2: Handler with Exception Logging
 # ============================================================================
 
+
 @trace_handler
 def compressFileWithError(state: State) -> Handler:
     """Handler that raises exception - automatically logged with traceback."""
@@ -93,15 +85,15 @@ def compressFileWithError(state: State) -> Handler:
 
 def example_exception_logging():
     """Example: Automatic exception logging."""
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("EXAMPLE 2: Exception Logging - Automatic Traceback Capture")
-    print("="*70)
+    print("=" * 70)
 
     logger = setup_tracelogging(level="INFO", console_format="human")
 
     state_machine = StateMachine(start=analyzeFile, enable_logging=True)
     initial_state = State("/path/to/corrupt.mp4")
-    initial_state.metadata['format'] = 'corrupt'
+    initial_state.metadata["format"] = "corrupt"
 
     print("\nProcessing file (will fail)...")
     try:
@@ -115,11 +107,12 @@ def example_exception_logging():
 # Example 3: Manual Logging with Context
 # ============================================================================
 
+
 def example_manual_logging():
     """Example: Manual logging with automatic context."""
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("EXAMPLE 3: Manual Logging - Automatic Context (trace_id, file)")
-    print("="*70)
+    print("=" * 70)
 
     logger = setup_tracelogging(level="INFO", console_format="human")
 
@@ -146,18 +139,15 @@ def example_manual_logging():
 # Example 4: JSON Structured Logging
 # ============================================================================
 
+
 def example_json_logging():
     """Example: JSON structured logging for production."""
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("EXAMPLE 4: JSON Structured Logging - Production Format")
-    print("="*70)
+    print("=" * 70)
 
     # Setup with JSON format
-    logger = setup_tracelogging(
-        log_file=None,
-        level="INFO",
-        console_format="json"  # JSON output
-    )
+    logger = setup_tracelogging(log_file=None, level="INFO", console_format="json")  # JSON output
 
     print("\nJSON log output (machine-parseable):")
 
@@ -172,11 +162,12 @@ def example_json_logging():
 # Example 5: Timeline Reconstruction
 # ============================================================================
 
+
 def example_timeline():
     """Example: Full execution timeline with timing."""
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("EXAMPLE 5: Timeline Reconstruction - Full Execution Trace")
-    print("="*70)
+    print("=" * 70)
 
     logger = setup_tracelogging(level="INFO", console_format="human")
 
@@ -199,12 +190,14 @@ def example_timeline():
 # Example 6: Before/After Comparison
 # ============================================================================
 
+
 def before_logging():
     """BEFORE: No logging, bare exception handler."""
-    print("\n" + "-"*70)
+    print("\n" + "-" * 70)
     print("BEFORE (Current State):")
-    print("-"*70)
-    print("""
+    print("-" * 70)
+    print(
+        """
     def compressVideo(state):
         try:
             success = video.compress(str(state.target), str(output_path))
@@ -212,7 +205,8 @@ def before_logging():
             state.metadata['error'] = "Error during compression"
             return cleanupFiles
         return cleanupFiles
-    """)
+    """
+    )
     print("\n  ❌ No logging - what went wrong?")
     print("  ❌ No traceback - where did it fail?")
     print("  ❌ No context - which file? which operation?")
@@ -220,10 +214,11 @@ def before_logging():
 
 def after_logging():
     """AFTER: Automatic logging with context."""
-    print("\n" + "-"*70)
+    print("\n" + "-" * 70)
     print("AFTER (With Structured Logging):")
-    print("-"*70)
-    print("""
+    print("-" * 70)
+    print(
+        """
     @trace_handler  # ← Only change needed!
     def compressVideo(state):
         try:
@@ -239,7 +234,8 @@ def after_logging():
             state.metadata['error'] = str(e)
             raise
         return cleanupFiles
-    """)
+    """
+    )
     print("\n  ✅ Automatic entry logging")
     print("  ✅ Automatic exit logging with timing")
     print("  ✅ Automatic exception logging with traceback")
@@ -248,9 +244,9 @@ def after_logging():
 
 def example_comparison():
     """Example: Before/after comparison."""
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("EXAMPLE 6: Before/After Comparison")
-    print("="*70)
+    print("=" * 70)
 
     before_logging()
     after_logging()
@@ -260,12 +256,13 @@ def example_comparison():
 # Main Entry Point
 # ============================================================================
 
+
 def main():
     """Run all examples."""
     print("\n")
-    print("╔" + "="*68 + "╗")
-    print("║" + " "*15 + "FileSqueeze Logging Examples" + " "*23 + "║")
-    print("╚" + "="*68 + "╝")
+    print("╔" + "=" * 68 + "╗")
+    print("║" + " " * 15 + "FileSqueeze Logging Examples" + " " * 23 + "║")
+    print("╚" + "=" * 68 + "╝")
 
     # Run examples
     example_handler_logging()
@@ -275,9 +272,9 @@ def main():
     example_timeline()
     example_comparison()
 
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("All examples complete!")
-    print("="*70)
+    print("=" * 70)
     print("\nKey Takeaways:")
     print("  1. @log_handler decorator - automatic entry/exit logging")
     print("  2. Exceptions automatically logged with traceback")

@@ -10,7 +10,6 @@ with minimal requirements. Instantiation failures indicate show-stopper issues l
 Users cannot fix these issues themselves - they indicate a broken installation.
 """
 
-import pytest
 from pathlib import Path
 
 
@@ -26,7 +25,7 @@ def test_config_class_instantiation():
 
 def test_service_state_instantiation():
     """ServiceState dataclass must be instantiable."""
-    from filesqueeze.service import ServiceState, ProcessedFile
+    from filesqueeze.service import ServiceState
 
     # Should create with minimal data
     state = ServiceState(
@@ -55,8 +54,9 @@ def test_processed_file_instantiation():
 
 def test_state_object_instantiation():
     """State object must be instantiable."""
-    from filesqueeze.fsm.default import State
     import tempfile
+
+    from filesqueeze.fsm.default import State
 
     # Use actual file instead of non-existent path
     with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as f:
@@ -93,8 +93,9 @@ def test_cleanup_stats_instantiation():
 
 def test_handler_classes_instantiable():
     """Handler classes must be importable and structurally sound."""
-    from filesqueeze import handlers
     import tempfile
+
+    from filesqueeze import handlers
 
     # Test that handler functions exist and can be called with State objects
     with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as f:

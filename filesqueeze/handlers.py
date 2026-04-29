@@ -1,10 +1,11 @@
 import tempfile
 from pathlib import Path
 
-from .fsm import Format, Handler, State
-from .fsm.enums import Video, Slideshow, Document
-from .ops import video, presentation as pptx, document, image
 from . import ocr
+from .fsm import Format, Handler, State
+from .fsm.enums import Document, Slideshow, Video
+from .ops import document, video
+from .ops import presentation as pptx
 from .system import logger
 
 
@@ -75,7 +76,7 @@ def analyzeDocument(state: State) -> Handler:
             width, height = document.get_image_size(str(state.target), ffmpeg_path=getattr(state.config, "ffmpeg_path", ""))
             state.metadata["width"] = width
             state.metadata["height"] = height
-    except (OSError, IOError) as e:
+    except OSError as e:
         # File access errors - log but don't terminate
         logger.debug(f"File access error during analysis: {e}")
         state.metadata["error"] = "Error during document analysis"

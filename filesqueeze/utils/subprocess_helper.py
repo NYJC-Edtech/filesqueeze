@@ -6,10 +6,9 @@ This module provides centralized subprocess execution with:
 - Standardized logging and debugging support
 """
 
+import logging
 import os
 import subprocess
-import logging
-from typing import List, Optional, Union
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
@@ -18,9 +17,7 @@ logger = logging.getLogger(__name__)
 class SubprocessError(RuntimeError):
     """Base class for subprocess-related errors."""
 
-    def __init__(
-        self, message: str, return_code: Optional[int] = None, stdout: Optional[str] = None, stderr: Optional[str] = None
-    ):
+    def __init__(self, message: str, return_code: int | None = None, stdout: str | None = None, stderr: str | None = None):
         super().__init__(message)
         self.return_code = return_code
         self.stdout = stdout
@@ -34,14 +31,14 @@ class SubprocessTimeout(SubprocessError):
 
 
 def run_subprocess(
-    cmd: List[str],
+    cmd: list[str],
     timeout: int,
     tool_name: str,
     input_file: str,
     capture_output: bool = False,
     text_mode: bool = False,
     check: bool = True,
-) -> Union[subprocess.CompletedProcess, str]:
+) -> subprocess.CompletedProcess | str:
     """Run subprocess with platform-specific configuration and error handling.
 
     Args:
@@ -105,7 +102,7 @@ def run_subprocess(
 
 
 def verify_output_file(
-    output_path: str, min_size: int = 0, max_size_ratio: float = float("inf"), input_size: Optional[int] = None
+    output_path: str, min_size: int = 0, max_size_ratio: float = float("inf"), input_size: int | None = None
 ) -> Path:
     """Verify output file was created successfully.
 

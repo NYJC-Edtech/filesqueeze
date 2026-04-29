@@ -7,17 +7,16 @@ This module now re-exports the system logger for backward compatibility.
 """
 
 import logging
-import os
 import sys
 from logging.handlers import RotatingFileHandler, TimedRotatingFileHandler
 from pathlib import Path
-from typing import Optional
 
 from .config import Config
+from .system import logger as system_logger_module
+from .system.logger import get_logger as system_get_logger
 
 # Re-export system logger for backward compatibility
-from .system.logger import register_logger, get_logger as system_get_logger
-from .system import logger as system_logger_module
+from .system.logger import register_logger
 
 
 # Create a module-level logger proxy object
@@ -91,8 +90,8 @@ class Logger:
 
     @staticmethod
     def setup(
-        config: Optional[Config] = None,
-        log_file: Optional[str | Path] = None,
+        config: Config | None = None,
+        log_file: str | Path | None = None,
         level: str = "INFO",
         format_type: str = "detailed",
         max_bytes: int = 10485760,
@@ -168,7 +167,7 @@ class Logger:
         return logger
 
     @staticmethod
-    def get_logger(name: Optional[str] = None) -> logging.Logger:
+    def get_logger(name: str | None = None) -> logging.Logger:
         """Get a logger instance.
 
         Args:
@@ -180,7 +179,7 @@ class Logger:
         return logging.getLogger(name or "filesqueeze")
 
 
-def get_logger(name: Optional[str] = None) -> logging.Logger:
+def get_logger(name: str | None = None) -> logging.Logger:
     """Convenience function to get a logger instance.
 
     Args:
@@ -192,7 +191,7 @@ def get_logger(name: Optional[str] = None) -> logging.Logger:
     return Logger.get_logger(name)
 
 
-def setup_logging(config: Optional[Config] = None, log_file: Optional[str | Path] = None) -> logging.Logger:
+def setup_logging(config: Config | None = None, log_file: str | Path | None = None) -> logging.Logger:
     """Convenience function to set up logging.
 
     Args:

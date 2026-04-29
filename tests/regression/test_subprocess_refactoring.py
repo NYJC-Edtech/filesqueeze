@@ -8,10 +8,9 @@ Run these tests to verify subprocess refactoring maintains correct behavior.
 
 import os
 import sys
-import pytest
-import subprocess
 from pathlib import Path
-from unittest.mock import patch, MagicMock
+
+import pytest
 
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
@@ -30,7 +29,7 @@ class TestSubprocessBehaviorPreserved:
         test_file.write_text("test content")
 
         # Use the utility function to run subprocess
-        from filesqueeze.utils.subprocess_helper import run_subprocess, SubprocessError
+        from filesqueeze.utils.subprocess_helper import SubprocessError, run_subprocess
 
         cmd = [sys.executable, "-c", 'print("hidden window test")']
         try:
@@ -44,7 +43,7 @@ class TestSubprocessBehaviorPreserved:
 
     def test_timeout_handling_behavior(self, tmp_path):
         """Timeout behavior should be preserved - should raise appropriate error."""
-        from filesqueeze.utils.subprocess_helper import run_subprocess, SubprocessTimeout
+        from filesqueeze.utils.subprocess_helper import SubprocessTimeout, run_subprocess
 
         test_file = tmp_path / "test.txt"
 
@@ -61,7 +60,7 @@ class TestSubprocessBehaviorPreserved:
 
     def test_failure_handling_behavior(self, tmp_path):
         """Failure behavior should be preserved - should raise appropriate error with context."""
-        from filesqueeze.utils.subprocess_helper import run_subprocess, SubprocessError
+        from filesqueeze.utils.subprocess_helper import SubprocessError, run_subprocess
 
         test_file = tmp_path / "test.txt"
 
@@ -156,9 +155,6 @@ class TestPlatformBehaviorConsistency:
     def test_platform_detection_consistent(self):
         """Platform detection should be consistent across utility and ops modules."""
         # All modules should agree on the platform
-        import filesqueeze.utils.subprocess_helper as utils
-        import filesqueeze.ops.document as document
-        import filesqueeze.ops.video as video
 
         # All should use the same platform detection
         assert os.name == os.name  # Obviously true, but verifies access
@@ -191,9 +187,9 @@ class TestPlatformBehaviorConsistency:
 
 def test_refactoring_successful():
     """Meta-test to verify the refactoring was successful."""
-    from filesqueeze.utils.subprocess_helper import run_subprocess, verify_output_file
     from filesqueeze.ops.document import compress_pdf
     from filesqueeze.ops.video import compress
+    from filesqueeze.utils.subprocess_helper import run_subprocess
 
     # Verify utility functions exist and work
     test_file = "test.txt"

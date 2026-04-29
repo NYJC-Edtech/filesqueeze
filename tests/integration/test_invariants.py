@@ -9,11 +9,10 @@ No mocking allowed - tests against real system behavior.
 import os
 import sys
 import time
-import subprocess
-import pytest
 from pathlib import Path
-from typing import Optional
 from unittest import mock
+
+import pytest
 
 # Add project root to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
@@ -61,6 +60,7 @@ class TestServiceExecutionInvariants:
         feedback that the service is running with status information visible.
         """
         import inspect
+
         from filesqueeze.tray import TrayService
 
         # Verify the start() method calls _show_status_window or _on_show_status
@@ -134,8 +134,8 @@ class TestWindowsIntegrationInvariants:
 
         This tests observable behavior (log output) without mocking.
         """
-        from filesqueeze.tray import TrayService
         from filesqueeze.config import Config
+        from filesqueeze.tray import TrayService
 
         # Create a tray service with real directories
         config = Config()
@@ -242,8 +242,9 @@ class TestLogFileLocationInvariant:
 
     def test_tilde_expansion_at_config_generation(self, tmp_path):
         """Tilde should be expanded during config generation, not runtime."""
-        from filesqueeze.cli import cmd_init_config
         import argparse
+
+        from filesqueeze.cli import cmd_init_config
 
         config_output = tmp_path / "config.toml"
 
@@ -315,7 +316,6 @@ class TestBuildInstallWorkflowInvariant:
 
     def test_uninstallation_preserves_user_config(self, tmp_path):
         """Uninstallation should not modify user configuration files."""
-        from filesqueeze.config import Config
 
         # Create user config
         config_dir = tmp_path / ".config" / "filesqueeze"
@@ -340,11 +340,13 @@ class TestConfigurationManagementInvariant:
         config_dir = tmp_path / ".config" / "filesqueeze"
         config_dir.mkdir(parents=True)
         config_file = config_dir / "config.toml"
-        config_file.write_text("""
+        config_file.write_text(
+            """
 [directories]
 input = "/test/input"
 output = "/test/output"
-""")
+"""
+        )
 
         # Load config
         config = Config(config_path=str(config_file))
@@ -355,9 +357,10 @@ output = "/test/output"
 
     def test_tilde_expanded_once_at_init(self, tmp_path):
         """Tilde paths expanded during init-config, not at runtime."""
-        from filesqueeze.cli import cmd_init_config
         import argparse
         import tomllib
+
+        from filesqueeze.cli import cmd_init_config
 
         config_output = tmp_path / "config.toml"
 
@@ -389,10 +392,10 @@ class TestArchiveInvariant:
         Invariant: There must always be at least one copy of the original file
         (either in input or archive directory, possibly both at transient points).
         """
-        from filesqueeze.service import DirectoryWatcher, CompressionHandler
-        from filesqueeze.config import Config
         from unittest.mock import Mock
-        import shutil
+
+        from filesqueeze.config import Config
+        from filesqueeze.service import CompressionHandler
 
         # Create test directories
         input_dir = tmp_path / "input"
@@ -429,10 +432,10 @@ class TestArchiveInvariant:
         Invariant: There must always be at least one copy of the original file
         (either in input or archive directory, possibly both at transient points).
         """
-        from filesqueeze.service import CompressionHandler
-        from filesqueeze.config import Config
         from unittest.mock import Mock, patch
-        import time
+
+        from filesqueeze.config import Config
+        from filesqueeze.service import CompressionHandler
 
         # Create test directories
         input_dir = tmp_path / "input"
@@ -471,7 +474,6 @@ class TestArchiveInvariant:
 
         Invariant: Both files should be preserved in archive.
         """
-        import time
 
         # Create test directories
         input_dir = tmp_path / "input"
@@ -513,7 +515,6 @@ class TestArchiveInvariant:
         This is the core invariant - regardless of success/failure or archive config,
         there should always be at least one copy of the original file.
         """
-        from pathlib import Path
 
         # Create test directories
         input_dir = tmp_path / "input"

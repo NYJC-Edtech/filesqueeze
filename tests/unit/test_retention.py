@@ -1,14 +1,14 @@
 """Test retention manager functionality."""
 
 import os
-import pytest
 import tempfile
 import time
 from pathlib import Path
-from datetime import datetime, timedelta
 
-from filesqueeze.service import RetentionManager, CleanupStats
+import pytest
+
 from filesqueeze.config import Config
+from filesqueeze.service import CleanupStats, RetentionManager
 
 
 @pytest.fixture
@@ -112,7 +112,6 @@ def test_retention_config_loading():
 def test_dry_run_mode(retention_config, temp_dirs, caplog):
     """Test that dry-run mode doesn't delete files."""
     import logging
-    import os
 
     logger = logging.getLogger(__name__)
     logger.setLevel(logging.DEBUG)

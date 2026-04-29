@@ -5,13 +5,14 @@ values and provide type-safe access to configuration.
 """
 
 import pytest
+
 from filesqueeze.config import Config
 from filesqueeze.system.config_adapters import (
-    VideoConfig,
+    ConfigValidationError,
     DocumentConfig,
     ImageConfig,
     PresentationConfig,
-    ConfigValidationError,
+    VideoConfig,
 )
 
 

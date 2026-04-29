@@ -4,16 +4,17 @@ import json
 import os
 import time
 from pathlib import Path
+
 import pytest
 
-from filesqueeze.output import (
-    generate_output_path,
-    save_metadata,
-    preserve_timestamps,
-    ensure_output_dir,
-    get_unique_output_path,
-)
 from filesqueeze.config import Config
+from filesqueeze.output import (
+    ensure_output_dir,
+    generate_output_path,
+    get_unique_output_path,
+    preserve_timestamps,
+    save_metadata,
+)
 
 
 class TestOutputPathGeneration:

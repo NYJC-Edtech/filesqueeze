@@ -3,12 +3,9 @@
 System tray icon for FileSqueeze service control.
 """
 
-import signal
 import sys
 import threading
-import time
 from pathlib import Path
-from typing import Optional
 
 import pystray
 from PIL import Image, ImageDraw
@@ -16,7 +13,6 @@ from PIL import Image, ImageDraw
 from .config import Config
 from .logger import setup_logging
 from .service import DirectoryWatcher
-from .system import logger as system_logger
 
 # App User Model ID for Windows to recognize this app consistently
 APP_USER_MODEL_ID = "com.filesqueeze.app"
@@ -25,7 +21,7 @@ APP_USER_MODEL_ID = "com.filesqueeze.app"
 class TrayService:
     """FileSqueeze service with system tray icon."""
 
-    def __init__(self, input_dir: Path, output_dir: Path, config: Optional[Config] = None):
+    def __init__(self, input_dir: Path, output_dir: Path, config: Config | None = None):
         """Initialize the tray service.
 
         Args:
@@ -154,8 +150,8 @@ class TrayService:
             icon: Tray icon instance.
             item: Menu item instance.
         """
-        import subprocess
         import os
+        import subprocess
 
         self.logger.info(f"Opening input folder: {self.input_dir}")
         if sys.platform == "win32":
@@ -172,8 +168,8 @@ class TrayService:
             icon: Tray icon instance.
             item: Menu item instance.
         """
-        import subprocess
         import os
+        import subprocess
 
         self.logger.info(f"Opening output folder: {self.output_dir}")
         if sys.platform == "win32":
@@ -334,7 +330,7 @@ class TrayService:
             self.logger.info("Tray service stopped")
 
 
-def run_service(input_dir: Path, output_dir: Path, config: Optional[Config] = None):
+def run_service(input_dir: Path, output_dir: Path, config: Config | None = None):
     """Run FileSqueeze as a service with system tray icon.
 
     Args:

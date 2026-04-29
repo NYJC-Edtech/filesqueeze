@@ -4,7 +4,7 @@ Provides validated, type-safe access to configuration values
 for each operation type (video, document, image, presentation).
 """
 
-from typing import Optional
+
 from filesqueeze.config import Config
 
 

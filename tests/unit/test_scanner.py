@@ -1,12 +1,12 @@
 """Test file scanner functionality."""
 
-import os
 import time
 from pathlib import Path
+
 import pytest
 
-from filesqueeze.scanner import FileScanner
 from filesqueeze.config import Config
+from filesqueeze.scanner import FileScanner
 
 
 class TestFileScanner:

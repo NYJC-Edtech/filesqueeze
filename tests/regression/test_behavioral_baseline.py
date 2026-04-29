@@ -15,16 +15,17 @@ Example:
     pytest tests/regression/test_behavioral_baseline.py::TestBehavioralRegression -v
 """
 
-import pytest
 import hashlib
 import json
 from pathlib import Path
-from typing import Dict, Any
+from typing import Any
+
+import pytest
 
 from filesqueeze.config import Config
-from filesqueeze.ops.video import compress as compress_video
 from filesqueeze.ops.document import compress_pdf
 from filesqueeze.ops.image import compress_image
+from filesqueeze.ops.video import compress as compress_video
 
 BASELINE_DIR = Path(__file__).parent.parent.parent / "test_baselines"
 BASELINE_DIR.mkdir(exist_ok=True)
@@ -35,19 +36,19 @@ def calculate_file_hash(filepath: Path) -> str:
     return hashlib.md5(filepath.read_bytes()).hexdigest()
 
 
-def save_baseline(name: str, data: Dict[str, Any]) -> None:
+def save_baseline(name: str, data: dict[str, Any]) -> None:
     """Save baseline data to JSON file."""
     baseline_file = BASELINE_DIR / f"{name}.json"
     with open(baseline_file, "w") as f:
         json.dump(data, f, indent=2)
 
 
-def load_baseline(name: str) -> Dict[str, Any]:
+def load_baseline(name: str) -> dict[str, Any]:
     """Load baseline data from JSON file."""
     baseline_file = BASELINE_DIR / f"{name}.json"
     if not baseline_file.exists():
         raise FileNotFoundError(f"Baseline not found: {baseline_file}")
-    with open(baseline_file, "r") as f:
+    with open(baseline_file) as f:
         return json.load(f)
 
 

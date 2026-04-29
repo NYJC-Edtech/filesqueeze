@@ -6,9 +6,10 @@ from pathlib import Path
 # Add filesqueeze to path (tests directory is sibling to filesqueeze)
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+import logging
+
 from filesqueeze.config import Config
 from filesqueeze.service import RetentionManager
-import logging
 
 # Setup logging to see what's happening
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
@@ -26,7 +27,7 @@ def main():
     output_dir = config.output_dir
     archive_dir = config.archive_dir
 
-    print(f"\nConfiguration loaded:")
+    print("\nConfiguration loaded:")
     print(f"  Output directory: {output_dir}")
     print(f"  Archive directory: {archive_dir or 'Not configured'}")
     print(f"  Dry-run mode: {config.get('retention.dry_run', False)}")

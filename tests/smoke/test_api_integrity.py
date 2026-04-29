@@ -10,13 +10,10 @@ API failures indicate show-stopper issues like:
 Users cannot fix these issues themselves - they indicate a broken installation.
 """
 
-import pytest
-from pathlib import Path
-
 
 def test_main_api_functions_exist():
     """Main API functions must be exported and callable."""
-    from filesqueeze import make_video, make_pdf, make_image, make_presentation
+    from filesqueeze import make_image, make_pdf, make_presentation, make_video
 
     # All main API functions must be callable
     assert callable(make_video)
@@ -27,8 +24,9 @@ def test_main_api_functions_exist():
 
 def test_api_function_signatures():
     """API functions must have correct signatures."""
-    from filesqueeze import make_video, make_pdf, make_image
     import inspect
+
+    from filesqueeze import make_image, make_pdf, make_video
 
     # Functions should accept at least input path parameter
     for func in [make_video, make_pdf, make_image]:
@@ -62,8 +60,9 @@ def test_module_exports():
 
 def test_service_provider_interface():
     """StateProvider interface must be defined."""
-    from filesqueeze.service import StateProvider
     import inspect
+
+    from filesqueeze.service import StateProvider
 
     # StateProvider should be a class or protocol
     assert inspect.isclass(StateProvider) or inspect.isprotocol(StateProvider)
@@ -75,8 +74,9 @@ def test_service_provider_interface():
 
 def test_config_class_interface():
     """Config class must have required interface."""
-    from filesqueeze.config import Config
     import tempfile
+
+    from filesqueeze.config import Config
 
     with tempfile.TemporaryDirectory() as tmp_dir:
         config = Config()
@@ -93,8 +93,8 @@ def test_config_class_interface():
 
 def test_error_handling_classes():
     """Error handling classes must exist."""
-    from filesqueeze.ops.video import compress as compress_video
     from filesqueeze.ops.image import compress_image
+    from filesqueeze.ops.video import compress as compress_video
 
     # Functions should exist and raise appropriate errors when called incorrectly
     assert callable(compress_video)

@@ -3,8 +3,8 @@
 Provides platform detection functions for Windows, Linux, and macOS.
 """
 
-import sys
 import platform as platform_module
+import sys
 
 
 def is_windows() -> bool:

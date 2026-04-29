@@ -1,14 +1,14 @@
 """Integration tests with real files and binaries."""
 
-import os
 import time
 from pathlib import Path
+
 import pytest
 
-from filesqueeze import make_video, make_pdf, make_image
-from filesqueeze.ops.video import width_height, duration
+from filesqueeze import make_image, make_video
 from filesqueeze.ops.document import compress_pdf
-from filesqueeze.ops.image import compress_image, get_image_size
+from filesqueeze.ops.image import get_image_size
+from filesqueeze.ops.video import duration, width_height
 
 
 @pytest.mark.integration
@@ -48,7 +48,7 @@ class TestRealFileCompression:
         compressed_size = output_path.stat().st_size
         compression_ratio = (compressed_size / original_size) * 100
 
-        print(f"\nVideo compression:")
+        print("\nVideo compression:")
         print(f"  Original size: {original_size / 1024 / 1024:.2f} MB")
         print(f"  Compressed size: {compressed_size / 1024 / 1024:.2f} MB")
         print(f"  Compression ratio: {compression_ratio:.1f}%")
@@ -80,7 +80,7 @@ class TestRealFileCompression:
         compressed_size = output_path.stat().st_size
         compression_ratio = (compressed_size / original_size) * 100
 
-        print(f"Image compression:")
+        print("Image compression:")
         print(f"  Original size: {original_size / 1024:.2f} KB")
         print(f"  Compressed size: {compressed_size / 1024:.2f} KB")
         print(f"  Compression ratio: {compression_ratio:.1f}%")
@@ -120,7 +120,7 @@ class TestRealFileCompression:
         compressed_size = output_path.stat().st_size
         compression_ratio = (compressed_size / original_size) * 100
 
-        print(f"\nGenerated PDF (printer quality):")
+        print("\nGenerated PDF (printer quality):")
         print(f"  Original size: {original_size / 1024 / 1024:.2f} MB")
         print(f"  Compressed size: {compressed_size / 1024 / 1024:.2f} MB")
         print(f"  Compression ratio: {compression_ratio:.1f}%")
@@ -201,6 +201,7 @@ class TestRealFileCompression:
     def test_ocr_detection(self, sample_scanned_pdf, sample_generated_pdf):
         """Test OCR detection - checks if PDFs have text layers."""
         import shutil
+
         from filesqueeze.ocr import has_text_layer
 
         # Check Tesseract availability - fail if not available
@@ -231,8 +232,9 @@ class TestRealFileCompression:
         correctly identifies this and doesn't re-OCR.
         """
         import shutil
+
         from filesqueeze.config import Config
-        from filesqueeze.ocr import process_pdf_with_ocr, needs_ocr
+        from filesqueeze.ocr import needs_ocr, process_pdf_with_ocr
 
         # Check Tesseract availability - fail if not available
         if not shutil.which("tesseract"):
@@ -247,7 +249,7 @@ class TestRealFileCompression:
 
         original_size = Path(sample_scanned_pdf).stat().st_size
 
-        print(f"\nTesting OCR workflow...")
+        print("\nTesting OCR workflow...")
         print(f"Original size: {original_size / 1024 / 1024:.2f} MB")
 
         # Check if OCR is needed
@@ -287,6 +289,7 @@ class TestRealFileCompression:
         For PDFs without OCR, they would be OCRed first, then compressed.
         """
         import shutil
+
         from filesqueeze.config import Config
         from filesqueeze.ocr import needs_ocr
         from filesqueeze.ops.document import compress_pdf
@@ -304,7 +307,7 @@ class TestRealFileCompression:
 
         original_size = Path(sample_scanned_pdf).stat().st_size
 
-        print(f"\nTesting compression with OCR awareness...")
+        print("\nTesting compression with OCR awareness...")
         print(f"Original size: {original_size / 1024 / 1024:.2f} MB")
 
         # Check OCR status

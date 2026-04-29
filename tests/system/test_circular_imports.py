@@ -4,9 +4,10 @@ These tests enforce the architectural rule that the system package
 must never import from the ops package to avoid circular dependencies.
 """
 
-import pytest
-import sys
 import inspect
+import sys
+
+import pytest
 
 
 class TestDependencyRules:
@@ -52,13 +53,12 @@ class TestDependencyRules:
                 violations.append(f"{module_name} imports filesqueeze.ops")
 
         # Assert no violations
-        assert len(violations) == 0, f"Dependency rule violations found:\n" + "\n".join(violations)
+        assert len(violations) == 0, "Dependency rule violations found:\n" + "\n".join(violations)
 
     def test_ops_can_import_system(self):
         """Ops package can import from system package."""
         # This should work without errors
-        from filesqueeze.ops import video
-        from filesqueeze.ops import document
+        from filesqueeze.ops import document, video
 
         # Modules should be loaded
         assert video is not None
@@ -87,10 +87,9 @@ class TestDependencyRules:
 
         try:
             # Import system first
-            import filesqueeze.system.logger
-
             # Then import ops
             import filesqueeze.ops.video
+            import filesqueeze.system.logger
 
             # If we get here without circular import error, test passes
             assert True
@@ -223,8 +222,9 @@ class TestDependencyGraph:
     def test_ops_has_system_as_dependency(self):
         """Ops modules list system as a dependency."""
         try:
-            from filesqueeze.ops import video
             import inspect
+
+            from filesqueeze.ops import video
 
             # inspect.getsource expects the module object, not __file__ string
             source = inspect.getsource(video)
