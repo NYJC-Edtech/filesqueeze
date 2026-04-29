@@ -83,7 +83,6 @@ select = [
 ignore = [
     "E501",  # line too long (handled by Black)
     "UP035", # Import from collections.abc (too noisy for now)
-    "UP045", # Use X | None (too noisy for now)
 ]
 exclude = [
     ".git",

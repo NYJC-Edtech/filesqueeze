@@ -5,9 +5,7 @@ Checks installation status, dependencies, and configuration.
 """
 
 import sys
-import os
 from pathlib import Path
-from typing import Dict, List, Tuple
 
 from .config import Config
 from .system.binaries import BinaryFinder as BinaryDetector
@@ -54,7 +52,7 @@ class Colors:
                 kernel32 = ctypes.windll.kernel32
                 kernel32.SetConsoleMode(kernel32.GetStdHandle(-11), 7)
                 cls._enabled = True
-            except:
+            except Exception:
                 cls._enabled = False
         else:
             # Unix-like systems generally support colors
@@ -284,7 +282,7 @@ class Doctor:
             self.issues.append(f"[FAIL] No write permissions: {e}")
             return False
 
-    def run_all_checks(self) -> Tuple[int, int, int]:
+    def run_all_checks(self) -> tuple[int, int, int]:
         """Run all diagnostic checks.
 
         Returns:
