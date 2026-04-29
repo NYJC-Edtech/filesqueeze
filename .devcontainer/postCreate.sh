@@ -7,6 +7,10 @@ pip install poetry
 echo "🔧 Installing Python dependencies..."
 poetry install --with dev --extras ocr
 
+echo "🔧 Setting up pre-commit hooks..."
+pip install pre-commit
+pre-commit install
+
 echo "🔧 Configuring GitHub..."
 if [ -n "$GH_USERNAME" ] && [ -n "$GH_EMAIL" ]; then
     echo "Setting up GitHub for $GH_USERNAME"
