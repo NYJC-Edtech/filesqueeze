@@ -4,7 +4,6 @@ Provides validated, type-safe access to configuration values
 for each operation type (video, document, image, presentation).
 """
 
-
 from filesqueeze.config import Config
 
 

@@ -1,6 +1,5 @@
 """Test handlers and state machine integration."""
 
-
 from filesqueeze import handlers
 from filesqueeze.fsm.default import State
 from filesqueeze.fsm.enums import Document, Video
