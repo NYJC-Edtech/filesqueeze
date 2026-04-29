@@ -98,7 +98,7 @@ def run_subprocess(
         return result.stdout if (capture_output and text_mode) else result
 
     except subprocess.TimeoutExpired:
-        raise SubprocessTimeout(f"{tool_name} timeout processing: {input_file}")
+        raise SubprocessTimeout(f"{tool_name} timeout processing: {input_file}") from None
 
 
 def verify_output_file(

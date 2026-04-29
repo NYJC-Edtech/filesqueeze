@@ -299,21 +299,14 @@ class Doctor:
         self.check_module("watchdog", "Watchdog")
         self.check_module("pystray", "PyStray")
 
-        # Check TOML library (tomllib built-in on Python 3.11+, tomli/tomli_w for older)
-        if sys.version_info >= (3, 11):
-            # Python 3.11+ has tomllib built-in
-            try:
-                import importlib
+        # Check TOML library (tomllib is built-in on Python 3.11+)
+        try:
+            import importlib
 
-                importlib.import_module("tomllib")
-                self.passed.append("[OK] TOML library (built-in tomllib)")
-            except ImportError:
-                self.issues.append("[FAIL] TOML library (built-in tomllib not available)")
-        else:
-            # Python < 3.11 needs tomli or tomli_w
-            has_tomli = self.check_module("tomli", "TOML library (tomli)")
-            if not has_tomli:
-                self.check_module("tomli_w", "TOML library (tomli_w)")
+            importlib.import_module("tomllib")
+            self.passed.append("[OK] TOML library (built-in tomllib)")
+        except ImportError:
+            self.issues.append("[FAIL] TOML library (built-in tomllib not available)")
 
         # Check optional Python modules
         self.check_module_optional("pdfminer", "PDFMiner (optional)")
