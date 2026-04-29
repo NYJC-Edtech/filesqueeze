@@ -147,7 +147,6 @@ poetry run pytest tests/ -v --ignore=tests/integration/test_gui_behavior.py
 - [x] Add pre-commit hooks configuration
 - [x] Replace flake8 with ruff for better performance
 - [ ] Add security scanning (bandit)
-- [ ] Add type checking (mypy)
+- [ ] Add type checking (pyright)
 - [ ] Windows CI runner for GUI/service tests
-- [ ] Performance benchmarking tests
 - [ ] Documentation building tests
