@@ -34,8 +34,8 @@ def analyzeVideo(state: State) -> Handler:
             state.metadata["duration"] = duration
         if size:
             state.metadata["width"], state.metadata["height"] = size
-    finally:
-        return compressVideo
+
+    return compressVideo
 
 
 def analyzeSlideshow(state: State) -> Handler:
@@ -79,8 +79,8 @@ def analyzeDocument(state: State) -> Handler:
         # File access errors - log but don't terminate
         logger.debug(f"File access error during analysis: {e}")
         state.metadata["error"] = "Error during document analysis"
-    finally:
-        return compressDocument
+
+    return compressDocument
 
 
 def compressDocument(state: State) -> Handler:
@@ -193,8 +193,8 @@ def compressDocument(state: State) -> Handler:
         state.error(f"Error compressing document: {e}")
     else:
         state.set_target(outpath)
-    finally:
-        return cleanupFiles
+
+    return cleanupFiles
 
 
 def pptxToVideo(state: State) -> Handler:
@@ -239,8 +239,8 @@ def compressVideo(state: State) -> Handler:
         state.error("Error compressing MP4 video")
     else:
         state.set_target(outfile)
-    finally:
-        return cleanupFiles
+
+    return cleanupFiles
 
 
 def selectAnalyzer(
