@@ -6,7 +6,7 @@ File scanner for finding and filtering files in directories.
 import os
 import time
 from pathlib import Path
-from typing import Generator, Optional, Set
+from typing import Generator
 
 from .config import Config
 
@@ -14,14 +14,14 @@ from .config import Config
 class FileScanner:
     """Scanner for finding and filtering files in directories."""
 
-    def __init__(self, config: Optional[Config] = None):
+    def __init__(self, config: Config | None = None):
         """Initialize the file scanner.
 
         Args:
             config: Optional Config object for settings.
         """
         self.config = config
-        self._processed: Set[str] = set()
+        self._processed: set[str] = set()
 
     def is_valid_extension(self, filepath: Path) -> bool:
         """Check if file extension is valid.
@@ -130,7 +130,7 @@ class FileScanner:
         # Walk the directory
         if recursive:
             # Use os.walk for better performance on large directories
-            for root, dirs, files in os.walk(directory):
+            for root, _dirs, files in os.walk(directory):
                 root_path = Path(root)
                 for filename in files:
                     filepath = root_path / filename
