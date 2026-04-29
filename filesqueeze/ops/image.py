@@ -11,11 +11,12 @@ from typing import Tuple, Optional
 
 # Import from system package
 from filesqueeze.system import get_binary_finder, logger
+
 # Import subprocess utilities
 from filesqueeze.utils.subprocess_helper import run_subprocess, verify_output_file, SubprocessTimeout, SubprocessError
 
 
-def get_ffmpeg_path(config_path: str = '') -> str:
+def get_ffmpeg_path(config_path: str = "") -> str:
     """Get the FFmpeg executable path.
 
     Args:
@@ -40,7 +41,7 @@ def get_ffmpeg_path(config_path: str = '') -> str:
     return finder.get_ffmpeg_path()
 
 
-def get_ffprobe_path(ffmpeg_path: str = '') -> str:
+def get_ffprobe_path(ffmpeg_path: str = "") -> str:
     """Get the ffprobe executable path.
 
     Args:
@@ -59,7 +60,7 @@ def get_ffprobe_path(ffmpeg_path: str = '') -> str:
     """
     # If ffmpeg_path provided, try to find ffprobe in same directory
     if ffmpeg_path:
-        ffprobe = str(Path(ffmpeg_path).parent / 'ffprobe.exe')
+        ffprobe = str(Path(ffmpeg_path).parent / "ffprobe.exe")
         if Path(ffprobe).exists():
             return ffprobe
 
@@ -68,7 +69,7 @@ def get_ffprobe_path(ffmpeg_path: str = '') -> str:
     return finder.get_ffprobe_path()
 
 
-def get_image_size(infile: str, ffmpeg_path: str = '') -> Tuple[int, int]:
+def get_image_size(infile: str, ffmpeg_path: str = "") -> Tuple[int, int]:
     """Get image dimensions using ffprobe.
 
     Args:
@@ -84,39 +85,36 @@ def get_image_size(infile: str, ffmpeg_path: str = '') -> Tuple[int, int]:
     from filesqueeze.system.decorators import trace_function
 
     @trace_function
-    def _get_image_size(infile: str, ffmpeg_path: str = '') -> Tuple[int, int]:
+    def _get_image_size(infile: str, ffmpeg_path: str = "") -> Tuple[int, int]:
         # Find ffprobe
         if ffmpeg_path and Path(ffmpeg_path).exists():
-            ffprobe = str(Path(ffmpeg_path).parent / 'ffprobe.exe')
+            ffprobe = str(Path(ffmpeg_path).parent / "ffprobe.exe")
         else:
             ffprobe = get_ffprobe_path(ffmpeg_path)
-            ffprobe = str(Path(ffprobe).parent / 'ffprobe.exe') if Path(ffprobe).exists() else 'ffprobe'
+            ffprobe = str(Path(ffprobe).parent / "ffprobe.exe") if Path(ffprobe).exists() else "ffprobe"
 
         cmd = [
             ffprobe,
-            '-v', 'error',
-            '-select_streams', 'v:0',
-            '-show_entries', 'stream=width,height',
-            '-of', 'csv=s=x:p=0',
+            "-v",
+            "error",
+            "-select_streams",
+            "v:0",
+            "-show_entries",
+            "stream=width,height",
+            "-of",
+            "csv=s=x:p=0",
             infile,
         ]
 
         try:
-            data = run_subprocess(
-                cmd,
-                timeout=60,
-                tool_name="ffprobe",
-                input_file=infile,
-                capture_output=True,
-                text_mode=True
-            )
+            data = run_subprocess(cmd, timeout=60, tool_name="ffprobe", input_file=infile, capture_output=True, text_mode=True)
         except SubprocessTimeout:
             raise RuntimeError(f"ffprobe timeout analyzing image: {infile}")
         except SubprocessError:
             raise
 
-        if data and 'x' in data:
-            width, height = data.split('x')
+        if data and "x" in data:
+            width, height = data.split("x")
             return int(width), int(height)
 
         raise RuntimeError(f"Could not determine image dimensions: {infile}")
@@ -132,8 +130,8 @@ def compress_image(
     max_width: Optional[int] = None,
     max_height: Optional[int] = None,
     convert_to_jpeg: bool = False,
-    ffmpeg_path: str = '',
-    config=None
+    ffmpeg_path: str = "",
+    config=None,
 ) -> None:
     """Compress an image file using FFmpeg.
 
@@ -163,8 +161,8 @@ def compress_image(
         max_width: Optional[int] = None,
         max_height: Optional[int] = None,
         convert_to_jpeg: bool = False,
-        ffmpeg_path: str = '',
-        config=None
+        ffmpeg_path: str = "",
+        config=None,
     ) -> None:
         # Use config adapter if config provided
         if config:
@@ -184,10 +182,12 @@ def compress_image(
         # Build FFmpeg command
         cmd = [
             ffmpeg,
-            '-y',  # Overwrite output file
-            '-hide_banner',
-            '-loglevel', 'panic',
-            '-i', infile,
+            "-y",  # Overwrite output file
+            "-hide_banner",
+            "-loglevel",
+            "panic",
+            "-i",
+            infile,
         ]
 
         # Add scaling filter if dimensions specified
@@ -203,31 +203,39 @@ def compress_image(
                 # Calculate scaling
                 scale_filter = []
                 if max_width and width > max_width:
-                    scale_filter.append(f'iw*min(1,{max_width}/iw)')
+                    scale_filter.append(f"iw*min(1,{max_width}/iw)")
                 else:
-                    scale_filter.append('iw')
+                    scale_filter.append("iw")
 
                 if max_height and height > max_height:
-                    scale_filter.append(f'ih*min(1,{max_height}/ih)')
+                    scale_filter.append(f"ih*min(1,{max_height}/ih)")
                 else:
-                    scale_filter.append('ih')
+                    scale_filter.append("ih")
 
-                cmd.extend(['-vf', f"scale={':'.join(scale_filter)}"])
+                cmd.extend(["-vf", f"scale={':'.join(scale_filter)}"])
 
         # Determine output format
         output_ext = Path(outfile).suffix.lower()
-        if convert_to_jpeg or output_ext in ['.jpg', '.jpeg']:
+        if convert_to_jpeg or output_ext in [".jpg", ".jpeg"]:
             # Use JPEG codec with quality setting
-            cmd.extend([
-                '-q:v', str(quality),  # Quality 1-31 (lower is better)
-                '-vcodec', 'mjpeg',
-            ])
-        elif output_ext == '.png':
+            cmd.extend(
+                [
+                    "-q:v",
+                    str(quality),  # Quality 1-31 (lower is better)
+                    "-vcodec",
+                    "mjpeg",
+                ]
+            )
+        elif output_ext == ".png":
             # Use PNG codec with compression
-            cmd.extend([
-                '-compression_level', '6',
-                '-vcodec', 'png',
-            ])
+            cmd.extend(
+                [
+                    "-compression_level",
+                    "6",
+                    "-vcodec",
+                    "png",
+                ]
+            )
 
         cmd.append(outfile)
 
@@ -235,12 +243,7 @@ def compress_image(
         input_size = Path(infile).stat().st_size
 
         try:
-            run_subprocess(
-                cmd,
-                timeout=timeout,
-                tool_name="FFmpeg",
-                input_file=infile
-            )
+            run_subprocess(cmd, timeout=timeout, tool_name="FFmpeg", input_file=infile)
         except SubprocessTimeout:
             raise RuntimeError(f"FFmpeg timeout compressing image: {infile}")
         except SubprocessError:
@@ -260,15 +263,17 @@ def compress_image(
         # Verify compression actually reduced file size
         if output_size >= input_size:
             import shutil
+
             # Compression didn't help, copy original instead
             shutil.copy2(infile, outfile)
 
     _compress_image(
-        infile, outfile,
+        infile,
+        outfile,
         quality=quality,
         max_width=max_width,
         max_height=max_height,
         convert_to_jpeg=convert_to_jpeg,
         ffmpeg_path=ffmpeg_path,
-        config=config
+        config=config,
     )

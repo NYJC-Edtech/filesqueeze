@@ -1,0 +1,116 @@
+name: CI
+
+on:
+  push:
+    branches: ['**']
+
+jobs:
+  quick-checks:
+    name: Smoke, Unit & Code Quality
+    runs-on: ubuntu-latest
+    env:
+      CI: true
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Poetry
+        run: pip install poetry
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'poetry'
+
+      - name: Install dependencies
+        run: poetry install --with dev
+
+      - name: Install FFmpeg and Ghostscript
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg ghostscript
+
+      - name: Run smoke tests
+        run: poetry run pytest tests/smoke/ -v
+
+      - name: Run unit tests
+        run: poetry run pytest tests/unit/ -v
+
+      - name: Run system tests
+        run: poetry run pytest tests/system/ -v
+
+      - name: Check code style with Black
+        run: |
+          poetry run pip install black==26.3.1
+          poetry run black --check --diff --config pyproject.toml filesqueeze/ tests/
+
+      - name: Lint with ruff
+        run: |
+          poetry run pip install ruff
+          poetry run ruff check filesqueeze/ tests/ --select=E9,F63,F7,F82 --output-format=concise
+
+  integration-tests:
+    name: Integration & Regression Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Poetry
+        run: pip install poetry
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'poetry'
+
+      - name: Install dependencies
+        run: poetry install --with dev
+
+      - name: Install FFmpeg
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+
+      - name: Install Ghostscript
+        run: sudo apt-get install -y ghostscript
+
+      - name: Run integration tests
+        run: poetry run pytest tests/integration/ -v --ignore=tests/integration/test_gui_behavior.py --ignore=tests/integration/test_service.py --ignore=tests/integration/test_single_instance.py
+
+      - name: Run regression tests
+        run: poetry run pytest tests/regression/ -v
+
+  coverage:
+    name: Coverage Report
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Poetry
+        run: pip install poetry
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'poetry'
+
+      - name: Install dependencies
+        run: poetry install --with dev
+
+      - name: Install FFmpeg and Ghostscript
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg ghostscript
+
+      - name: Run coverage
+        run: |
+          poetry run pytest tests/unit/ tests/smoke/ tests/system/ \
+            --cov=filesqueeze \
+            --cov-report=xml \
+            --cov-report=term-missing \
+            --cov-report=html
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          file: ./coverage.xml
+          fail_ci_if_error: false

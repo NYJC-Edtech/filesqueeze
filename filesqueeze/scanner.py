@@ -34,12 +34,12 @@ class FileScanner:
         """
         # Get valid extensions from config
         if self.config:
-            extensions = self.config.get('file_detection.extensions', [])
+            extensions = self.config.get("file_detection.extensions", [])
         else:
             # Default extensions
-            extensions = ['mp4', 'wmv', 'avi', 'mov', 'mkv', 'flv', 'pptx', 'pdf', 'jpg', 'jpeg', 'png']
+            extensions = ["mp4", "wmv", "avi", "mov", "mkv", "flv", "pptx", "pdf", "jpg", "jpeg", "png"]
 
-        ext = filepath.suffix.lstrip('.').lower()
+        ext = filepath.suffix.lstrip(".").lower()
         return ext in extensions
 
     def meets_age_requirement(self, filepath: Path) -> bool:
@@ -53,7 +53,7 @@ class FileScanner:
         """
         # Get minimum age from config
         if self.config:
-            min_age_seconds = self.config.get('file_detection.min_age_seconds', 5)
+            min_age_seconds = self.config.get("file_detection.min_age_seconds", 5)
         else:
             min_age_seconds = 5
 
@@ -76,7 +76,7 @@ class FileScanner:
         """
         # Get minimum size from config
         if self.config:
-            min_size_bytes = self.config.get('file_detection.min_size_bytes', 1024)
+            min_size_bytes = self.config.get("file_detection.min_size_bytes", 1024)
         else:
             min_size_bytes = 1024
 

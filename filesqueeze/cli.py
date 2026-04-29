@@ -11,12 +11,12 @@ def cmd_init_config(args):
     from filesqueeze.config import Config
     from filesqueeze.system.binaries import BinaryFinder
 
-    output_path = Path(args.output) if args.output else Path.cwd() / 'filesqueeze.toml'
+    output_path = Path(args.output) if args.output else Path.cwd() / "filesqueeze.toml"
 
     # SAFEGUARD: Prevent accidental overwrite of user config location
     # The user config is ~/.config/filesqueeze/config.toml and should only be
     # edited manually by the user, not overwritten by init-config.
-    user_config_path = Path.home() / '.config' / 'filesqueeze' / 'config.toml'
+    user_config_path = Path.home() / ".config" / "filesqueeze" / "config.toml"
     is_user_config = output_path == user_config_path
 
     if is_user_config and not args.user_config:
@@ -37,6 +37,7 @@ def cmd_init_config(args):
     if output_path.exists() and args.force:
         import shutil
         from datetime import datetime
+
         backup_path = output_path.with_suffix(f'.toml.backup.{datetime.now().strftime("%Y%m%d_%H%M%S")}')
         shutil.copy2(output_path, backup_path)
         print(f"Backup created at: {backup_path}")
@@ -50,13 +51,14 @@ def cmd_init_config(args):
     # Find the example config - it should be in the same directory as this file (main.py)
     # When running as module, __file__ will be in the package directory
     script_dir = Path(__file__).parent
-    example_config = script_dir / 'default.toml'
+    example_config = script_dir / "default.toml"
 
     # If not found, try in the package directory
     if not example_config.exists():
         import filesqueeze
+
         package_dir = Path(filesqueeze.__file__).parent
-        example_config = package_dir / 'default.toml'
+        example_config = package_dir / "default.toml"
 
     if not example_config.exists():
         print(f"Error: Example configuration not found")
@@ -71,14 +73,14 @@ def cmd_init_config(args):
     def try_detect(detect_func):
         try:
             path = detect_func()
-            return {'found': True, 'path': path}
+            return {"found": True, "path": path}
         except RuntimeError:
-            return {'found': False, 'path': None}
+            return {"found": False, "path": None}
 
     detection = {
-        'ffmpeg': try_detect(finder.get_ffmpeg_path),
-        'ghostscript': try_detect(finder.get_ghostscript_path),
-        'tesseract': try_detect(finder.get_tesseract_path),
+        "ffmpeg": try_detect(finder.get_ffmpeg_path),
+        "ghostscript": try_detect(finder.get_ghostscript_path),
+        "tesseract": try_detect(finder.get_tesseract_path),
     }
 
     # Read example config
@@ -87,7 +89,7 @@ def cmd_init_config(args):
     except ImportError:
         import tomli as tomllib
 
-    with open(example_config, 'rb') as f:
+    with open(example_config, "rb") as f:
         config_data = tomllib.load(f)
 
     # Update config with detected binary paths
@@ -107,20 +109,20 @@ def cmd_init_config(args):
         # Then convert to string with forward slashes
         return str(PureWindowsPath(path).as_posix())
 
-    if detection['ffmpeg']['found'] and detection['ffmpeg']['path']:
-        config_data['ffmpeg']['path'] = normalize_path(detection['ffmpeg']['path'])
+    if detection["ffmpeg"]["found"] and detection["ffmpeg"]["path"]:
+        config_data["ffmpeg"]["path"] = normalize_path(detection["ffmpeg"]["path"])
         print(f"  [OK] FFmpeg detected: {detection['ffmpeg']['path']}")
     else:
         print(f"  [X] FFmpeg not found - using default (PATH)")
 
-    if detection['ghostscript']['found'] and detection['ghostscript']['path']:
-        config_data['document']['ghostscript_path'] = normalize_path(detection['ghostscript']['path'])
+    if detection["ghostscript"]["found"] and detection["ghostscript"]["path"]:
+        config_data["document"]["ghostscript_path"] = normalize_path(detection["ghostscript"]["path"])
         print(f"  [OK] Ghostscript detected: {detection['ghostscript']['path']}")
     else:
         print(f"  [X] Ghostscript not found - using default (PATH)")
 
-    if detection['tesseract']['found'] and detection['tesseract']['path']:
-        config_data['ocr']['tesseract_path'] = normalize_path(detection['tesseract']['path'])
+    if detection["tesseract"]["found"] and detection["tesseract"]["path"]:
+        config_data["ocr"]["tesseract_path"] = normalize_path(detection["tesseract"]["path"])
         print(f"  [OK] Tesseract detected: {detection['tesseract']['path']}")
     else:
         print(f"  [X] Tesseract not found - using default (PATH)")
@@ -129,11 +131,12 @@ def cmd_init_config(args):
     # Expand tilde in log file path for system installations
     # Normalize to forward slashes for TOML compatibility
     import os
-    if 'logging' in config_data and 'file' in config_data['logging']:
-        log_file = config_data['logging']['file']
-        if isinstance(log_file, str) and log_file.startswith('~'):
+
+    if "logging" in config_data and "file" in config_data["logging"]:
+        log_file = config_data["logging"]["file"]
+        if isinstance(log_file, str) and log_file.startswith("~"):
             expanded = os.path.expanduser(log_file)
-            config_data['logging']['file'] = normalize_path(expanded)
+            config_data["logging"]["file"] = normalize_path(expanded)
 
     # Write updated config to output location
     try:
@@ -141,10 +144,11 @@ def cmd_init_config(args):
     except ImportError:
         # If tomli_w is not available, just copy the example config
         import shutil
+
         shutil.copy(example_config, output_path)
         print(f"Note: tomli_w not installed, using default config without auto-detected paths")
     else:
-        with open(output_path, 'wb') as f:
+        with open(output_path, "wb") as f:
             tomli_w.dump(config_data, f)
 
     print(f"Configuration file created at: {output_path}")
@@ -188,7 +192,7 @@ def cmd_compress(args):
         output_path = input_file.parent / f"{input_file.stem}_compressed{input_file.suffix}"
 
     # Determine file type
-    ext = input_file.suffix.lstrip('.').lower()
+    ext = input_file.suffix.lstrip(".").lower()
 
     print(f"Input: {input_file}")
     print(f"Output: {output_path}")
@@ -199,16 +203,16 @@ def cmd_compress(args):
 
     try:
         # Process file based on type
-        if ext in ['mp4', 'wmv', 'avi', 'mkv', 'mov', 'flv']:
+        if ext in ["mp4", "wmv", "avi", "mkv", "mov", "flv"]:
             print("Compressing video...")
             result_path = make_video(str(input_file), config=config, output_path=str(output_path))
-        elif ext == 'pdf':
+        elif ext == "pdf":
             print("Compressing PDF...")
             result_path = make_pdf(str(input_file), config=config, output_path=str(output_path))
-        elif ext in ['jpg', 'jpeg', 'png']:
+        elif ext in ["jpg", "jpeg", "png"]:
             print("Compressing image...")
             result_path = make_image(str(input_file), config=config, output_path=str(output_path))
-        elif ext in ['ppt', 'pptx']:
+        elif ext in ["ppt", "pptx"]:
             print("Error: PowerPoint files are not yet supported")
             sys.exit(1)
         else:
@@ -248,7 +252,7 @@ def cmd_scan(args):
         ensure_output_dir,
         save_metadata,
         preserve_timestamps,
-        get_unique_output_path
+        get_unique_output_path,
     )
     from filesqueeze import make_video, make_pdf, make_image
     from filesqueeze.system import register_logger, register_binary_finder
@@ -293,14 +297,11 @@ def cmd_scan(args):
 
         try:
             # Determine file type
-            ext = filepath.suffix.lstrip('.').lower()
+            ext = filepath.suffix.lstrip(".").lower()
 
             # Generate output path
             output_path = generate_output_path(
-                filepath,
-                output_dir,
-                structure=config.get('output.structure', 'flat'),
-                config=config
+                filepath, output_dir, structure=config.get("output.structure", "flat"), config=config
             )
 
             # Ensure output directory exists
@@ -310,19 +311,19 @@ def cmd_scan(args):
             output_path = get_unique_output_path(output_path)
 
             # Process file based on type
-            if ext in ['mp4', 'wmv', 'avi']:
+            if ext in ["mp4", "wmv", "avi"]:
                 print(f"  Type: Video")
                 print(f"  Output: {output_path}")
                 result_path = make_video(str(filepath), config=config, output_path=str(output_path))
-            elif ext == 'pdf':
+            elif ext == "pdf":
                 print(f"  Type: PDF")
                 print(f"  Output: {output_path}")
                 result_path = make_pdf(str(filepath), config=config, output_path=str(output_path))
-            elif ext in ['jpg', 'jpeg', 'png']:
+            elif ext in ["jpg", "jpeg", "png"]:
                 print(f"  Type: Image")
                 print(f"  Output: {output_path}")
                 result_path = make_image(str(filepath), config=config, output_path=str(output_path))
-            elif ext == 'pptx':
+            elif ext == "pptx":
                 print(f"  Type: PowerPoint (not yet supported)")
                 print(f"  Skipping...")
                 continue
@@ -333,10 +334,15 @@ def cmd_scan(args):
 
             # Save metadata if enabled
             from datetime import datetime
-            save_metadata(output_path, {
-                'source': str(filepath),
-                'processed_at': str(datetime.now()),
-            }, config=config)
+
+            save_metadata(
+                output_path,
+                {
+                    "source": str(filepath),
+                    "processed_at": str(datetime.now()),
+                },
+                config=config,
+            )
 
             # Preserve timestamps if enabled
             preserve_timestamps(filepath, output_path, config=config)
@@ -362,6 +368,7 @@ def cmd_detect(args):
 
     if args.json:
         import json
+
         finder = BinaryFinder()
         results = finder.verify_all()
         print(json.dumps(results, indent=2))
@@ -470,209 +477,116 @@ Examples:
   python -m filesqueeze watch                   Monitor directory for new files
   python -m filesqueeze service                 Run with system tray icon
   python -m filesqueeze status                  Show queue status
-        """
+        """,
     )
 
-    subparsers = parser.add_subparsers(dest='command', help='Available commands')
+    subparsers = parser.add_subparsers(dest="command", help="Available commands")
 
     # compress command
-    compress_parser = subparsers.add_parser(
-        'compress',
-        help='Compress a single file'
-    )
-    compress_parser.add_argument(
-        'input',
-        help='Input file to compress'
-    )
-    compress_parser.add_argument(
-        '--output', '-o',
-        help='Output file path (default: <input>_compressed.<ext>)'
-    )
+    compress_parser = subparsers.add_parser("compress", help="Compress a single file")
+    compress_parser.add_argument("input", help="Input file to compress")
+    compress_parser.add_argument("--output", "-o", help="Output file path (default: <input>_compressed.<ext>)")
 
     # init-config command
-    init_parser = subparsers.add_parser(
-        'init-config',
-        help='Generate an example configuration file'
+    init_parser = subparsers.add_parser("init-config", help="Generate an example configuration file")
+    init_parser.add_argument("--output", "-o", help="Output path for config file (default: ./filesqueeze.toml)")
+    init_parser.add_argument(
+        "--force", "-f", action="store_true", help="Overwrite existing configuration file (creates backup)"
     )
     init_parser.add_argument(
-        '--output', '-o',
-        help='Output path for config file (default: ./filesqueeze.toml)'
-    )
-    init_parser.add_argument(
-        '--force', '-f',
-        action='store_true',
-        help='Overwrite existing configuration file (creates backup)'
-    )
-    init_parser.add_argument(
-        '--user-config',
-        action='store_true',
-        help='Allow writing to user config location (~/.config/filesqueeze/config.toml)'
+        "--user-config", action="store_true", help="Allow writing to user config location (~/.config/filesqueeze/config.toml)"
     )
 
     # scan command
-    scan_parser = subparsers.add_parser(
-        'scan',
-        help='Process files in input directory'
-    )
+    scan_parser = subparsers.add_parser("scan", help="Process files in input directory")
+    scan_parser.add_argument("--input", "-i", help="Input directory to scan (default: from config or ./upload)")
     scan_parser.add_argument(
-        '--input', '-i',
-        help='Input directory to scan (default: from config or ./upload)'
-    )
-    scan_parser.add_argument(
-        '--output', '-o',
-        help='Output directory for compressed files (default: from config or ./compressed)'
+        "--output", "-o", help="Output directory for compressed files (default: from config or ./compressed)"
     )
 
     # watch command
-    watch_parser = subparsers.add_parser(
-        'watch',
-        help='Watch directory for new files and compress them'
-    )
+    watch_parser = subparsers.add_parser("watch", help="Watch directory for new files and compress them")
+    watch_parser.add_argument("--input", "-i", help="Input directory to watch (default: from config or ./upload)")
     watch_parser.add_argument(
-        '--input', '-i',
-        help='Input directory to watch (default: from config or ./upload)'
-    )
-    watch_parser.add_argument(
-        '--output', '-o',
-        help='Output directory for compressed files (default: from config or ./compressed)'
+        "--output", "-o", help="Output directory for compressed files (default: from config or ./compressed)"
     )
 
     # service command group
-    service_parser = subparsers.add_parser(
-        'service',
-        help='Manage FileSqueeze service'
-    )
-    service_subparsers = service_parser.add_subparsers(dest='service_subcommand', help='Service commands')
+    service_parser = subparsers.add_parser("service", help="Manage FileSqueeze service")
+    service_subparsers = service_parser.add_subparsers(dest="service_subcommand", help="Service commands")
 
     # service run command
-    service_run_parser = service_subparsers.add_parser(
-        'run',
-        help='Run FileSqueeze as a service with system tray icon'
-    )
+    service_run_parser = service_subparsers.add_parser("run", help="Run FileSqueeze as a service with system tray icon")
+    service_run_parser.add_argument("--input", "-i", help="Input directory to watch (default: from config or ./upload)")
     service_run_parser.add_argument(
-        '--input', '-i',
-        help='Input directory to watch (default: from config or ./upload)'
-    )
-    service_run_parser.add_argument(
-        '--output', '-o',
-        help='Output directory for compressed files (default: from config or ./compressed)'
+        "--output", "-o", help="Output directory for compressed files (default: from config or ./compressed)"
     )
 
     # service install command
     service_install_parser = service_subparsers.add_parser(
-        'install',
-        help='Install FileSqueeze to start automatically on boot'
+        "install", help="Install FileSqueeze to start automatically on boot"
     )
+    service_install_parser.add_argument("--input", "-i", help="Input directory to watch (default: from config or ./upload)")
     service_install_parser.add_argument(
-        '--input', '-i',
-        help='Input directory to watch (default: from config or ./upload)'
+        "--output", "-o", help="Output directory for compressed files (default: from config or ./compressed)"
     )
-    service_install_parser.add_argument(
-        '--output', '-o',
-        help='Output directory for compressed files (default: from config or ./compressed)'
-    )
-    service_install_parser.add_argument(
-        '--force', '-f',
-        action='store_true',
-        help='Reinstall if already installed'
-    )
+    service_install_parser.add_argument("--force", "-f", action="store_true", help="Reinstall if already installed")
 
     # service uninstall command
-    service_subparsers.add_parser(
-        'uninstall',
-        help='Uninstall FileSqueeze auto-start'
-    )
+    service_subparsers.add_parser("uninstall", help="Uninstall FileSqueeze auto-start")
 
     # service status command
-    service_subparsers.add_parser(
-        'status',
-        help='Show auto-start installation status'
-    )
+    service_subparsers.add_parser("status", help="Show auto-start installation status")
 
     # Backward compatibility: hyphenated versions
     # service-run command
     service_run_hyphen_parser = subparsers.add_parser(
-        'service-run',
-        help='Run FileSqueeze as a service with system tray icon (same as: service run)'
+        "service-run", help="Run FileSqueeze as a service with system tray icon (same as: service run)"
     )
+    service_run_hyphen_parser.add_argument("--input", "-i", help="Input directory to watch (default: from config or ./upload)")
     service_run_hyphen_parser.add_argument(
-        '--input', '-i',
-        help='Input directory to watch (default: from config or ./upload)'
-    )
-    service_run_hyphen_parser.add_argument(
-        '--output', '-o',
-        help='Output directory for compressed files (default: from config or ./compressed)'
+        "--output", "-o", help="Output directory for compressed files (default: from config or ./compressed)"
     )
 
     # service-install command
     service_install_hyphen_parser = subparsers.add_parser(
-        'service-install',
-        help='Install FileSqueeze to start automatically on boot (same as: service install)'
+        "service-install", help="Install FileSqueeze to start automatically on boot (same as: service install)"
     )
     service_install_hyphen_parser.add_argument(
-        '--input', '-i',
-        help='Input directory to watch (default: from config or ./upload)'
+        "--input", "-i", help="Input directory to watch (default: from config or ./upload)"
     )
     service_install_hyphen_parser.add_argument(
-        '--output', '-o',
-        help='Output directory for compressed files (default: from config or ./compressed)'
+        "--output", "-o", help="Output directory for compressed files (default: from config or ./compressed)"
     )
-    service_install_hyphen_parser.add_argument(
-        '--force', '-f',
-        action='store_true',
-        help='Reinstall if already installed'
-    )
+    service_install_hyphen_parser.add_argument("--force", "-f", action="store_true", help="Reinstall if already installed")
 
     # service-uninstall command
-    subparsers.add_parser(
-        'service-uninstall',
-        help='Uninstall FileSqueeze auto-start (same as: service uninstall)'
-    )
+    subparsers.add_parser("service-uninstall", help="Uninstall FileSqueeze auto-start (same as: service uninstall)")
 
     # service-status command
-    subparsers.add_parser(
-        'service-status',
-        help='Show auto-start installation status (same as: service status)'
-    )
+    subparsers.add_parser("service-status", help="Show auto-start installation status (same as: service status)")
 
     # doctor command
-    subparsers.add_parser(
-        'doctor',
-        help='Run diagnostic checks on installation'
-    )
+    subparsers.add_parser("doctor", help="Run diagnostic checks on installation")
 
     # detect command
-    detect_parser = subparsers.add_parser(
-        'detect',
-        help='Detect installed binaries (FFmpeg, Ghostscript, Tesseract, etc.)'
-    )
-    detect_parser.add_argument(
-        '--json',
-        action='store_true',
-        help='Output detection results as JSON'
-    )
+    detect_parser = subparsers.add_parser("detect", help="Detect installed binaries (FFmpeg, Ghostscript, Tesseract, etc.)")
+    detect_parser.add_argument("--json", action="store_true", help="Output detection results as JSON")
 
     # For backward compatibility, also support --init-config as a flag
     parser.add_argument(
-        '--init-config',
-        dest='init_config_flag',
-        action='store_true',
-        help='Generate an example configuration file (same as init-config command)'
+        "--init-config",
+        dest="init_config_flag",
+        action="store_true",
+        help="Generate an example configuration file (same as init-config command)",
     )
     # Additional arguments that can be used with --init-config flag
+    parser.add_argument("--output", "-o", help="Output path for config file (when using --init-config)")
     parser.add_argument(
-        '--output', '-o',
-        help='Output path for config file (when using --init-config)'
+        "--force", "-f", action="store_true", help="Overwrite existing configuration file (when using --init-config)"
     )
     parser.add_argument(
-        '--force', '-f',
-        action='store_true',
-        help='Overwrite existing configuration file (when using --init-config)'
-    )
-    parser.add_argument(
-        '--user-config',
-        action='store_true',
-        help='Allow writing to user config location (when using --init-config)'
+        "--user-config", action="store_true", help="Allow writing to user config location (when using --init-config)"
     )
 
     # Other commands will be added in future phases
@@ -682,11 +596,7 @@ Examples:
     # status_parser = subparsers.add_parser('status', help='Show queue status')
 
     # Legacy mode: if no command specified, treat first positional arg as input file
-    parser.add_argument(
-        'infile',
-        nargs='?',
-        help='Input file or directory (legacy mode)'
-    )
+    parser.add_argument("infile", nargs="?", help="Input file or directory (legacy mode)")
 
     args = parser.parse_args()
 
@@ -698,53 +608,54 @@ Examples:
                 self.output = output
                 self.force = force
                 self.user_config = user_config
-        init_args = InitConfigArgs(args.output, args.force, getattr(args, 'user_config', False))
+
+        init_args = InitConfigArgs(args.output, args.force, getattr(args, "user_config", False))
         return cmd_init_config(init_args)
 
     # Handle commands
-    if args.command == 'compress':
+    if args.command == "compress":
         return cmd_compress(args)
 
-    if args.command == 'init-config':
+    if args.command == "init-config":
         return cmd_init_config(args)
 
-    if args.command == 'scan':
+    if args.command == "scan":
         return cmd_scan(args)
 
-    if args.command == 'watch':
+    if args.command == "watch":
         return cmd_watch(args)
 
-    if args.command == 'service':
+    if args.command == "service":
         # Handle service subcommands
-        if args.service_subcommand == 'run':
+        if args.service_subcommand == "run":
             return cmd_service(args)
-        elif args.service_subcommand == 'install':
+        elif args.service_subcommand == "install":
             return cmd_service_install(args)
-        elif args.service_subcommand == 'uninstall':
+        elif args.service_subcommand == "uninstall":
             return cmd_service_uninstall(args)
-        elif args.service_subcommand == 'status':
+        elif args.service_subcommand == "status":
             return cmd_service_status(args)
         # No subcommand specified - show help
         service_parser.print_help()
         sys.exit(1)
 
     # Backward compatibility: hyphenated versions
-    if args.command == 'service-run':
+    if args.command == "service-run":
         return cmd_service(args)
 
-    if args.command == 'service-install':
+    if args.command == "service-install":
         return cmd_service_install(args)
 
-    if args.command == 'service-uninstall':
+    if args.command == "service-uninstall":
         return cmd_service_uninstall(args)
 
-    if args.command == 'service-status':
+    if args.command == "service-status":
         return cmd_service_status(args)
 
-    if args.command == 'doctor':
+    if args.command == "doctor":
         return cmd_doctor(args)
 
-    if args.command == 'detect':
+    if args.command == "detect":
         return cmd_detect(args)
 
     # Legacy mode: if infile is specified, use old behavior

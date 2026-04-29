@@ -43,10 +43,11 @@ class TrayService:
 
         # Register logger with system for consistent logging
         from .system import register_logger
+
         register_logger(self.logger)
 
         # Enforce single instance on Windows
-        if sys.platform == 'win32':
+        if sys.platform == "win32":
             self._ensure_single_instance()
 
         # Create watcher
@@ -73,9 +74,7 @@ class TrayService:
 
         # Create a named mutex
         mutex_name = "Global\\FileSqueeze_SingleInstanceMutex"
-        self._mutex = ctypes.windll.kernel32.CreateMutexW(
-            None, True, mutex_name
-        )
+        self._mutex = ctypes.windll.kernel32.CreateMutexW(None, True, mutex_name)
 
         if self._mutex == 0:
             # Failed to create mutex at all
@@ -96,10 +95,7 @@ class TrayService:
 
         if last_error == ERROR_ALREADY_EXISTS:
             # Mutex already exists - another instance is running
-            self.logger.warning(
-                "Another FileSqueeze instance is already running. "
-                "Only one instance is allowed at a time."
-            )
+            self.logger.warning("Another FileSqueeze instance is already running. " "Only one instance is allowed at a time.")
             raise RuntimeError(
                 "FileSqueeze is already running. "
                 "Check the system tray for the FileSqueeze icon. "
@@ -114,14 +110,14 @@ class TrayService:
         """
         # Create a simple icon (green circle)
         size = 64
-        image = Image.new('RGB', (size, size), 'white')
+        image = Image.new("RGB", (size, size), "white")
         draw = ImageDraw.Draw(image)
 
         # Draw a green circle
-        draw.ellipse([(8, 8), (size - 8, size - 8)], fill='green', outline='darkgreen')
+        draw.ellipse([(8, 8), (size - 8, size - 8)], fill="green", outline="darkgreen")
 
         # Draw "FS" text
-        draw.text((20, 20), "FS", fill='white')
+        draw.text((20, 20), "FS", fill="white")
 
         return image
 
@@ -160,13 +156,14 @@ class TrayService:
         """
         import subprocess
         import os
+
         self.logger.info(f"Opening input folder: {self.input_dir}")
-        if sys.platform == 'win32':
+        if sys.platform == "win32":
             os.startfile(str(self.input_dir))
-        elif sys.platform == 'darwin':
-            subprocess.run(['open', str(self.input_dir)])
+        elif sys.platform == "darwin":
+            subprocess.run(["open", str(self.input_dir)])
         else:
-            subprocess.run(['xdg-open', str(self.input_dir)])
+            subprocess.run(["xdg-open", str(self.input_dir)])
 
     def _on_open_output(self, icon=None, item=None):
         """Handle open output folder action.
@@ -177,13 +174,14 @@ class TrayService:
         """
         import subprocess
         import os
+
         self.logger.info(f"Opening output folder: {self.output_dir}")
-        if sys.platform == 'win32':
+        if sys.platform == "win32":
             os.startfile(str(self.output_dir))
-        elif sys.platform == 'darwin':
-            subprocess.run(['open', str(self.output_dir)])
+        elif sys.platform == "darwin":
+            subprocess.run(["open", str(self.output_dir)])
         else:
-            subprocess.run(['xdg-open', str(self.output_dir)])
+            subprocess.run(["xdg-open", str(self.output_dir)])
 
     def _on_show_status(self, icon=None, item=None):
         """Handle show status action - opens GUI status window.
@@ -209,10 +207,7 @@ class TrayService:
 
         # Launch GUI status window in a separate thread
         # This prevents blocking the tray icon
-        status_thread = threading.Thread(
-            target=self._show_status_window,
-            daemon=True
-        )
+        status_thread = threading.Thread(target=self._show_status_window, daemon=True)
         status_thread.start()
 
     def _bring_to_foreground(self, root_window):
@@ -232,8 +227,8 @@ class TrayService:
             root_window.lift()
 
             # Force the window to be on top of all other windows
-            root_window.attributes('-topmost', True)
-            root_window.after_idle(root_window.attributes, '-topmost', False)
+            root_window.attributes("-topmost", True)
+            root_window.after_idle(root_window.attributes, "-topmost", False)
 
             # Force focus on the window
             root_window.focus_force()
@@ -251,7 +246,7 @@ class TrayService:
             from .gui import StatusWindow
 
             # Get refresh interval from config
-            refresh_interval = self.config.get('gui.refresh_interval_ms', 2000) if self.config else 2000
+            refresh_interval = self.config.get("gui.refresh_interval_ms", 2000) if self.config else 2000
 
             # CRITICAL: Create and store the window BEFORE showing it
             # This ensures _status_window is set immediately for singleton enforcement
@@ -274,7 +269,7 @@ class TrayService:
         # Set AppUserModelID for Windows to recognize this app consistently
         # This MUST be done before creating the tray icon for Windows to remember it
         # This helps Windows remember tray icon visibility settings across reboots
-        if sys.platform == 'win32':
+        if sys.platform == "win32":
             try:
                 import ctypes
                 from ctypes import wintypes
@@ -303,11 +298,11 @@ class TrayService:
 
         # Create menu with default action (double-click activates first item)
         menu = pystray.Menu(
-            pystray.MenuItem('Show Status', self._on_show_status, default=True),
-            pystray.MenuItem('Open Input Folder', self._on_open_input),
-            pystray.MenuItem('Open Output Folder', self._on_open_output),
+            pystray.MenuItem("Show Status", self._on_show_status, default=True),
+            pystray.MenuItem("Open Input Folder", self._on_open_input),
+            pystray.MenuItem("Open Output Folder", self._on_open_output),
             pystray.Menu.SEPARATOR,
-            pystray.MenuItem('Quit', self._on_quit),
+            pystray.MenuItem("Quit", self._on_quit),
         )
 
         # Create and run icon

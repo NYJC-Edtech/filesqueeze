@@ -2,6 +2,7 @@
 
 Implements a state machine for the conversion pipeline.
 """
+
 from os import PathLike
 from typing import Generic, Callable, TypeVar
 
@@ -19,6 +20,7 @@ StateCallback = Callable[[S], None]
 # A customisable factory function that creates a state object
 StateFactory = Callable[[PathLike], S]
 
+
 def default_state_factory(filepath, **kwargs):
     """Default state factory that forwards kwargs to State constructor."""
     return State(filepath, **kwargs)
@@ -33,9 +35,9 @@ class StateMachine(Generic[S]):
     Uses the registered system logger for automatic transition logging.
     """
 
-    def __init__(self, start: Handler, *,
-                 onupdate: StateCallback = lambda s: None,
-                 state_factory: StateFactory = default_state_factory):
+    def __init__(
+        self, start: Handler, *, onupdate: StateCallback = lambda s: None, state_factory: StateFactory = default_state_factory
+    ):
         self.state_factory = state_factory
         # External callback, called after each state transition
         self.onupdate = onupdate
@@ -45,21 +47,17 @@ class StateMachine(Generic[S]):
     def transition(self, state: S, handler: Handler) -> tuple[S, Handler]:
         """Execute the next transition for the state machine."""
         # Get handler names for logging
-        current_name = handler.__name__ if hasattr(handler, '__name__') else str(handler)
+        current_name = handler.__name__ if hasattr(handler, "__name__") else str(handler)
 
         # Call the handler with the current state
         next_handler = handler(state)
-        next_name = next_handler.__name__ if hasattr(next_handler, '__name__') else str(next_handler)
+        next_name = next_handler.__name__ if hasattr(next_handler, "__name__") else str(next_handler)
 
         # Log transition using system logger
         try:
             logger.debug(
                 f"State transition: {current_name} -> {next_name}",
-                extra={
-                    'transition_from': current_name,
-                    'transition_to': next_name,
-                    'state': str(state)
-                }
+                extra={"transition_from": current_name, "transition_to": next_name, "state": str(state)},
             )
         except Exception:
             # Silently fail if logging breaks (state machine continues)

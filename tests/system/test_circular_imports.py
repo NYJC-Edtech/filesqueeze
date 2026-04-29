@@ -15,11 +15,11 @@ class TestDependencyRules:
     def test_system_does_not_import_ops(self):
         """Enforce: system package must not import ops package."""
         system_modules = [
-            'filesqueeze.system.logger',
-            'filesqueeze.system.binaries',
-            'filesqueeze.system.platform',
-            'filesqueeze.system.config_adapters',
-            'filesqueeze.system.decorators',
+            "filesqueeze.system.logger",
+            "filesqueeze.system.binaries",
+            "filesqueeze.system.platform",
+            "filesqueeze.system.config_adapters",
+            "filesqueeze.system.decorators",
         ]
 
         violations = []
@@ -42,18 +42,17 @@ class TestDependencyRules:
                 continue
 
             # Check for ops imports
-            if 'from filesqueeze.ops' in source:
+            if "from filesqueeze.ops" in source:
                 violations.append(f"{module_name} imports from filesqueeze.ops")
 
-            if 'from .ops' in source:
+            if "from .ops" in source:
                 violations.append(f"{module_name} imports from .ops (relative)")
 
-            if 'import filesqueeze.ops' in source:
+            if "import filesqueeze.ops" in source:
                 violations.append(f"{module_name} imports filesqueeze.ops")
 
         # Assert no violations
-        assert len(violations) == 0, \
-            f"Dependency rule violations found:\n" + "\n".join(violations)
+        assert len(violations) == 0, f"Dependency rule violations found:\n" + "\n".join(violations)
 
     def test_ops_can_import_system(self):
         """Ops package can import from system package."""
@@ -73,12 +72,12 @@ class TestDependencyRules:
         """Verify no circular imports exist between system and ops."""
         # Start fresh
         modules_to_unload = [
-            'filesqueeze.system',
-            'filesqueeze.ops',
-            'filesqueeze.system.logger',
-            'filesqueeze.system.binaries',
-            'filesqueeze.ops.video',
-            'filesqueeze.ops.document',
+            "filesqueeze.system",
+            "filesqueeze.ops",
+            "filesqueeze.system.logger",
+            "filesqueeze.system.binaries",
+            "filesqueeze.ops.video",
+            "filesqueeze.ops.document",
         ]
 
         # Unload if present
@@ -106,10 +105,10 @@ class TestDependencyRules:
     def test_system_modules_are_independent(self):
         """System modules should be independently importable."""
         system_modules = [
-            'filesqueeze.system.logger',
-            'filesqueeze.system.binaries',
-            'filesqueeze.system.platform',
-            'filesqueeze.system.config_adapters',
+            "filesqueeze.system.logger",
+            "filesqueeze.system.binaries",
+            "filesqueeze.system.platform",
+            "filesqueeze.system.config_adapters",
         ]
 
         for module_name in system_modules:
@@ -140,6 +139,7 @@ class TestArchitectureDocumentation:
         """System package should have documentation."""
         try:
             import filesqueeze.system
+
             assert filesqueeze.system.__doc__ is not None
         except ImportError:
             pytest.skip("System package not yet created")
@@ -148,6 +148,7 @@ class TestArchitectureDocumentation:
         """Ops package should have documentation."""
         try:
             import filesqueeze.ops
+
             assert filesqueeze.ops.__doc__ is not None
         except ImportError:
             pytest.skip("Ops package not yet created")
@@ -156,11 +157,12 @@ class TestArchitectureDocumentation:
         """Dependency rule should be documented in system package."""
         try:
             import filesqueeze.system
+
             doc = filesqueeze.system.__doc__
 
             if doc:
                 # Should mention the dependency rule
-                assert 'ops' in doc.lower() or 'dependency' in doc.lower()
+                assert "ops" in doc.lower() or "dependency" in doc.lower()
         except ImportError:
             pytest.skip("System package not yet created")
 
@@ -174,7 +176,7 @@ class TestImportOrder:
 
         # Unload both
         for mod in list(sys.modules.keys()):
-            if mod.startswith('filesqueeze.system') or mod.startswith('filesqueeze.ops'):
+            if mod.startswith("filesqueeze.system") or mod.startswith("filesqueeze.ops"):
                 del sys.modules[mod]
 
         try:
@@ -182,14 +184,14 @@ class TestImportOrder:
             import filesqueeze.system
 
             # Check that ops is NOT yet loaded
-            assert 'filesqueeze.ops.video' not in sys.modules
-            assert 'filesqueeze.ops.document' not in sys.modules
+            assert "filesqueeze.ops.video" not in sys.modules
+            assert "filesqueeze.ops.document" not in sys.modules
 
             # Now import ops
             import filesqueeze.ops.video
 
             # Ops should now be loaded
-            assert 'filesqueeze.ops.video' in sys.modules
+            assert "filesqueeze.ops.video" in sys.modules
 
         except ImportError as e:
             if "circular import" in str(e).lower():
@@ -201,7 +203,7 @@ class TestImportOrder:
         """Ops modules should import from system (explicit dependency)."""
         # Unload first
         for mod in list(sys.modules.keys()):
-            if mod.startswith('filesqueeze'):
+            if mod.startswith("filesqueeze"):
                 del sys.modules[mod]
 
         try:
@@ -209,8 +211,7 @@ class TestImportOrder:
             import filesqueeze.ops.video
 
             # System should now be loaded (because ops depends on it)
-            assert 'filesqueeze.system' in sys.modules or \
-                   'filesqueeze.system.logger' in sys.modules
+            assert "filesqueeze.system" in sys.modules or "filesqueeze.system.logger" in sys.modules
 
         except ImportError:
             pytest.skip("Ops modules not yet created")
@@ -238,8 +239,8 @@ class TestDependencyGraph:
     def test_system_does_not_list_ops_as_dependency(self):
         """System modules should NOT list ops as dependency."""
         system_modules = [
-            'filesqueeze.system.logger',
-            'filesqueeze.system.binaries',
+            "filesqueeze.system.logger",
+            "filesqueeze.system.binaries",
         ]
 
         for module_name in system_modules:
@@ -258,8 +259,7 @@ class TestDependencyGraph:
                 continue
 
             # Should NOT import ops
-            assert 'filesqueeze.ops' not in source, \
-                f"{module_name} should not depend on filesqueeze.ops"
+            assert "filesqueeze.ops" not in source, f"{module_name} should not depend on filesqueeze.ops"
 
 
 class TestPackageStructure:
@@ -269,7 +269,8 @@ class TestPackageStructure:
         """System package should exist."""
         try:
             import filesqueeze.system
-            assert hasattr(filesqueeze.system, '__path__')
+
+            assert hasattr(filesqueeze.system, "__path__")
         except ImportError:
             pytest.skip("System package not yet created")
 
@@ -277,17 +278,18 @@ class TestPackageStructure:
         """Ops package should exist."""
         try:
             import filesqueeze.ops
-            assert hasattr(filesqueeze.ops, '__path__')
+
+            assert hasattr(filesqueeze.ops, "__path__")
         except ImportError:
             pytest.skip("Ops package not yet created")
 
     def test_expected_system_modules_exist(self):
         """Expected system modules should exist."""
         expected_modules = [
-            'filesqueeze.system.logger',
-            'filesqueeze.system.binaries',
-            'filesqueeze.system.platform',
-            'filesqueeze.system.config_adapters',
+            "filesqueeze.system.logger",
+            "filesqueeze.system.binaries",
+            "filesqueeze.system.platform",
+            "filesqueeze.system.config_adapters",
         ]
 
         existing_modules = []
@@ -308,10 +310,10 @@ class TestPackageStructure:
     def test_expected_ops_modules_exist(self):
         """Expected ops modules should exist."""
         expected_modules = [
-            'filesqueeze.ops.video',
-            'filesqueeze.ops.document',
-            'filesqueeze.ops.image',
-            'filesqueeze.ops.presentation',
+            "filesqueeze.ops.video",
+            "filesqueeze.ops.document",
+            "filesqueeze.ops.image",
+            "filesqueeze.ops.presentation",
         ]
 
         existing_modules = []

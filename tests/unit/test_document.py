@@ -1,5 +1,6 @@
 """Test document compression functionality."""
 
+import os
 import pytest
 from pathlib import Path
 from filesqueeze.ops.document import compress_pdf
@@ -9,6 +10,7 @@ from filesqueeze.ops.image import compress_image, get_image_size
 class TestDocumentCompression:
     """Test document compression functions."""
 
+    @pytest.mark.skipif(os.environ.get("CI") == "true", reason="Ghostscript is installed in CI environment")
     def test_get_ghostscript_path_not_found(self, tmp_path):
         """Test that get_ghostscript_path raises error when not found."""
         from filesqueeze.ops.document import get_ghostscript_path
@@ -17,6 +19,7 @@ class TestDocumentCompression:
         with pytest.raises(RuntimeError, match="Ghostscript not found"):
             get_ghostscript_path(config_path="")
 
+    @pytest.mark.skipif(os.environ.get("CI") == "true", reason="FFmpeg is installed in CI environment")
     def test_get_ffmpeg_path_not_found(self, tmp_path):
         """Test that get_ffmpeg_path raises error when not found."""
         from filesqueeze.ops.image import get_ffmpeg_path
@@ -36,6 +39,7 @@ class TestDocumentCompression:
         with pytest.raises(ValueError, match="Invalid quality setting"):
             compress_pdf(str(infile), str(outfile), quality="invalid")
 
+    @pytest.mark.skipif(os.environ.get("CI") == "true", reason="FFmpeg is installed in CI environment")
     def test_compress_image_without_ffmpeg(self, tmp_path):
         """Test that compress_image raises error without FFmpeg."""
         # Create a dummy input file
@@ -92,7 +96,7 @@ class TestDocumentHelpers:
 
 @pytest.mark.skipif(
     True,  # Skip these tests by default (require actual FFmpeg/Ghostscript)
-    reason="Requires FFmpeg and Ghostscript to be installed"
+    reason="Requires FFmpeg and Ghostscript to be installed",
 )
 class TestDocumentCompressionWithBinaries:
     """Tests that require actual FFmpeg and Ghostscript binaries."""

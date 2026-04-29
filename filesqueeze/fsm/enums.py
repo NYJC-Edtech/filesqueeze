@@ -3,6 +3,7 @@
 Enums for the conversion state machine.
 """
 
+
 class EnumMeta(type):
     """Metaclass for Enum to enable iteration over class attributes."""
 
@@ -16,23 +17,23 @@ class EnumMeta(type):
         from collections import namedtuple
 
         # Check if this is a nested enum (contains other Enum classes)
-        has_nested_enums = any(isinstance(v, type) and issubclass(v, Enum)
-                              for k, v in cls.__dict__.items()
-                              if not k.startswith('_'))
+        has_nested_enums = any(
+            isinstance(v, type) and issubclass(v, Enum) for k, v in cls.__dict__.items() if not k.startswith("_")
+        )
 
         if has_nested_enums:
             # This is a nested enum like Format - return the nested enum classes
-            return iter((v for k, v in cls.__dict__.items()
-                        if not k.startswith('_')
-                        and isinstance(v, type)
-                        and issubclass(v, Enum)
-                        and v is not cls))
+            return iter(
+                (
+                    v
+                    for k, v in cls.__dict__.items()
+                    if not k.startswith("_") and isinstance(v, type) and issubclass(v, Enum) and v is not cls
+                )
+            )
         else:
             # This is a leaf enum like Video - return EnumValue wrappers
-            EnumValue = namedtuple('EnumValue', ['name', 'value'])
-            return iter((EnumValue(k, v) for k, v in cls.__dict__.items()
-                        if not k.startswith('_')
-                        and not callable(v)))
+            EnumValue = namedtuple("EnumValue", ["name", "value"])
+            return iter((EnumValue(k, v) for k, v in cls.__dict__.items() if not k.startswith("_") and not callable(v)))
 
     def __getitem__(cls, key):
         """Support format['MP4'] syntax."""
@@ -41,6 +42,7 @@ class EnumMeta(type):
 
 class Enum(metaclass=EnumMeta):
     """A custom string Enum class for bundling constants."""
+
     __slots__ = tuple()
 
     def __init__(self):
@@ -55,29 +57,27 @@ class Enum(metaclass=EnumMeta):
     def validate(cls, member: str) -> None:
         """Validate if a member is in the enum."""
         if member not in cls.__dict__:
-            raise ValueError(
-                f"{member!r} is not a valid member of {cls.__name__}."
-            )
+            raise ValueError(f"{member!r} is not a valid member of {cls.__name__}.")
 
 
 class Video(Enum):
-    WMV = 'wmv'
-    MP4 = 'mp4'
-    AVI = 'avi'
-    MOV = 'mov'
-    MKV = 'mkv'
-    FLV = 'flv'
+    WMV = "wmv"
+    MP4 = "mp4"
+    AVI = "avi"
+    MOV = "mov"
+    MKV = "mkv"
+    FLV = "flv"
 
 
 class Slideshow(Enum):
-    PPTX = 'pptx'
+    PPTX = "pptx"
 
 
 class Document(Enum):
-    PDF = 'pdf'
-    JPEG = 'jpeg'
-    JPG = 'jpg'
-    PNG = 'png'
+    PDF = "pdf"
+    JPEG = "jpeg"
+    JPG = "jpg"
+    PNG = "png"
 
 
 class Format(Enum):
@@ -87,9 +87,9 @@ class Format(Enum):
 
 
 class Status(Enum):
-    COMPLETE = 'Done'
-    COMPRESS = 'Compress'
-    CONVERT = 'Convert'
-    ANALYZE = 'Analyze'
-    PENDING = 'Pending'
-    ERROR = 'Error'
+    COMPLETE = "Done"
+    COMPRESS = "Compress"
+    CONVERT = "Convert"
+    ANALYZE = "Analyze"
+    PENDING = "Pending"
+    ERROR = "Error"

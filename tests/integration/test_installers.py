@@ -13,10 +13,7 @@ from pathlib import Path
 from typing import Optional
 
 # Mark all tests in this module as Windows-only
-pytestmark = pytest.mark.skipif(
-    sys.platform != 'win32',
-    reason="Installer tests are Windows-specific"
-)
+pytestmark = pytest.mark.skipif(sys.platform != "win32", reason="Installer tests are Windows-specific")
 
 
 class InstallerTestHelpers:
@@ -37,12 +34,7 @@ class InstallerTestHelpers:
         if args:
             cmd.extend(args)
 
-        result = subprocess.run(
-            cmd,
-            capture_output=True,
-            text=True,
-            timeout=300  # 5 minute timeout
-        )
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=300)  # 5 minute timeout
         return result
 
     @staticmethod
@@ -54,16 +46,13 @@ class InstallerTestHelpers:
         """
         try:
             result = subprocess.run(
-                ["tasklist", "/FI", "IMAGENAME eq filesqueeze.exe", "/FO", "CSV"],
-                capture_output=True,
-                text=True,
-                timeout=10
+                ["tasklist", "/FI", "IMAGENAME eq filesqueeze.exe", "/FO", "CSV"], capture_output=True, text=True, timeout=10
             )
             # Parse output to extract PIDs
             pids = []
-            for line in result.stdout.split('\n'):
-                if 'filesqueeze.exe' in line:
-                    parts = line.split(',')
+            for line in result.stdout.split("\n"):
+                if "filesqueeze.exe" in line:
+                    parts = line.split(",")
                     if len(parts) >= 2:
                         pid_str = parts[1].strip('"')
                         if pid_str.isdigit():
@@ -85,7 +74,7 @@ class InstallerTestHelpers:
                 ["pythonw", "-m", "filesqueeze", "service", "run"],
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
-                stdin=subprocess.DEVNULL
+                stdin=subprocess.DEVNULL,
             )
             time.sleep(2)  # Give it time to start
             return proc
@@ -96,11 +85,7 @@ class InstallerTestHelpers:
     def stop_filesqueeze_service():
         """Stop all FileSqueeze processes using taskkill."""
         try:
-            subprocess.run(
-                ["taskkill", "/F", "/IM", "filesqueeze.exe"],
-                capture_output=True,
-                timeout=10
-            )
+            subprocess.run(["taskkill", "/F", "/IM", "filesqueeze.exe"], capture_output=True, timeout=10)
             time.sleep(1)  # Give it time to stop
         except Exception:
             pass
@@ -113,12 +98,7 @@ class InstallerTestHelpers:
             True if installed, False otherwise
         """
         try:
-            result = subprocess.run(
-                ["python", "-m", "pip", "show", "filesqueeze"],
-                capture_output=True,
-                text=True,
-                timeout=10
-            )
+            result = subprocess.run(["python", "-m", "pip", "show", "filesqueeze"], capture_output=True, text=True, timeout=10)
             return result.returncode == 0
         except Exception:
             return False
@@ -151,17 +131,12 @@ class TestPromptFormatInvariant:
         content = uninstall_script.read_text()
 
         # Verify [Y/n] format is used
-        assert "[Y/n]" in content or "[y/N]" in content, \
-            "Prompt should use [Y/n] format to indicate default"
+        assert "[Y/n]" in content or "[y/N]" in content, "Prompt should use [Y/n] format to indicate default"
 
         # Verify (Y/N) format is NOT used
         # (This is the confusing format we're avoiding)
-        lines_with_bad_format = [
-            line for line in content.split('\n')
-            if '(Y/N)' in line and '[Y/n]' not in line
-        ]
-        assert len(lines_with_bad_format) == 0, \
-            f"Found confusing (Y/N) format in lines: {lines_with_bad_format}"
+        lines_with_bad_format = [line for line in content.split("\n") if "(Y/N)" in line and "[Y/n]" not in line]
+        assert len(lines_with_bad_format) == 0, f"Found confusing (Y/N) format in lines: {lines_with_bad_format}"
 
     def test_install_shows_clear_next_steps(self, project_root):
         """Install script should show explicit next steps after completion."""
@@ -172,13 +147,7 @@ class TestPromptFormatInvariant:
 
         # Look for instructions about how to start FileSqueeze
         # The script should mention Start Menu, filesqueeze command, etc.
-        instruction_keywords = [
-            "Start Menu",
-            "filesqueeze",
-            "Start FileSqueeze",
-            "To start",
-            "launch"
-        ]
+        instruction_keywords = ["Start Menu", "filesqueeze", "Start FileSqueeze", "To start", "launch"]
 
         found_instructions = False
         for keyword in instruction_keywords:
@@ -186,8 +155,7 @@ class TestPromptFormatInvariant:
                 found_instructions = True
                 break
 
-        assert found_instructions, \
-            "Install script should include clear next steps for starting FileSqueeze"
+        assert found_instructions, "Install script should include clear next steps for starting FileSqueeze"
 
 
 class TestUninstallationProcessInvariant:
@@ -233,12 +201,10 @@ class TestUninstallationProcessInvariant:
             content = uninstall_script.read_text()
 
             # Verify script stops processes
-            assert "Stop-Process" in content or "taskkill" in content, \
-                "Uninstaller should stop running processes"
+            assert "Stop-Process" in content or "taskkill" in content, "Uninstaller should stop running processes"
 
             # Verify it looks for FileSqueeze processes
-            assert "filesqueeze" in content.lower(), \
-                "Uninstaller should specifically look for FileSqueeze processes"
+            assert "filesqueeze" in content.lower(), "Uninstaller should specifically look for FileSqueeze processes"
 
         finally:
             helpers.stop_filesqueeze_service()
@@ -258,19 +224,17 @@ class TestUninstallationProcessInvariant:
         # 1. Explicitly say it keeps the config, or
         # 2. Not remove the config directory
         removes_config = False
-        for line in content.split('\n'):
-            if 'Remove-Item' in line and 'config' in line.lower():
+        for line in content.split("\n"):
+            if "Remove-Item" in line and "config" in line.lower():
                 removes_config = True
                 break
 
-        assert not removes_config, \
-            "Uninstaller should not remove user configuration directory"
+        assert not removes_config, "Uninstaller should not remove user configuration directory"
 
         # Also check that the script says it keeps config
-        assert "Keep user configuration" in content or \
-               "configuration and logs" in content or \
-               "preserves" in content.lower(), \
-            "Uninstaller should explicitly state it preserves user config"
+        assert (
+            "Keep user configuration" in content or "configuration and logs" in content or "preserves" in content.lower()
+        ), "Uninstaller should explicitly state it preserves user config"
 
     def test_uninstall_enables_fresh_install(self, project_root):
         """After uninstall, should be able to install again without errors."""
@@ -284,9 +248,9 @@ class TestUninstallationProcessInvariant:
 
         # Verify uninstall removes the package
         uninstall_content = uninstall_script.read_text()
-        assert "pip uninstall" in uninstall_content or \
-               "uninstall filesqueeze" in uninstall_content.lower(), \
-            "Uninstaller should remove FileSqueeze package"
+        assert (
+            "pip uninstall" in uninstall_content or "uninstall filesqueeze" in uninstall_content.lower()
+        ), "Uninstaller should remove FileSqueeze package"
 
         # Verify install can handle re-installation
         install_content = install_script.read_text()
@@ -294,12 +258,11 @@ class TestUninstallationProcessInvariant:
         # 1. Uninstall first, or
         # 2. Use --force-reinstall flag
         can_reinstall = (
-            "uninstall" in install_content.lower() or
-            "force-reinstall" in install_content.lower() or
-            "force" in install_content.lower()
+            "uninstall" in install_content.lower()
+            or "force-reinstall" in install_content.lower()
+            or "force" in install_content.lower()
         )
-        assert can_reinstall, \
-            "Installer should support re-installation (uninstall first or use --force)"
+        assert can_reinstall, "Installer should support re-installation (uninstall first or use --force)"
 
 
 class TestInstallerBehavior:
@@ -318,12 +281,10 @@ class TestInstallerBehavior:
         content = install_script.read_text()
 
         # Verify it creates Start Menu folder
-        assert "Start Menu" in content or "Programs" in content, \
-            "Installer should create Start Menu shortcuts"
+        assert "Start Menu" in content or "Programs" in content, "Installer should create Start Menu shortcuts"
 
         # Verify it creates shortcuts
-        assert "WScript.Shell" in content or ".lnk" in content, \
-            "Installer should create .lnk shortcut files"
+        assert "WScript.Shell" in content or ".lnk" in content, "Installer should create .lnk shortcut files"
 
     def test_install_generates_config_file(self, project_root):
         """Installer should generate user configuration file."""
@@ -331,10 +292,9 @@ class TestInstallerBehavior:
         content = install_script.read_text()
 
         # Verify it runs init-config or creates config
-        assert "init-config" in content or \
-               "config.toml" in content or \
-               "Generate configuration" in content, \
-            "Installer should generate configuration file"
+        assert (
+            "init-config" in content or "config.toml" in content or "Generate configuration" in content
+        ), "Installer should generate configuration file"
 
     def test_installer_checks_python_version(self, project_root):
         """Installer should verify Python 3.11+ is installed."""
@@ -342,12 +302,10 @@ class TestInstallerBehavior:
         content = install_script.read_text()
 
         # Verify it checks Python version
-        assert "python" in content.lower() and "version" in content.lower(), \
-            "Installer should check Python version"
+        assert "python" in content.lower() and "version" in content.lower(), "Installer should check Python version"
 
         # Verify it checks for 3.11+
-        assert "3.11" in content or "311" in content, \
-            "Installer should require Python 3.11+"
+        assert "3.11" in content or "311" in content, "Installer should require Python 3.11+"
 
 
 if __name__ == "__main__":

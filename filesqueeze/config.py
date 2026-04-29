@@ -63,7 +63,7 @@ class Config:
             return
 
         # Load user config
-        user_config_path = Path.home() / '.config' / 'filesqueeze' / 'config.toml'
+        user_config_path = Path.home() / ".config" / "filesqueeze" / "config.toml"
         if user_config_path.exists():
             self._merge_toml(user_config_path)
 
@@ -71,7 +71,7 @@ class Config:
         if config_path:
             project_config = Path(config_path)
         else:
-            project_config = Path.cwd() / 'filesqueeze.toml'
+            project_config = Path.cwd() / "filesqueeze.toml"
 
         if project_config.exists():
             self._merge_toml(project_config)
@@ -101,15 +101,15 @@ class Config:
             import importlib.resources
             import importlib
 
-            package = importlib.import_module('filesqueeze')
-            with importlib.resources.files(package).joinpath('default.toml').open('rb') as f:
+            package = importlib.import_module("filesqueeze")
+            with importlib.resources.files(package).joinpath("default.toml").open("rb") as f:
                 return tomllib.load(f)
         except Exception:
             # Strategy 2: Fallback to __file__ for development/edge cases
             # Catch any exception from importlib.resources (OSError, TypeError, etc.)
-            default_path = Path(__file__).parent / 'default.toml'
+            default_path = Path(__file__).parent / "default.toml"
             if default_path.exists():
-                with open(default_path, 'rb') as f:
+                with open(default_path, "rb") as f:
                     return tomllib.load(f)
 
         # If we get here, default.toml is missing - this is an installation error
@@ -132,7 +132,7 @@ class Config:
     def _merge_toml(self, path: Path) -> None:
         """Merge TOML config file into current config."""
         try:
-            with open(path, 'rb') as f:
+            with open(path, "rb") as f:
                 data = tomllib.load(f)
             self._deep_merge(self._config, data)
         except Exception as e:
@@ -153,6 +153,7 @@ class Config:
     def _deep_copy(self, data: dict) -> dict:
         """Create a deep copy of a dictionary."""
         import copy
+
         return copy.deepcopy(data)
 
     def _apply_env_overrides(self) -> None:
@@ -166,9 +167,9 @@ class Config:
         Environment variables take precedence over all other config sources.
         """
         env_overrides = {
-            'FILESQUEEZE_INPUT_DIR': ('directories', 'input'),
-            'FILESQUEEZE_OUTPUT_DIR': ('directories', 'output'),
-            'FILESQUEEZE_LOG_FILE': ('logging', 'file'),
+            "FILESQUEEZE_INPUT_DIR": ("directories", "input"),
+            "FILESQUEEZE_OUTPUT_DIR": ("directories", "output"),
+            "FILESQUEEZE_LOG_FILE": ("logging", "file"),
         }
 
         for env_var, (section, key) in env_overrides.items():
@@ -178,9 +179,7 @@ class Config:
                 if section not in self._config:
                     self._config[section] = {}
                 self._config[section][key] = value
-                logger.info(
-                    f"Config override from {env_var}: {value}"
-                )
+                logger.info(f"Config override from {env_var}: {value}")
 
     def _expand_paths(self) -> None:
         """Expand ~ and environment variables in all path config values.
@@ -203,16 +202,16 @@ class Config:
         3. Avoids bugs where unexpanded tildes create directories literally named '~'
         """
         path_keys = [
-            ('directories', 'input'),
-            ('directories', 'output'),
-            ('logging', 'file'),
-            ('ffmpeg', 'path'),
-            ('document', 'ghostscript_path'),
-            ('ocr', 'tesseract_path'),
+            ("directories", "input"),
+            ("directories", "output"),
+            ("logging", "file"),
+            ("ffmpeg", "path"),
+            ("document", "ghostscript_path"),
+            ("ocr", "tesseract_path"),
         ]
 
         for section, key in path_keys:
-            path_str = self.get(f'{section}.{key}')
+            path_str = self.get(f"{section}.{key}")
             if path_str and isinstance(path_str, str):
                 # Expand both ~ (home directory) and %VAR% or $VAR environment vars
                 expanded = os.path.expanduser(os.path.expandvars(path_str))
@@ -227,7 +226,7 @@ class Config:
             config.get('ffmpeg.crf')
             config.get('directories.input')
         """
-        keys = key.split('.')
+        keys = key.split(".")
         value = self._config
 
         for k in keys:
@@ -249,7 +248,7 @@ class Config:
         Note: Paths are expanded at config load time, so this returns
         an expanded Path ready for use.
         """
-        path_str = self.get('directories.input')
+        path_str = self.get("directories.input")
         return Path(path_str)
 
     @property
@@ -259,7 +258,7 @@ class Config:
         Note: Paths are expanded at config load time, so this returns
         an expanded Path ready for use.
         """
-        path_str = self.get('directories.output')
+        path_str = self.get("directories.output")
         return Path(path_str)
 
     @property
@@ -272,20 +271,20 @@ class Config:
         Note: Paths are expanded at config load time, so this returns
         an expanded Path ready for use.
         """
-        path_str = self.get('directories.archive', 'archive')
-        if not path_str or path_str.strip() == '':
+        path_str = self.get("directories.archive", "archive")
+        if not path_str or path_str.strip() == "":
             return None
         return Path(path_str)
 
     @property
     def ffmpeg_path(self) -> str:
         """Get FFmpeg path (empty if using PATH)."""
-        return self.get('ffmpeg.path', '')
+        return self.get("ffmpeg.path", "")
 
     @property
     def ghostscript_path(self) -> str:
         """Get Ghostscript path (empty if using PATH)."""
-        return self.get('document.ghostscript_path', '')
+        return self.get("document.ghostscript_path", "")
 
     @property
     def log_file(self) -> Path:
@@ -294,7 +293,7 @@ class Config:
         Note: Paths are expanded at config load time, so this returns
         an expanded Path ready for use.
         """
-        path_str = self.get('logging.file')
+        path_str = self.get("logging.file")
         return Path(path_str)
 
     @property
@@ -307,8 +306,8 @@ class Config:
         Note: This property should be used when Tesseract path is needed
         for Path operations. For subprocess calls, convert to str().
         """
-        path_str = self.get('ocr.tesseract_path', '')
-        return Path(path_str) if path_str else Path('tesseract')
+        path_str = self.get("ocr.tesseract_path", "")
+        return Path(path_str) if path_str else Path("tesseract")
 
     def as_dict(self) -> dict:
         """Return entire config as dictionary."""

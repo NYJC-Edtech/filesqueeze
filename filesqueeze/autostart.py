@@ -14,7 +14,7 @@ def is_windows() -> bool:
     Returns:
         True if on Windows, False otherwise.
     """
-    return sys.platform == 'win32'
+    return sys.platform == "win32"
 
 
 def get_startup_folder() -> Path:
@@ -30,7 +30,7 @@ def get_startup_folder() -> Path:
         raise RuntimeError("Auto-start is only supported on Windows")
 
     # Try to get startup folder from environment variables
-    startup_folder = os.path.expandvars(r'%APPDATA%\Microsoft\Windows\Start Menu\Programs\Startup')
+    startup_folder = os.path.expandvars(r"%APPDATA%\Microsoft\Windows\Start Menu\Programs\Startup")
     startup_path = Path(startup_folder)
 
     if not startup_path.exists():
@@ -58,8 +58,8 @@ def create_batch_file(input_dir: Path, output_dir: Path, startup_folder: Path) -
 
     # Create a PowerShell wrapper script in the module directory
     # This wrapper detects if FileSqueeze is installed system-wide or in development mode
-    ps_wrapper = filesqueeze_module / 'filesqueeze-autostart.ps1'
-    ps_wrapper_content = f'''# FileSqueeze Auto-start Wrapper
+    ps_wrapper = filesqueeze_module / "filesqueeze-autostart.ps1"
+    ps_wrapper_content = f"""# FileSqueeze Auto-start Wrapper
 # This script is launched automatically on Windows startup
 # It detects whether FileSqueeze is installed system-wide or in development mode
 # and launches the appropriate command
@@ -86,16 +86,16 @@ if ($SystemInstalled) {{
         & python -m filesqueeze service run --input "{input_dir}" --output "{output_dir}"
     }}
 }}
-'''
-    with open(ps_wrapper, 'w', encoding='utf-8') as f:
+"""
+    with open(ps_wrapper, "w", encoding="utf-8") as f:
         f.write(ps_wrapper_content)
 
     # Create shortcut
-    shortcut_path = startup_folder / 'FileSqueeze.lnk'
+    shortcut_path = startup_folder / "FileSqueeze.lnk"
 
     # Write PowerShell script to create shortcut to a temp file
     # This avoids quoting issues with inline scripts
-    ps_script_content = f'''
+    ps_script_content = f"""
     $WshShell = New-Object -ComObject WScript.Shell
     $Shortcut = $WshShell.CreateShortcut('{shortcut_path}')
     $Shortcut.TargetPath = 'powershell.exe'
@@ -104,18 +104,16 @@ if ($SystemInstalled) {{
     $Shortcut.WindowStyle = 7
     $Shortcut.Description = "FileSqueeze Compression Service"
     $Shortcut.Save()
-    '''
+    """
 
-    with tempfile.NamedTemporaryFile(mode='w', suffix='.ps1', delete=False) as tmp:
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".ps1", delete=False) as tmp:
         tmp.write(ps_script_content)
         tmp_path = tmp.name
 
     try:
         # Run the temp PowerShell script
         result = subprocess.run(
-            ['powershell', '-ExecutionPolicy', 'Bypass', '-File', tmp_path],
-            capture_output=True,
-            text=True
+            ["powershell", "-ExecutionPolicy", "Bypass", "-File", tmp_path], capture_output=True, text=True
         )
 
         if result.returncode != 0:
@@ -185,26 +183,26 @@ def uninstall_autostart() -> bool:
     removed_files = []
 
     # Remove new shortcut
-    shortcut_path = startup_folder / 'FileSqueeze.lnk'
+    shortcut_path = startup_folder / "FileSqueeze.lnk"
     if shortcut_path.exists():
         shortcut_path.unlink()
         removed_files.append(str(shortcut_path))
 
     # Remove old batch file (if exists from previous installation)
-    batch_file = startup_folder / 'filesqueeze-start.bat'
+    batch_file = startup_folder / "filesqueeze-start.bat"
     if batch_file.exists():
         batch_file.unlink()
         removed_files.append(str(batch_file))
 
     # Remove old VBScript file (if exists from previous installation)
-    vbs_file = startup_folder / 'filesqueeze-start.vbs'
+    vbs_file = startup_folder / "filesqueeze-start.vbs"
     if vbs_file.exists():
         vbs_file.unlink()
         removed_files.append(str(vbs_file))
 
     # Remove PowerShell wrapper script
     filesqueeze_module = Path(__file__).parent.parent
-    ps_wrapper = filesqueeze_module / 'filesqueeze-autostart.ps1'
+    ps_wrapper = filesqueeze_module / "filesqueeze-autostart.ps1"
     if ps_wrapper.exists():
         ps_wrapper.unlink()
         removed_files.append(str(ps_wrapper))
@@ -233,6 +231,6 @@ def check_autostart_installed() -> bool:
         return False
 
     startup_folder = get_startup_folder()
-    shortcut_path = startup_folder / 'FileSqueeze.lnk'
+    shortcut_path = startup_folder / "FileSqueeze.lnk"
 
     return shortcut_path.exists()

@@ -14,50 +14,50 @@ class ConfigKeys:
     """
 
     # FFmpeg configuration
-    FFMPEG_PATH = 'ffmpeg.path'
-    FFMPEG_CRF = 'ffmpeg.crf'
-    FFMPEG_PRESET = 'ffmpeg.preset'
-    FFMPEG_THREADS = 'ffmpeg.threads'
+    FFMPEG_PATH = "ffmpeg.path"
+    FFMPEG_CRF = "ffmpeg.crf"
+    FFMPEG_PRESET = "ffmpeg.preset"
+    FFMPEG_THREADS = "ffmpeg.threads"
 
     # Document/PDF configuration
-    DOCUMENT_GHOSTSCRIPT_PATH = 'document.ghostscript_path'
+    DOCUMENT_GHOSTSCRIPT_PATH = "document.ghostscript_path"
 
     # Image configuration
-    IMAGE_QUALITY = 'image.quality'
-    IMAGE_MAX_WIDTH = 'image.max_width'
-    IMAGE_MAX_HEIGHT = 'image.max_height'
-    IMAGE_MIN_OUTPUT_SIZE = 'image.min_output_size_bytes'
+    IMAGE_QUALITY = "image.quality"
+    IMAGE_MAX_WIDTH = "image.max_width"
+    IMAGE_MAX_HEIGHT = "image.max_height"
+    IMAGE_MIN_OUTPUT_SIZE = "image.min_output_size_bytes"
 
     # OCR/Tesseract configuration
-    OCR_TESSERACT_PATH = 'ocr.tesseract_path'
+    OCR_TESSERACT_PATH = "ocr.tesseract_path"
 
     # Presentation configuration
-    PRESENTATION_POWERSHELL_PATH = 'presentation.powershell_path'
+    PRESENTATION_POWERSHELL_PATH = "presentation.powershell_path"
 
     # Processing configuration
-    PROCESSING_TIMEOUT_SECONDS = 'processing.timeout_seconds'
-    PROCESSING_PRESENTATION_TIMEOUT_SECONDS = 'processing.presentation_timeout_seconds'
+    PROCESSING_TIMEOUT_SECONDS = "processing.timeout_seconds"
+    PROCESSING_PRESENTATION_TIMEOUT_SECONDS = "processing.presentation_timeout_seconds"
 
     # Archive configuration
-    ARCHIVE_ENABLED = 'archive.enabled'
-    ARCHIVE_RETENTION_DAYS = 'archive.retention_days'
-    ARCHIVE_PATH = 'archive.path'
+    ARCHIVE_ENABLED = "archive.enabled"
+    ARCHIVE_RETENTION_DAYS = "archive.retention_days"
+    ARCHIVE_PATH = "archive.path"
 
 
 class FileExtensions:
     """File extension constants for type checking and validation."""
 
     # Video extensions
-    VIDEO = ['mp4', 'wmv', 'avi', 'mkv', 'mov', 'flv']
+    VIDEO = ["mp4", "wmv", "avi", "mkv", "mov", "flv"]
 
     # Document extensions
-    DOCUMENT = ['pdf']
+    DOCUMENT = ["pdf"]
 
     # Image extensions
-    IMAGE = ['jpg', 'jpeg', 'png']
+    IMAGE = ["jpg", "jpeg", "png"]
 
     # Presentation extensions
-    PRESENTATION = ['ppt', 'pptx']
+    PRESENTATION = ["ppt", "pptx"]
 
     # All supported extensions
     ALL_SUPPORTED = VIDEO + DOCUMENT + IMAGE + PRESENTATION

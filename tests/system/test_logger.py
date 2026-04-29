@@ -18,10 +18,11 @@ class TestLoggerRegistration:
 
         # Reset state
         import filesqueeze.system.logger as logger_module
+
         logger_module._logger = None
 
         # Register custom logger
-        custom_logger = logging.getLogger('test_custom')
+        custom_logger = logging.getLogger("test_custom")
         register_logger(custom_logger)
 
         # Retrieve
@@ -34,11 +35,12 @@ class TestLoggerRegistration:
 
         # Reset state
         import filesqueeze.system.logger as logger_module
+
         logger_module._logger = None
 
         # Should return default logger
         logger = get_logger()
-        assert logger.name == 'filesqueeze'
+        assert logger.name == "filesqueeze"
         assert isinstance(logger, logging.Logger)
 
     def test_double_registration_raises(self):
@@ -47,14 +49,15 @@ class TestLoggerRegistration:
 
         # Reset state
         import filesqueeze.system.logger as logger_module
+
         logger_module._logger = None
 
         # First registration
-        register_logger(logging.getLogger('test1'))
+        register_logger(logging.getLogger("test1"))
 
         # Second registration should raise
         with pytest.raises(RuntimeError, match="already registered"):
-            register_logger(logging.getLogger('test2'))
+            register_logger(logging.getLogger("test2"))
 
     def test_lazy_logger_works_before_registration(self):
         """Lazy logger proxy works before registration."""
@@ -62,6 +65,7 @@ class TestLoggerRegistration:
 
         # Reset state
         import filesqueeze.system.logger as logger_module
+
         logger_module._logger = None
 
         # Import logger BEFORE registration
@@ -69,7 +73,7 @@ class TestLoggerRegistration:
         assert logger is not None
 
         # Register AFTER import
-        custom_logger = logging.getLogger('lazy_test')
+        custom_logger = logging.getLogger("lazy_test")
         register_logger(custom_logger)
 
         # Lazy logger should now delegate to registered logger
@@ -86,10 +90,11 @@ class TestLoggerRegistration:
 
         # Reset state
         import filesqueeze.system.logger as logger_module
+
         logger_module._logger = None
 
         # Create logger with handler we can inspect
-        custom_logger = logging.getLogger('test_after')
+        custom_logger = logging.getLogger("test_after")
         custom_logger.setLevel(logging.INFO)
 
         # Add string handler to capture logs
@@ -114,9 +119,10 @@ class TestLoggerRegistration:
 
         # Reset state
         import filesqueeze.system.logger as logger_module
+
         logger_module._logger = None
 
-        custom_logger = logging.getLogger('test_same')
+        custom_logger = logging.getLogger("test_same")
         register_logger(custom_logger)
 
         # Multiple calls should return same instance
@@ -130,11 +136,11 @@ class TestLoggerRegistration:
         from filesqueeze.system import logger
 
         # Module-level logger should exist
-        assert hasattr(logger, 'info')
-        assert hasattr(logger, 'debug')
-        assert hasattr(logger, 'warning')
-        assert hasattr(logger, 'error')
-        assert hasattr(logger, 'critical')
+        assert hasattr(logger, "info")
+        assert hasattr(logger, "debug")
+        assert hasattr(logger, "warning")
+        assert hasattr(logger, "error")
+        assert hasattr(logger, "critical")
 
 
 class TestLoggerThreadSafety:
@@ -147,6 +153,7 @@ class TestLoggerThreadSafety:
 
         # Reset state
         import filesqueeze.system.logger as logger_module
+
         logger_module._logger = None
 
         results = []
@@ -154,8 +161,8 @@ class TestLoggerThreadSafety:
 
         def register(logger_num):
             try:
-                register_logger(logging.getLogger(f'test_thread_{logger_num}'))
-                results.append(f'success_{logger_num}')
+                register_logger(logging.getLogger(f"test_thread_{logger_num}"))
+                results.append(f"success_{logger_num}")
             except RuntimeError as e:
                 errors.append(str(e))
 
@@ -183,10 +190,10 @@ class TestLoggerResetBetweenTests:
         from filesqueeze.system.logger import register_logger, get_logger
 
         # Register logger in this test
-        register_logger(logging.getLogger('test_isolation'))
+        register_logger(logging.getLogger("test_isolation"))
         logger = get_logger()
 
-        assert logger.name == 'test_isolation'
+        assert logger.name == "test_isolation"
 
         # After test completes, conftest fixture resets state
         # Next test should get fresh state

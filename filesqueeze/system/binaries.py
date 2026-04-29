@@ -14,12 +14,12 @@ from typing import Optional, Tuple
 from filesqueeze.constants import ConfigKeys
 
 # Global binary finder instance (None until registered)
-_binary_finder: Optional['BinaryFinder'] = None
+_binary_finder: Optional["BinaryFinder"] = None
 # Lock for thread-safe registration
 _binary_finder_lock = threading.Lock()
 
 
-def register_binary_finder(finder: 'BinaryFinder') -> None:
+def register_binary_finder(finder: "BinaryFinder") -> None:
     """Register the binary finder instance.
 
     Called once at startup to inject binary finder dependency.
@@ -41,7 +41,7 @@ def register_binary_finder(finder: 'BinaryFinder') -> None:
         _binary_finder = finder
 
 
-def get_binary_finder() -> 'BinaryFinder':
+def get_binary_finder() -> "BinaryFinder":
     """Get the registered binary finder.
 
     Returns:
@@ -130,7 +130,7 @@ class BinaryFinder:
         Raises:
             RuntimeError: If FFmpeg not found
         """
-        return self._get_binary_path('ffmpeg', ConfigKeys.FFMPEG_PATH, self.find_ffmpeg)
+        return self._get_binary_path("ffmpeg", ConfigKeys.FFMPEG_PATH, self.find_ffmpeg)
 
     def get_ffprobe_path(self) -> str:
         """Get ffprobe executable path.
@@ -141,25 +141,25 @@ class BinaryFinder:
         Raises:
             RuntimeError: If ffprobe not found
         """
-        if 'ffprobe' not in self._cached_paths:
+        if "ffprobe" not in self._cached_paths:
             # Try to find ffprobe in the same directory as ffmpeg
             try:
                 ffmpeg_path = self.get_ffmpeg_path()
-                ffprobe = str(Path(ffmpeg_path).parent / 'ffprobe.exe')
+                ffprobe = str(Path(ffmpeg_path).parent / "ffprobe.exe")
                 if Path(ffprobe).exists():
-                    self._cached_paths['ffprobe'] = ffprobe
+                    self._cached_paths["ffprobe"] = ffprobe
                     return ffprobe
             except RuntimeError:
                 pass  # Fall through to PATH detection
 
             # Try to find ffprobe in PATH
             if self._check_command("ffprobe"):
-                self._cached_paths['ffprobe'] = 'ffprobe'
-                return 'ffprobe'
+                self._cached_paths["ffprobe"] = "ffprobe"
+                return "ffprobe"
 
             raise RuntimeError("ffprobe not found. Please install FFmpeg or configure ffmpeg_path in config.")
 
-        return self._cached_paths['ffprobe']
+        return self._cached_paths["ffprobe"]
 
     def get_ghostscript_path(self) -> str:
         """Get Ghostscript executable path.
@@ -170,7 +170,7 @@ class BinaryFinder:
         Raises:
             RuntimeError: If Ghostscript not found
         """
-        return self._get_binary_path('ghostscript', ConfigKeys.DOCUMENT_GHOSTSCRIPT_PATH, self.find_ghostscript)
+        return self._get_binary_path("ghostscript", ConfigKeys.DOCUMENT_GHOSTSCRIPT_PATH, self.find_ghostscript)
 
     def get_tesseract_path(self) -> str:
         """Get Tesseract executable path.
@@ -181,7 +181,7 @@ class BinaryFinder:
         Raises:
             RuntimeError: If Tesseract not found
         """
-        return self._get_binary_path('tesseract', ConfigKeys.OCR_TESSERACT_PATH, self.find_tesseract)
+        return self._get_binary_path("tesseract", ConfigKeys.OCR_TESSERACT_PATH, self.find_tesseract)
 
     def get_powershell_path(self) -> str:
         """Get PowerShell executable path.
@@ -192,7 +192,7 @@ class BinaryFinder:
         Raises:
             RuntimeError: If PowerShell not found
         """
-        return self._get_binary_path('powershell', ConfigKeys.PRESENTATION_POWERSHELL_PATH, self.find_powershell)
+        return self._get_binary_path("powershell", ConfigKeys.PRESENTATION_POWERSHELL_PATH, self.find_powershell)
 
     def _get_binary_path(self, binary_name: str, config_key: str, finder_method: callable) -> str:
         """Generic binary path finder with caching.
@@ -236,24 +236,24 @@ class BinaryFinder:
         results = {}
 
         try:
-            results['ffmpeg'] = self.get_ffmpeg_path()
+            results["ffmpeg"] = self.get_ffmpeg_path()
         except RuntimeError as e:
-            results['ffmpeg'] = f"Error: {e}"
+            results["ffmpeg"] = f"Error: {e}"
 
         try:
-            results['ghostscript'] = self.get_ghostscript_path()
+            results["ghostscript"] = self.get_ghostscript_path()
         except RuntimeError as e:
-            results['ghostscript'] = f"Error: {e}"
+            results["ghostscript"] = f"Error: {e}"
 
         try:
-            results['tesseract'] = self.get_tesseract_path()
+            results["tesseract"] = self.get_tesseract_path()
         except RuntimeError as e:
-            results['tesseract'] = f"Error: {e}"
+            results["tesseract"] = f"Error: {e}"
 
         try:
-            results['powershell'] = self.get_powershell_path()
+            results["powershell"] = self.get_powershell_path()
         except RuntimeError as e:
-            results['powershell'] = f"Error: {e}"
+            results["powershell"] = f"Error: {e}"
 
         return results
 
@@ -335,7 +335,7 @@ class BinaryFinder:
                 [command, "--version"],
                 capture_output=True,
                 timeout=5,
-                creationflags=subprocess.CREATE_NO_WINDOW if self.system == "Windows" else 0
+                creationflags=subprocess.CREATE_NO_WINDOW if self.system == "Windows" else 0,
             )
             return True
         except (FileNotFoundError, subprocess.TimeoutExpired):

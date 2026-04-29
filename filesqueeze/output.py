@@ -13,12 +13,7 @@ from typing import Optional
 from .config import Config
 
 
-def generate_output_path(
-    input_path: Path,
-    output_dir: Path,
-    structure: str = 'flat',
-    config: Optional[Config] = None
-) -> Path:
+def generate_output_path(input_path: Path, output_dir: Path, structure: str = "flat", config: Optional[Config] = None) -> Path:
     """Generate output path based on structure setting.
 
     Args:
@@ -32,10 +27,10 @@ def generate_output_path(
     """
     # Get structure from config if not specified
     if config and not structure:
-        structure = config.get('output.structure', 'flat')
+        structure = config.get("output.structure", "flat")
 
     # Validate structure
-    valid_structures = ['flat', 'by_type', 'by_date', 'mirror']
+    valid_structures = ["flat", "by_type", "by_date", "mirror"]
     if structure not in valid_structures:
         raise ValueError(f"Invalid structure: {structure}. Must be one of {valid_structures}")
 
@@ -43,36 +38,36 @@ def generate_output_path(
     compressed_filename = f"compressed_{input_path.name}"
 
     # Generate output path based on structure
-    if structure == 'flat':
+    if structure == "flat":
         # All files in output root
         return output_dir / compressed_filename
 
-    elif structure == 'by_type':
+    elif structure == "by_type":
         # Organize by file type
-        ext = input_path.suffix.lstrip('.').lower()
+        ext = input_path.suffix.lstrip(".").lower()
 
         # Determine type directory
-        if ext in ['mp4', 'wmv', 'avi']:
-            type_dir = 'video'
-        elif ext in ['pdf']:
-            type_dir = 'document'
-        elif ext in ['jpg', 'jpeg', 'png']:
-            type_dir = 'image'
-        elif ext in ['pptx']:
-            type_dir = 'slideshow'
+        if ext in ["mp4", "wmv", "avi"]:
+            type_dir = "video"
+        elif ext in ["pdf"]:
+            type_dir = "document"
+        elif ext in ["jpg", "jpeg", "png"]:
+            type_dir = "image"
+        elif ext in ["pptx"]:
+            type_dir = "slideshow"
         else:
-            type_dir = 'other'
+            type_dir = "other"
 
         return output_dir / type_dir / compressed_filename
 
-    elif structure == 'by_date':
+    elif structure == "by_date":
         # Organize by date (YYYY-MM-DD)
         # Use file modification time
         mtime = input_path.stat().st_mtime
-        date_str = datetime.fromtimestamp(mtime).strftime('%Y-%m-%d')
+        date_str = datetime.fromtimestamp(mtime).strftime("%Y-%m-%d")
         return output_dir / date_str / compressed_filename
 
-    elif structure == 'mirror':
+    elif structure == "mirror":
         # Preserve source structure relative to input root
         # For this, we need to know the input root
         # If input_path is relative, use it as-is
@@ -81,7 +76,7 @@ def generate_output_path(
             input_root = config.input_dir
         else:
             # Try to preserve relative structure
-            input_root = Path('')
+            input_root = Path("")
 
         if input_root and input_path.is_absolute():
             # Try to preserve relative path
@@ -100,11 +95,7 @@ def generate_output_path(
     return output_dir / compressed_filename
 
 
-def save_metadata(
-    output_path: Path,
-    metadata: dict,
-    config: Optional[Config] = None
-) -> None:
+def save_metadata(output_path: Path, metadata: dict, config: Optional[Config] = None) -> None:
     """Save metadata alongside output file.
 
     Args:
@@ -114,7 +105,7 @@ def save_metadata(
     """
     # Check if metadata saving is enabled
     if config:
-        enabled = config.get('output.save_metadata', False)
+        enabled = config.get("output.save_metadata", False)
     else:
         enabled = False
 
@@ -122,18 +113,14 @@ def save_metadata(
         return
 
     # Create metadata file path
-    metadata_path = output_path.with_suffix('.json')
+    metadata_path = output_path.with_suffix(".json")
 
     # Save metadata
-    with open(metadata_path, 'w', encoding='utf-8') as f:
+    with open(metadata_path, "w", encoding="utf-8") as f:
         json.dump(metadata, f, indent=2, default=str)
 
 
-def preserve_timestamps(
-    input_path: Path,
-    output_path: Path,
-    config: Optional[Config] = None
-) -> None:
+def preserve_timestamps(input_path: Path, output_path: Path, config: Optional[Config] = None) -> None:
     """Copy timestamps from input to output file.
 
     Args:
@@ -143,7 +130,7 @@ def preserve_timestamps(
     """
     # Check if timestamp preservation is enabled
     if config:
-        enabled = config.get('output.preserve_timestamps', True)
+        enabled = config.get("output.preserve_timestamps", True)
     else:
         enabled = True
 
@@ -169,10 +156,7 @@ def ensure_output_dir(output_path: Path) -> None:
     output_dir.mkdir(parents=True, exist_ok=True)
 
 
-def get_unique_output_path(
-    output_path: Path,
-    max_attempts: int = 1000
-) -> Path:
+def get_unique_output_path(output_path: Path, max_attempts: int = 1000) -> Path:
     """Get a unique output path, adding suffix if file exists.
 
     Args:

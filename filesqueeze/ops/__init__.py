@@ -20,8 +20,8 @@ from filesqueeze.ops import image
 from filesqueeze.ops import presentation
 
 __all__ = [
-    'video',
-    'document',
-    'image',
-    'presentation',
+    "video",
+    "document",
+    "image",
+    "presentation",
 ]

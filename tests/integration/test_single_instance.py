@@ -31,11 +31,7 @@ def cleanup_mutex():
     # Clean up the production mutex name
     mutex_name = "Global\\FileSqueeze_SingleInstanceMutex"
     try:
-        existing_mutex = ctypes.windll.kernel32.OpenMutexW(
-            0x00100000,
-            False,
-            mutex_name
-        )
+        existing_mutex = ctypes.windll.kernel32.OpenMutexW(0x00100000, False, mutex_name)
         if existing_mutex:
             ctypes.windll.kernel32.CloseHandle(existing_mutex)
             # Wait a bit for the mutex to be fully released
@@ -47,18 +43,14 @@ def cleanup_mutex():
 
     # Cleanup after test
     try:
-        existing_mutex = ctypes.windll.kernel32.OpenMutexW(
-            0x00100000,
-            False,
-            mutex_name
-        )
+        existing_mutex = ctypes.windll.kernel32.OpenMutexW(0x00100000, False, mutex_name)
         if existing_mutex:
             ctypes.windll.kernel32.CloseHandle(existing_mutex)
     except:
         pass
 
 
-@pytest.mark.skipif(sys.platform != 'win32', reason="Windows-specific")
+@pytest.mark.skipif(sys.platform != "win32", reason="Windows-specific")
 class TestSingleInstanceInvariant:
     """Tests for single-instance invariant."""
 
@@ -74,15 +66,16 @@ class TestSingleInstanceInvariant:
 
         # Check if the cmd_service function has single-instance logic
         import inspect
+
         source = inspect.getsource(cmd_service)
 
         # Verify there's some instance checking logic
         # Could be: process check, lock file, port binding, etc.
-        assert 'run_service' in source, \
-            "cmd_service should call run_service to start tray"
+        assert "run_service" in source, "cmd_service should call run_service to start tray"
 
         # Check run_service implementation
         from filesqueeze.tray import run_service
+
         run_source = inspect.getsource(run_service)
 
         # The implementation should check for existing instances
@@ -96,8 +89,7 @@ class TestSingleInstanceInvariant:
         assert len(run_source) > 0, "run_service should have implementation"
 
         # Verify TrayService exists (will add single-instance check there)
-        assert 'TrayService' in run_source, \
-            "run_service should create TrayService"
+        assert "TrayService" in run_source, "run_service should create TrayService"
 
     @pytest.mark.skip("Skipping due to Windows mutex persistence issues across tests")
     def test_multiple_trayservice_prevention(self, tmp_path):
@@ -120,9 +112,9 @@ class TestSingleInstanceInvariant:
 
         try:
             # Verify TrayService has attributes that could support single-instance checking
-            assert hasattr(service1, 'input_dir'), "Service should track input_dir"
-            assert hasattr(service1, 'output_dir'), "Service should track output_dir"
-            assert hasattr(service1, 'config'), "Service should track config"
+            assert hasattr(service1, "input_dir"), "Service should track input_dir"
+            assert hasattr(service1, "output_dir"), "Service should track output_dir"
+            assert hasattr(service1, "config"), "Service should track config"
         finally:
             # Clean up mutex
             if service1._mutex:
@@ -130,7 +122,9 @@ class TestSingleInstanceInvariant:
                 # Wait for mutex to be fully released
                 time.sleep(0.2)
 
-    @pytest.mark.skip(reason="Skipping due to Windows mutex persistence issues when run with full suite. Run in isolation: pytest tests/integration/test_single_instance.py::TestSingleInstanceInvariant::test_second_instance_raises_runtime_error -v")
+    @pytest.mark.skip(
+        reason="Skipping due to Windows mutex persistence issues when run with full suite. Run in isolation: pytest tests/integration/test_single_instance.py::TestSingleInstanceInvariant::test_second_instance_raises_runtime_error -v"
+    )
     def test_second_instance_raises_runtime_error(self, tmp_path):
         """Verify that creating a second TrayService instance raises RuntimeError.
 
@@ -156,10 +150,8 @@ class TestSingleInstanceInvariant:
 
             # Verify the error message is helpful
             error_message = str(exc_info.value)
-            assert "already running" in error_message.lower(), \
-                "Error message should mention FileSqueeze is already running"
-            assert "system tray" in error_message.lower(), \
-                "Error message should mention checking system tray"
+            assert "already running" in error_message.lower(), "Error message should mention FileSqueeze is already running"
+            assert "system tray" in error_message.lower(), "Error message should mention checking system tray"
         finally:
             # Clean up mutex
             if service1._mutex:

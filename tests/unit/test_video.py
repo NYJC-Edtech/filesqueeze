@@ -1,19 +1,15 @@
 """Test video compression functionality."""
 
+import os
 import pytest
 from pathlib import Path
-from filesqueeze.ops.video import (
-    get_ffmpeg_path,
-    get_ffprobe_path,
-    width_height,
-    duration,
-    compress
-)
+from filesqueeze.ops.video import get_ffmpeg_path, get_ffprobe_path, width_height, duration, compress
 
 
 class TestVideoHelpers:
     """Test helper functions in video module."""
 
+    @pytest.mark.skipif(os.environ.get("CI") == "true", reason="FFmpeg is installed in CI environment")
     def test_get_ffmpeg_path_not_found(self):
         """Test that get_ffmpeg_path raises error when not found."""
         # Should raise RuntimeError when FFmpeg is not found
@@ -66,6 +62,7 @@ class TestVideoAnalysis:
 class TestVideoCompression:
     """Test video compression functions."""
 
+    @pytest.mark.skipif(os.environ.get("CI") == "true", reason="FFmpeg is installed in CI environment")
     def test_compress_without_ffmpeg(self, tmp_path):
         """Test that compress raises error without FFmpeg."""
         # Create dummy input and output files
@@ -77,6 +74,7 @@ class TestVideoCompression:
         with pytest.raises(RuntimeError, match="FFmpeg not found"):
             compress(str(infile), str(outfile))
 
+    @pytest.mark.skipif(os.environ.get("CI") == "true", reason="FFmpeg is installed in CI environment")
     def test_compress_with_config_without_ffmpeg(self, tmp_path):
         """Test compress with config object but no FFmpeg."""
         from filesqueeze.config import Config
@@ -93,6 +91,7 @@ class TestVideoCompression:
         with pytest.raises(RuntimeError, match="FFmpeg not found"):
             compress(str(infile), str(outfile), config=config)
 
+    @pytest.mark.skipif(os.environ.get("CI") == "true", reason="FFmpeg is installed in CI environment")
     def test_compress_with_custom_params_without_ffmpeg(self, tmp_path):
         """Test compress with custom parameters but no FFmpeg."""
         # Create dummy files
@@ -102,21 +101,10 @@ class TestVideoCompression:
 
         # Should raise RuntimeError when FFmpeg is not found
         with pytest.raises(RuntimeError, match="FFmpeg not found"):
-            compress(
-                str(infile),
-                str(outfile),
-                crf=23,
-                threads=4,
-                preset="medium",
-                max_height=1080,
-                audio_bitrate="128k"
-            )
+            compress(str(infile), str(outfile), crf=23, threads=4, preset="medium", max_height=1080, audio_bitrate="128k")
 
 
-@pytest.mark.skipif(
-    True,  # Skip these tests by default (require actual FFmpeg)
-    reason="Requires FFmpeg to be installed"
-)
+@pytest.mark.skipif(True, reason="Requires FFmpeg to be installed")  # Skip these tests by default (require actual FFmpeg)
 class TestVideoCompressionWithBinaries:
     """Tests that require actual FFmpeg binaries."""
 

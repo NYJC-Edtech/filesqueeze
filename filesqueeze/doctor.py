@@ -50,6 +50,7 @@ class Colors:
             # Windows 10+ supports ANSI codes
             try:
                 import ctypes
+
                 kernel32 = ctypes.windll.kernel32
                 kernel32.SetConsoleMode(kernel32.GetStdHandle(-11), 7)
                 cls._enabled = True
@@ -75,7 +76,7 @@ class Colors:
         Returns:
             Colorized text if enabled, otherwise plain text.
         """
-        if not getattr(cls, '_enabled', False):
+        if not getattr(cls, "_enabled", False):
             return text
         return f"{color}{text}{cls.RESET}"
 
@@ -186,11 +187,11 @@ class Doctor:
         Returns:
             True if binary is found, False otherwise.
         """
-        if binary_type == 'ffmpeg':
+        if binary_type == "ffmpeg":
             path, msg = self.detector.find_ffmpeg()
-        elif binary_type == 'ghostscript':
+        elif binary_type == "ghostscript":
             path, msg = self.detector.find_ghostscript()
-        elif binary_type == 'tesseract':
+        elif binary_type == "tesseract":
             path, msg = self.detector.find_tesseract()
         else:
             self.warnings.append(f"[?] Unknown binary type: {binary_type}")
@@ -213,8 +214,8 @@ class Doctor:
             True if config file exists, False otherwise.
         """
         config_paths = [
-            Path.cwd() / 'filesqueeze.toml',
-            Path.home() / '.config' / 'filesqueeze' / 'config.toml',
+            Path.cwd() / "filesqueeze.toml",
+            Path.home() / ".config" / "filesqueeze" / "config.toml",
         ]
 
         for config_path in config_paths:
@@ -274,7 +275,7 @@ class Doctor:
         """
         # Check write permissions in current directory
         try:
-            test_file = Path.cwd() / '.filesqueeze_test_write'
+            test_file = Path.cwd() / ".filesqueeze_test_write"
             test_file.touch()
             test_file.unlink()
             self.passed.append("[OK] Write permissions OK")
@@ -297,31 +298,32 @@ class Doctor:
         self.check_python_version()
 
         # Check required Python modules
-        self.check_module('watchdog', 'Watchdog')
-        self.check_module('pystray', 'PyStray')
+        self.check_module("watchdog", "Watchdog")
+        self.check_module("pystray", "PyStray")
 
         # Check TOML library (tomllib built-in on Python 3.11+, tomli/tomli_w for older)
         if sys.version_info >= (3, 11):
             # Python 3.11+ has tomllib built-in
             try:
                 import tomllib
+
                 self.passed.append("[OK] TOML library (built-in tomllib)")
             except ImportError:
                 self.issues.append("[FAIL] TOML library (built-in tomllib not available)")
         else:
             # Python < 3.11 needs tomli or tomli_w
-            has_tomli = self.check_module('tomli', 'TOML library (tomli)')
+            has_tomli = self.check_module("tomli", "TOML library (tomli)")
             if not has_tomli:
-                self.check_module('tomli_w', 'TOML library (tomli_w)')
+                self.check_module("tomli_w", "TOML library (tomli_w)")
 
         # Check optional Python modules
-        self.check_module_optional('pdfminer', 'PDFMiner (optional)')
-        self.check_module_optional('PIL', 'Pillow (optional)')
+        self.check_module_optional("pdfminer", "PDFMiner (optional)")
+        self.check_module_optional("PIL", "Pillow (optional)")
 
         # Check external binaries
-        self.check_binary('ffmpeg', 'FFmpeg')
-        self.check_binary('ghostscript', 'Ghostscript')
-        self.check_binary('tesseract', 'Tesseract OCR (optional)', optional=True)
+        self.check_binary("ffmpeg", "FFmpeg")
+        self.check_binary("ghostscript", "Ghostscript")
+        self.check_binary("tesseract", "Tesseract OCR (optional)", optional=True)
 
         # Check configuration
         has_config = self.check_config_file()

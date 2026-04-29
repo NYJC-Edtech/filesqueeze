@@ -11,11 +11,12 @@ from typing import Tuple, Optional
 
 # Import from system package
 from filesqueeze.system import get_binary_finder, logger
+
 # Import subprocess utilities
 from filesqueeze.utils.subprocess_helper import run_subprocess, verify_output_file, SubprocessTimeout, SubprocessError
 
 
-def get_ffmpeg_path(config_path: str = '') -> str:
+def get_ffmpeg_path(config_path: str = "") -> str:
     """Get the FFmpeg executable path.
 
     Args:
@@ -40,7 +41,7 @@ def get_ffmpeg_path(config_path: str = '') -> str:
     return finder.get_ffmpeg_path()
 
 
-def get_ffprobe_path(ffmpeg_path: str = '') -> str:
+def get_ffprobe_path(ffmpeg_path: str = "") -> str:
     """Get the ffprobe executable path.
 
     Args:
@@ -59,7 +60,7 @@ def get_ffprobe_path(ffmpeg_path: str = '') -> str:
     """
     # If ffmpeg_path provided, try to find ffprobe in same directory
     if ffmpeg_path:
-        ffprobe = str(Path(ffmpeg_path).parent / 'ffprobe.exe')
+        ffprobe = str(Path(ffmpeg_path).parent / "ffprobe.exe")
         if Path(ffprobe).exists():
             return ffprobe
 
@@ -68,7 +69,7 @@ def get_ffprobe_path(ffmpeg_path: str = '') -> str:
     return finder.get_ffprobe_path()
 
 
-def width_height(infile: str, ffmpeg_path: str = '') -> Optional[Tuple[int, int]]:
+def width_height(infile: str, ffmpeg_path: str = "") -> Optional[Tuple[int, int]]:
     """Get video width and height using ffprobe.
 
     Args:
@@ -84,33 +85,31 @@ def width_height(infile: str, ffmpeg_path: str = '') -> Optional[Tuple[int, int]
     from filesqueeze.system.decorators import trace_function
 
     @trace_function
-    def _width_height(infile: str, ffmpeg_path: str = '') -> Optional[Tuple[int, int]]:
+    def _width_height(infile: str, ffmpeg_path: str = "") -> Optional[Tuple[int, int]]:
         ffprobe = get_ffprobe_path(ffmpeg_path)
 
         cmd = [
             ffprobe,
-            '-v', 'error',
-            '-select_streams', 'v:0',
-            '-show_entries', 'stream=width,height',
-            '-of', 'csv=s=x:p=0',
+            "-v",
+            "error",
+            "-select_streams",
+            "v:0",
+            "-show_entries",
+            "stream=width,height",
+            "-of",
+            "csv=s=x:p=0",
             infile,
         ]
 
         try:
-            data = subprocess.run(
-                cmd,
-                timeout=60,
-                check=True,
-                text=True,
-                capture_output=True
-            ).stdout.strip()
+            data = subprocess.run(cmd, timeout=60, check=True, text=True, capture_output=True).stdout.strip()
         except subprocess.TimeoutExpired:
             raise RuntimeError(f"ffprobe timeout analyzing video: {infile}")
         except subprocess.CalledProcessError as e:
             raise RuntimeError(f"ffprobe failed with return code {e.returncode}: {infile}")
 
-        if data and 'x' in data:
-            width, height = data.split('x')
+        if data and "x" in data:
+            width, height = data.split("x")
             return int(width), int(height)
 
         return None
@@ -118,7 +117,7 @@ def width_height(infile: str, ffmpeg_path: str = '') -> Optional[Tuple[int, int]
     return _width_height(infile, ffmpeg_path)
 
 
-def duration(infile: str, ffmpeg_path: str = '') -> Optional[float]:
+def duration(infile: str, ffmpeg_path: str = "") -> Optional[float]:
     """Get video duration using ffprobe.
 
     Args:
@@ -134,25 +133,22 @@ def duration(infile: str, ffmpeg_path: str = '') -> Optional[float]:
     from filesqueeze.system.decorators import trace_function
 
     @trace_function
-    def _duration(infile: str, ffmpeg_path: str = '') -> Optional[float]:
+    def _duration(infile: str, ffmpeg_path: str = "") -> Optional[float]:
         ffprobe = get_ffprobe_path(ffmpeg_path)
 
         cmd = [
             ffprobe,
-            '-v', 'error',
-            '-show_entries', 'format=duration',
-            '-of', 'csv=p=0',
+            "-v",
+            "error",
+            "-show_entries",
+            "format=duration",
+            "-of",
+            "csv=p=0",
             infile,
         ]
 
         try:
-            data = subprocess.run(
-                cmd,
-                timeout=60,
-                check=True,
-                text=True,
-                capture_output=True
-            ).stdout.strip()
+            data = subprocess.run(cmd, timeout=60, check=True, text=True, capture_output=True).stdout.strip()
         except subprocess.TimeoutExpired:
             raise RuntimeError(f"ffprobe timeout analyzing video: {infile}")
         except subprocess.CalledProcessError as e:
@@ -174,7 +170,7 @@ def compress(
     preset: Optional[str] = None,
     max_height: Optional[int] = None,
     audio_bitrate: Optional[str] = None,
-    ffmpeg_path: Optional[str] = None
+    ffmpeg_path: Optional[str] = None,
 ) -> None:
     """Compress a video file using FFmpeg.
 
@@ -209,7 +205,7 @@ def compress(
         preset: Optional[str] = None,
         max_height: Optional[int] = None,
         audio_bitrate: Optional[str] = None,
-        ffmpeg_path: Optional[str] = None
+        ffmpeg_path: Optional[str] = None,
     ) -> None:
         # Use config adapter if config provided
         if config:
@@ -226,53 +222,64 @@ def compress(
             # Use defaults
             crf = crf or 28
             threads = threads or 8
-            preset = preset or 'veryfast'
+            preset = preset or "veryfast"
             max_height = max_height or 720
-            audio_bitrate = audio_bitrate or '96k'
+            audio_bitrate = audio_bitrate or "96k"
             timeout = 1800
             min_size = 4096
 
-        ffmpeg = get_ffmpeg_path(ffmpeg_path or '')
+        ffmpeg = get_ffmpeg_path(ffmpeg_path or "")
 
         # Build FFmpeg command
         cmd = [
             ffmpeg,
-            '-threads', str(threads),
-            '-y',
-            '-hide_banner',
-            '-loglevel', 'panic',
-            '-i', infile,
-            '-crf', str(crf),
-            '-c:v', 'libx264',
-            '-profile:v', 'high',
-            '-level', '4.2',
-            '-preset', preset,
+            "-threads",
+            str(threads),
+            "-y",
+            "-hide_banner",
+            "-loglevel",
+            "panic",
+            "-i",
+            infile,
+            "-crf",
+            str(crf),
+            "-c:v",
+            "libx264",
+            "-profile:v",
+            "high",
+            "-level",
+            "4.2",
+            "-preset",
+            preset,
             # Handle 10-bit and 12-bit videos by forcing 8-bit (yuv420p) output
-            '-vf', 'format=yuv420p',
-            '-pix_fmt', 'yuv420p',
+            "-vf",
+            "format=yuv420p",
+            "-pix_fmt",
+            "yuv420p",
         ]
 
         # Add video filter
-        vf_filter = 'format=yuv420p'
+        vf_filter = "format=yuv420p"
         if downscale:
-            vf_filter += f',scale=-2:{max_height}'
-        cmd.extend(['-vf', vf_filter, '-sws_flags', 'lanczos'])
+            vf_filter += f",scale=-2:{max_height}"
+        cmd.extend(["-vf", vf_filter, "-sws_flags", "lanczos"])
 
-        cmd.extend([
-            '-movflags', 'faststart',
-            '-c:a', 'aac',
-            '-b:a', audio_bitrate,
-            '-af', 'dynaudnorm',
-            outfile,
-        ])
+        cmd.extend(
+            [
+                "-movflags",
+                "faststart",
+                "-c:a",
+                "aac",
+                "-b:a",
+                audio_bitrate,
+                "-af",
+                "dynaudnorm",
+                outfile,
+            ]
+        )
 
         try:
-            run_subprocess(
-                cmd,
-                timeout=timeout,
-                tool_name="FFmpeg",
-                input_file=infile
-            )
+            run_subprocess(cmd, timeout=timeout, tool_name="FFmpeg", input_file=infile)
         except SubprocessTimeout:
             raise RuntimeError(f"FFmpeg timeout compressing video: {infile}")
         except SubprocessError:
@@ -287,7 +294,8 @@ def compress(
             raise
 
     _compress(
-        infile, outfile,
+        infile,
+        outfile,
         config=config,
         downscale=downscale,
         crf=crf,
@@ -295,5 +303,5 @@ def compress(
         preset=preset,
         max_height=max_height,
         audio_bitrate=audio_bitrate,
-        ffmpeg_path=ffmpeg_path
+        ffmpeg_path=ffmpeg_path,
     )

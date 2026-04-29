@@ -23,13 +23,16 @@ from .logger import setup_logging  # This is the actual Logger.setup, not a wrap
 @dataclass(frozen=True)
 class ProcessedFile:
     """Information about a processed file."""
+
     filename: str
     timestamp: str  # ISO format timestamp
     success: bool
 
+
 @dataclass(frozen=True)
 class CleanupStats:
     """Statistics about cleanup operations."""
+
     last_cleanup_time: str = ""  # ISO format timestamp
     compressed_files_deleted: int = 0
     archived_files_deleted: int = 0
@@ -43,6 +46,7 @@ class ServiceState:
     This dataclass provides a read-only snapshot of the service's current state,
     perfect for GUI display and status queries. It's frozen to ensure immutability.
     """
+
     running: bool
     input_dir: Path
     output_dir: Path
@@ -91,7 +95,7 @@ class NotificationManager:
         Returns:
             True if notification was shown, False otherwise.
         """
-        if sys.platform != 'win32':
+        if sys.platform != "win32":
             return False
 
         # Generate tag if not provided
@@ -108,12 +112,13 @@ class NotificationManager:
         try:
             # Use Windows toast via PowerShell with tag support
             import subprocess
+
             # Escape single quotes in message
             escaped_title = title.replace("'", "''")
             escaped_message = message.replace("'", "''").replace("\n", "`n")
             escaped_tag = tag.replace("'", "''")
 
-            ps_command = f'''
+            ps_command = f"""
             Add-Type -AssemblyName Windows.UI.Notifications
             Add-Type -AssemblyName Windows.Data.Xml.Dom
 
@@ -143,15 +148,12 @@ class NotificationManager:
             }} catch {{}}
 
             $notifier.Show($toast)
-            '''
+            """
 
             # Run PowerShell in background, don't wait for it
             # Don't redirect stdout/stderr - they're discarded by the OS anyway
             # This avoids creating a 'nul' file in the working directory
-            subprocess.Popen(
-                ['powershell', '-Command', ps_command],
-                creationflags=subprocess.CREATE_NO_WINDOW
-            )
+            subprocess.Popen(["powershell", "-Command", ps_command], creationflags=subprocess.CREATE_NO_WINDOW)
             return True
 
         except Exception as e:
@@ -276,7 +278,7 @@ class CompressionHandler(FileSystemEventHandler):
             self.logger.info(f"Detected new file: {filepath.name}")
 
             # Determine file type
-            ext = filepath.suffix.lstrip('.').lower()
+            ext = filepath.suffix.lstrip(".").lower()
 
             # Generate output path with compressed_ prefix
             output_filename = f"compressed_{filepath.name}"
@@ -292,7 +294,7 @@ class CompressionHandler(FileSystemEventHandler):
             show_windows_notification(
                 "FileSqueeze",
                 f"Compressing {filepath.name}...\n\nType: {ext.upper()}\nThis may take a few minutes.",
-                filename=filepath.name
+                filename=filepath.name,
             )
 
             try:
@@ -329,7 +331,7 @@ class CompressionHandler(FileSystemEventHandler):
                         f"Input:  {input_size / 1024 / 1024:.2f} MB\n"
                         f"Output: {output_size / 1024 / 1024:.2f} MB\n"
                         f"Saved:  {reduction:.1f}%",
-                        filename=filepath.name
+                        filename=filepath.name,
                     )
 
                     # Clear the notification tag for this file
@@ -359,8 +361,7 @@ class CompressionHandler(FileSystemEventHandler):
                             f"Archive directory not configured - original file preserved in input: {filepath.name}"
                         )
                         self.logger.warning(
-                            f"To enable archiving, set 'directories.archive' in config. "
-                            f"See: filesqueeze init-config"
+                            f"To enable archiving, set 'directories.archive' in config. " f"See: filesqueeze init-config"
                         )
 
                     # Add to processed files
@@ -457,13 +458,13 @@ class RetentionManager:
         self._first_run_confirmed = False
 
         # Get retention settings
-        self.enable_cleanup = self.config.get('retention.enable_cleanup', True)
-        self.cleanup_interval_hours = self.config.get('retention.cleanup_interval_hours', 1)
-        self.compressed_retention_hours = self.config.get('retention.compressed_retention_hours', 48)
-        self.archive_retention_days = self.config.get('retention.archive_retention_days', 30)
-        self.min_age_hours = self.config.get('retention.min_age_hours', 1)
-        self.dry_run = self.config.get('retention.dry_run', False)
-        self.require_confirmation = self.config.get('retention.require_confirmation', True)
+        self.enable_cleanup = self.config.get("retention.enable_cleanup", True)
+        self.cleanup_interval_hours = self.config.get("retention.cleanup_interval_hours", 1)
+        self.compressed_retention_hours = self.config.get("retention.compressed_retention_hours", 48)
+        self.archive_retention_days = self.config.get("retention.archive_retention_days", 30)
+        self.min_age_hours = self.config.get("retention.min_age_hours", 1)
+        self.dry_run = self.config.get("retention.dry_run", False)
+        self.require_confirmation = self.config.get("retention.require_confirmation", True)
 
         # Archive directory
         self.archive_dir = self.config.archive_dir
@@ -561,7 +562,7 @@ class RetentionManager:
                     last_cleanup_time=datetime.now().isoformat(),
                     compressed_files_deleted=compressed_deleted,
                     archived_files_deleted=archived_deleted,
-                    total_space_freed=space_freed
+                    total_space_freed=space_freed,
                 )
 
             self.logger.info("=" * 60)
@@ -578,7 +579,7 @@ class RetentionManager:
                 show_windows_notification(
                     "FileSqueeze - Cleanup Complete",
                     f"Deleted {compressed_deleted} compressed, {archived_deleted} archived files\n"
-                    f"Freed {space_freed / 1024 / 1024:.2f} MB"
+                    f"Freed {space_freed / 1024 / 1024:.2f} MB",
                 )
 
         except Exception as e:
@@ -743,11 +744,7 @@ class DirectoryWatcher(StateProvider):
 
         # Setup watcher
         self.event_handler = CompressionHandler(
-            self.config,
-            self.input_dir,
-            self.output_dir,
-            self.logger,
-            self  # Pass watcher reference to handler
+            self.config, self.input_dir, self.output_dir, self.logger, self  # Pass watcher reference to handler
         )
         self.observer = Observer()
         self._running = False
@@ -759,7 +756,7 @@ class DirectoryWatcher(StateProvider):
         self._state_lock = threading.Lock()
 
         # Polling fallback mechanism (scan periodically to catch missed files)
-        self._poll_interval = self.config.get('service.poll_interval', 300)  # Default: 5 minutes
+        self._poll_interval = self.config.get("service.poll_interval", 300)  # Default: 5 minutes
         self._last_poll_time = 0
 
         # Initialize retention manager
@@ -776,18 +773,14 @@ class DirectoryWatcher(StateProvider):
 
         with self._state_lock:
             # Create ProcessedFile with timestamp
-            processed_file = ProcessedFile(
-                filename=filename,
-                timestamp=datetime.now().isoformat(),
-                success=success
-            )
+            processed_file = ProcessedFile(filename=filename, timestamp=datetime.now().isoformat(), success=success)
 
             # Add to list
             self._processed_files.append(processed_file)
 
             # Keep only the most recent files
             if len(self._processed_files) > self._max_processed_files:
-                self._processed_files = self._processed_files[-self._max_processed_files:]
+                self._processed_files = self._processed_files[-self._max_processed_files :]
 
             # Update counters
             if success:
@@ -823,7 +816,7 @@ class DirectoryWatcher(StateProvider):
                 completed_count=self._completed_count,
                 failed_count=self._failed_count,
                 uptime=uptime,
-                cleanup_stats=cleanup_stats
+                cleanup_stats=cleanup_stats,
             )
 
     def start(self):
@@ -886,6 +879,7 @@ class DirectoryWatcher(StateProvider):
         """
         try:
             from .scanner import FileScanner
+
             scanner = FileScanner(self.config)
 
             file_count = 0
@@ -899,6 +893,7 @@ class DirectoryWatcher(StateProvider):
                 # Check if this is truly an existing file (not just created)
                 # Use file modification time to filter very recent files that watchdog might handle
                 import time as time_module
+
                 file_mtime = filepath.stat().st_mtime
                 file_age = time_module.time() - file_mtime
 
@@ -922,6 +917,7 @@ class DirectoryWatcher(StateProvider):
 
     def _start_polling_thread(self):
         """Start background thread for periodic polling scans."""
+
         def poll_worker():
             while self._running:
                 try:

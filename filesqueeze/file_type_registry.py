@@ -19,10 +19,10 @@ class FileTypeRegistry:
 
     # File type mappings
     FILE_PROCESSORS = {
-        'video': ['mp4', 'wmv', 'avi', 'mkv', 'mov', 'flv'],
-        'pdf': ['pdf'],
-        'image': ['jpg', 'jpeg', 'png'],
-        'presentation': ['ppt', 'pptx']
+        "video": ["mp4", "wmv", "avi", "mkv", "mov", "flv"],
+        "pdf": ["pdf"],
+        "image": ["jpg", "jpeg", "png"],
+        "presentation": ["ppt", "pptx"],
     }
 
     def __init__(self):
@@ -120,7 +120,7 @@ def _initialize_registry(registry: FileTypeRegistry) -> None:
     """
     from . import make_video, make_pdf, make_image, make_presentation
 
-    registry.register_processor('video', make_video, ['mp4', 'wmv', 'avi', 'mkv', 'mov', 'flv'])
-    registry.register_processor('pdf', make_pdf, ['pdf'])
-    registry.register_processor('image', make_image, ['jpg', 'jpeg', 'png'])
-    registry.register_processor('presentation', make_presentation, ['ppt', 'pptx'])
+    registry.register_processor("video", make_video, ["mp4", "wmv", "avi", "mkv", "mov", "flv"])
+    registry.register_processor("pdf", make_pdf, ["pdf"])
+    registry.register_processor("image", make_image, ["jpg", "jpeg", "png"])
+    registry.register_processor("presentation", make_presentation, ["ppt", "pptx"])

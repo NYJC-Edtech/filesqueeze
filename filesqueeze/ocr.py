@@ -27,6 +27,7 @@ def has_text_layer(pdf_path: str) -> bool:
         # Try to extract text using pdfminer or PyPDF2
         try:
             from pdfminer.high_level import extract_text
+
             text = extract_text(pdf_path)
             # Clean up text and check for meaningful content
             # A scanned PDF might have some noise, but real text will have:
@@ -42,7 +43,8 @@ def has_text_layer(pdf_path: str) -> bool:
             # Check if text contains alphanumeric characters
             # (not just random symbols or noise)
             import re
-            alnum_count = len(re.findall(r'[a-zA-Z0-9]', text_clean))
+
+            alnum_count = len(re.findall(r"[a-zA-Z0-9]", text_clean))
             if alnum_count < 50:
                 return False
 
@@ -53,7 +55,8 @@ def has_text_layer(pdf_path: str) -> bool:
             # Fallback to PyPDF2
             try:
                 import PyPDF2
-                with open(pdf_path, 'rb') as f:
+
+                with open(pdf_path, "rb") as f:
                     reader = PyPDF2.PdfReader(f)
                     text = ""
                     for page in reader.pages:
@@ -66,7 +69,8 @@ def has_text_layer(pdf_path: str) -> bool:
                         return False
 
                     import re
-                    alnum_count = len(re.findall(r'[a-zA-Z0-9]', text_clean))
+
+                    alnum_count = len(re.findall(r"[a-zA-Z0-9]", text_clean))
                     if alnum_count < 50:
                         return False
 
@@ -90,7 +94,7 @@ def ocr_image(
     language: str = "eng",
     oem: int = 3,
     psm: int = 3,
-    config=None
+    config=None,
 ) -> bool:
     """Run OCR on an image file and create a searchable PDF.
 
@@ -110,22 +114,25 @@ def ocr_image(
         cmd = [
             tesseract_path,
             image_path,
-            output_path.replace('.pdf', ''),  # Tesseract adds .pdf automatically
-            '-l', language,
-            '--oem', str(oem),
-            '--psm', str(psm),
-            'pdf'  # Output format
+            output_path.replace(".pdf", ""),  # Tesseract adds .pdf automatically
+            "-l",
+            language,
+            "--oem",
+            str(oem),
+            "--psm",
+            str(psm),
+            "pdf",  # Output format
         ]
 
         # Get timeout from config
-        timeout = config.get('processing.ocr_timeout_seconds', 300) if config else 300
+        timeout = config.get("processing.ocr_timeout_seconds", 300) if config else 300
 
         result = subprocess.run(
             cmd,
             capture_output=True,
             text=True,
             timeout=timeout,
-            creationflags=subprocess.CREATE_NO_WINDOW if os.name == 'nt' else 0
+            creationflags=subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0,
         )
 
         if result.returncode != 0:
@@ -148,7 +155,7 @@ def ocr_pdf(
     psm: int = 3,
     dpi: int = 300,
     ghostscript_path: str = "gs",
-    config=None
+    config=None,
 ) -> bool:
     """Run OCR on a PDF by converting pages to images first.
 
@@ -177,24 +184,24 @@ def ocr_pdf(
         try:
             gs_cmd = [
                 ghostscript_path,
-                '-dNOPAUSE',
-                '-dQUIET',
-                '-dBATCH',
-                f'-r{dpi}',
-                '-sDEVICE=png16m',
-                f'-sOutputFile={str(image_pattern)}',
-                str(pdf_path)
+                "-dNOPAUSE",
+                "-dQUIET",
+                "-dBATCH",
+                f"-r{dpi}",
+                "-sDEVICE=png16m",
+                f"-sOutputFile={str(image_pattern)}",
+                str(pdf_path),
             ]
 
             # Get timeout from config
-            timeout = config.get('processing.ocr_timeout_seconds', 300) if config else 300
+            timeout = config.get("processing.ocr_timeout_seconds", 300) if config else 300
 
             result = subprocess.run(
                 gs_cmd,
                 capture_output=True,
                 text=True,
                 timeout=timeout,
-                creationflags=subprocess.CREATE_NO_WINDOW if os.name == 'nt' else 0
+                creationflags=subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0,
             )
 
             if result.returncode != 0:
@@ -220,14 +227,7 @@ def ocr_pdf(
             logger.debug(f"Processing page {i}/{len(images)}")
 
             ocr_pdf_path = temp_path / f"ocr_{i}.pdf"
-            if ocr_image(
-                str(image),
-                str(ocr_pdf_path),
-                tesseract_path=tesseract_path,
-                language=language,
-                oem=oem,
-                psm=psm
-            ):
+            if ocr_image(str(image), str(ocr_pdf_path), tesseract_path=tesseract_path, language=language, oem=oem, psm=psm):
                 ocr_pdfs.append(ocr_pdf_path)
             else:
                 logger.warning(f"OCR failed for page {i}")
@@ -241,22 +241,22 @@ def ocr_pdf(
             # Use Ghostscript to merge PDFs
             gs_cmd = [
                 ghostscript_path,
-                '-dNOPAUSE',
-                '-dQUIET',
-                '-dBATCH',
-                '-sDEVICE=pdfwrite',
-                f'-sOutputFile={output_path}',
+                "-dNOPAUSE",
+                "-dQUIET",
+                "-dBATCH",
+                "-sDEVICE=pdfwrite",
+                f"-sOutputFile={output_path}",
             ] + [str(pdf) for pdf in ocr_pdfs]
 
             # Get timeout from config
-            timeout = config.get('processing.ocr_timeout_seconds', 300) if config else 300
+            timeout = config.get("processing.ocr_timeout_seconds", 300) if config else 300
 
             result = subprocess.run(
                 gs_cmd,
                 capture_output=True,
                 text=True,
                 timeout=timeout,
-                creationflags=subprocess.CREATE_NO_WINDOW if os.name == 'nt' else 0
+                creationflags=subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0,
             )
 
             if result.returncode != 0:
@@ -282,7 +282,7 @@ def needs_ocr(pdf_path: str, config: Optional[dict] = None) -> bool:
     """
     # Check if OCR is enabled in config
     if config:
-        enable_ocr = config.get('ocr', {}).get('enable_ocr', True)
+        enable_ocr = config.get("ocr", {}).get("enable_ocr", True)
         if not enable_ocr:
             return False
 
@@ -291,10 +291,7 @@ def needs_ocr(pdf_path: str, config: Optional[dict] = None) -> bool:
 
 
 def process_pdf_with_ocr(
-    pdf_path: str,
-    output_path: str,
-    config: Optional[dict] = None,
-    ocr_only: bool = False
+    pdf_path: str, output_path: str, config: Optional[dict] = None, ocr_only: bool = False
 ) -> Tuple[bool, str]:
     """Process a PDF with OCR if needed.
 
@@ -311,16 +308,16 @@ def process_pdf_with_ocr(
         config = {}
 
     # Get OCR settings from config
-    ocr_config = config.get('ocr', {})
-    tesseract_path = ocr_config.get('tesseract_path', 'tesseract')
-    language = ocr_config.get('language', 'eng')
-    oem = ocr_config.get('oem', 3)
-    psm = ocr_config.get('psm', 3)
-    dpi = ocr_config.get('ocr_dpi', 300)
+    ocr_config = config.get("ocr", {})
+    tesseract_path = ocr_config.get("tesseract_path", "tesseract")
+    language = ocr_config.get("language", "eng")
+    oem = ocr_config.get("oem", 3)
+    psm = ocr_config.get("psm", 3)
+    dpi = ocr_config.get("ocr_dpi", 300)
 
     # Get Ghostscript path
-    document_config = config.get('document', {})
-    ghostscript_path = document_config.get('ghostscript_path', 'gs')
+    document_config = config.get("document", {})
+    ghostscript_path = document_config.get("ghostscript_path", "gs")
 
     # Check if PDF needs OCR
     if not needs_ocr(pdf_path, config):
@@ -337,7 +334,7 @@ def process_pdf_with_ocr(
         oem=oem,
         psm=psm,
         dpi=dpi,
-        ghostscript_path=ghostscript_path
+        ghostscript_path=ghostscript_path,
     )
 
     if success:
