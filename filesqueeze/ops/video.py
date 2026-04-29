@@ -6,14 +6,14 @@ This module provides video compression operations using FFmpeg.
 It uses the system package for binary detection and logging.
 """
 
+import subprocess
 from pathlib import Path
-from typing import Tuple, Optional
 
 # Import from system package
-from filesqueeze.system import get_binary_finder, logger
+from filesqueeze.system import get_binary_finder
 
 # Import subprocess utilities
-from filesqueeze.utils.subprocess_helper import run_subprocess, verify_output_file, SubprocessTimeout, SubprocessError
+from filesqueeze.utils.subprocess_helper import SubprocessError, SubprocessTimeout, run_subprocess, verify_output_file
 
 
 def get_ffmpeg_path(config_path: str = "") -> str:
@@ -69,7 +69,7 @@ def get_ffprobe_path(ffmpeg_path: str = "") -> str:
     return finder.get_ffprobe_path()
 
 
-def width_height(infile: str, ffmpeg_path: str = "") -> Optional[Tuple[int, int]]:
+def width_height(infile: str, ffmpeg_path: str = "") -> tuple[int, int] | None:
     """Get video width and height using ffprobe.
 
     Args:
@@ -85,7 +85,7 @@ def width_height(infile: str, ffmpeg_path: str = "") -> Optional[Tuple[int, int]
     from filesqueeze.system.decorators import trace_function
 
     @trace_function
-    def _width_height(infile: str, ffmpeg_path: str = "") -> Optional[Tuple[int, int]]:
+    def _width_height(infile: str, ffmpeg_path: str = "") -> tuple[int, int] | None:
         ffprobe = get_ffprobe_path(ffmpeg_path)
 
         cmd = [
@@ -104,9 +104,9 @@ def width_height(infile: str, ffmpeg_path: str = "") -> Optional[Tuple[int, int]
         try:
             data = subprocess.run(cmd, timeout=60, check=True, text=True, capture_output=True).stdout.strip()
         except subprocess.TimeoutExpired:
-            raise RuntimeError(f"ffprobe timeout analyzing video: {infile}")
+            raise RuntimeError(f"ffprobe timeout analyzing video: {infile}") from None
         except subprocess.CalledProcessError as e:
-            raise RuntimeError(f"ffprobe failed with return code {e.returncode}: {infile}")
+            raise RuntimeError(f"ffprobe failed with return code {e.returncode}: {infile}") from None
 
         if data and "x" in data:
             width, height = data.split("x")
@@ -117,7 +117,7 @@ def width_height(infile: str, ffmpeg_path: str = "") -> Optional[Tuple[int, int]
     return _width_height(infile, ffmpeg_path)
 
 
-def duration(infile: str, ffmpeg_path: str = "") -> Optional[float]:
+def duration(infile: str, ffmpeg_path: str = "") -> float | None:
     """Get video duration using ffprobe.
 
     Args:
@@ -133,7 +133,7 @@ def duration(infile: str, ffmpeg_path: str = "") -> Optional[float]:
     from filesqueeze.system.decorators import trace_function
 
     @trace_function
-    def _duration(infile: str, ffmpeg_path: str = "") -> Optional[float]:
+    def _duration(infile: str, ffmpeg_path: str = "") -> float | None:
         ffprobe = get_ffprobe_path(ffmpeg_path)
 
         cmd = [
@@ -150,9 +150,9 @@ def duration(infile: str, ffmpeg_path: str = "") -> Optional[float]:
         try:
             data = subprocess.run(cmd, timeout=60, check=True, text=True, capture_output=True).stdout.strip()
         except subprocess.TimeoutExpired:
-            raise RuntimeError(f"ffprobe timeout analyzing video: {infile}")
+            raise RuntimeError(f"ffprobe timeout analyzing video: {infile}") from None
         except subprocess.CalledProcessError as e:
-            raise RuntimeError(f"ffprobe failed with return code {e.returncode}: {infile}")
+            raise RuntimeError(f"ffprobe failed with return code {e.returncode}: {infile}") from None
 
         return float(data) if data else None
 
@@ -165,12 +165,12 @@ def compress(
     *,
     config=None,
     downscale: bool = False,
-    crf: Optional[int] = None,
-    threads: Optional[int] = None,
-    preset: Optional[str] = None,
-    max_height: Optional[int] = None,
-    audio_bitrate: Optional[str] = None,
-    ffmpeg_path: Optional[str] = None,
+    crf: int | None = None,
+    threads: int | None = None,
+    preset: str | None = None,
+    max_height: int | None = None,
+    audio_bitrate: str | None = None,
+    ffmpeg_path: str | None = None,
 ) -> None:
     """Compress a video file using FFmpeg.
 
@@ -190,8 +190,8 @@ def compress(
         FileNotFoundError: If output file is not created.
         RuntimeError: If FFmpeg fails.
     """
-    from filesqueeze.system.decorators import trace_function
     from filesqueeze.system.config_adapters import VideoConfig
+    from filesqueeze.system.decorators import trace_function
 
     @trace_function
     def _compress(
@@ -200,12 +200,12 @@ def compress(
         *,
         config=None,
         downscale: bool = False,
-        crf: Optional[int] = None,
-        threads: Optional[int] = None,
-        preset: Optional[str] = None,
-        max_height: Optional[int] = None,
-        audio_bitrate: Optional[str] = None,
-        ffmpeg_path: Optional[str] = None,
+        crf: int | None = None,
+        threads: int | None = None,
+        preset: str | None = None,
+        max_height: int | None = None,
+        audio_bitrate: str | None = None,
+        ffmpeg_path: str | None = None,
     ) -> None:
         # Use config adapter if config provided
         if config:
@@ -281,16 +281,16 @@ def compress(
         try:
             run_subprocess(cmd, timeout=timeout, tool_name="FFmpeg", input_file=infile)
         except SubprocessTimeout:
-            raise RuntimeError(f"FFmpeg timeout compressing video: {infile}")
+            raise RuntimeError(f"FFmpeg timeout compressing video: {infile}") from None
         except SubprocessError:
-            raise RuntimeError(f"FFmpeg failed to compress video: {infile}")
+            raise RuntimeError(f"FFmpeg failed to compress video: {infile}") from None
 
         # Verify output file exists and meets size requirements
         try:
             verify_output_file(outfile, min_size=min_size)
         except FileNotFoundError:
             raise
-        except RuntimeError as e:
+        except RuntimeError:
             raise
 
     _compress(

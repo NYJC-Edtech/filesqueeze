@@ -23,16 +23,16 @@ Usage:
         logger.info("Starting")  # Auto-includes trace_id, file, workflow
 """
 
+import functools
+import json
 import logging
 import threading
-import uuid
 import time
-import json
-import functools
+import uuid
 from contextlib import contextmanager
 from datetime import datetime
 from pathlib import Path
-from typing import Optional, Dict, Any, Callable
+from typing import Any, Callable
 
 # ============================================================================
 # Trace Context Support
@@ -55,19 +55,19 @@ class TraceContext:
 
     def __init__(
         self,
-        trace_id: Optional[str] = None,
-        file_path: Optional[Path] = None,
+        trace_id: str | None = None,
+        file_path: Path | None = None,
         workflow: str = "unknown",
-        metadata: Optional[Dict[str, Any]] = None,
+        metadata: dict[str, Any] | None = None,
     ):
         self.trace_id = trace_id or str(uuid.uuid4())[:8]
         self.file_path = file_path
         self.workflow = workflow
         self.start_time = time.time()
         self.metadata = metadata or {}
-        self._current_handler: Optional[str] = None
+        self._current_handler: str | None = None
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert context to dictionary for logging."""
         return {
             "trace_id": self.trace_id,
@@ -84,7 +84,7 @@ _trace_context = threading.local()
 
 
 @contextmanager
-def trace_context(file_path: Optional[Path] = None, workflow: str = "unknown", **kwargs):
+def trace_context(file_path: Path | None = None, workflow: str = "unknown", **kwargs):
     """Context manager for automatic trace context.
 
     Automatically enriches all log entries within the context with:
@@ -118,7 +118,7 @@ def trace_context(file_path: Optional[Path] = None, workflow: str = "unknown", *
         _trace_context.context = old_context
 
 
-def get_trace_context() -> Optional[TraceContext]:
+def get_trace_context() -> TraceContext | None:
     """Get the current trace context."""
     return getattr(_trace_context, "context", None)
 
@@ -164,7 +164,7 @@ class StructuredFormatter(logging.Formatter):
 # ============================================================================
 
 # Global logger instance (None until registered)
-_logger: Optional[logging.Logger] = None
+_logger: logging.Logger | None = None
 # Lock for thread-safe registration
 _logger_lock = threading.Lock()
 
@@ -230,7 +230,7 @@ class _LazyLogger:
             logger.info("Compressing")  # Auto-includes trace_id, file
     """
 
-    def _add_context(self, extra: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    def _add_context(self, extra: dict[str, Any] | None = None) -> dict[str, Any]:
         """Add current trace context to log extra fields."""
         if extra is None:
             extra = {}
@@ -242,7 +242,6 @@ class _LazyLogger:
 
     def _log(self, level_method, msg: str, *args, **kwargs):
         """Log a message with automatic context enrichment."""
-        actual_logger = get_logger()
         extra = self._add_context(kwargs.pop("extra", None))
         level_method(msg, *args, extra=extra, **kwargs)
 
