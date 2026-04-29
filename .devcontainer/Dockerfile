@@ -1,5 +1,5 @@
-# Use the official Python 3.13 devcontainer base image
-FROM mcr.microsoft.com/devcontainers/python:3-3.13-bookworm
+# Use the official Python 3.11 devcontainer base image
+FROM mcr.microsoft.com/devcontainers/python:3-3.11-bookworm
 
 # Install non-Python dependencies
 RUN apt-get update && apt-get install -y \
