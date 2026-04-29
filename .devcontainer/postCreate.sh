@@ -5,7 +5,7 @@ echo "📦 Installing Poetry..."
 pip install poetry
 
 echo "🔧 Installing Python dependencies..."
-poetry install --with dev --with ocr
+poetry install --with dev --extras ocr
 
 echo "🔧 Configuring GitHub..."
 if [ -n "$GH_USERNAME" ] && [ -n "$GH_EMAIL" ]; then

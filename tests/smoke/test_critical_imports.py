@@ -82,6 +82,12 @@ def test_gui_modules_import():
         # GUI modules might not be available on all platforms (e.g., headless servers)
         # This is acceptable for smoke testing - we just need to know they exist
         pytest.skip(f"GUI modules not available: {e}")
+    except Exception as e:
+        # Display server errors (X11, Wayland, etc.) - skip in headless environments
+        if "display" in str(e).lower() or "xlib" in str(e).lower():
+            pytest.skip(f"GUI modules require display server: {e}")
+        else:
+            raise
 
 
 def test_main_api_imports():

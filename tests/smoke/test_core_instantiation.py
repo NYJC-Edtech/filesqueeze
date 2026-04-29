@@ -107,11 +107,19 @@ def test_handler_classes_instantiable():
 
         state = State(str(test_file))
 
-        # Verify handler modules are accessible
+        # Verify handler modules are accessible (ops modules, not handlers module)
+        from filesqueeze.ops import video, document, image
+
+        assert video is not None
+        assert document is not None
+        assert image is not None
+
+        # Verify handlers module itself is accessible
         assert handlers is not None
-        assert hasattr(handlers, "video")
-        assert hasattr(handlers, "document")
-        assert hasattr(handlers, "image")
+        assert hasattr(handlers, "analyzeVideo")
+        assert hasattr(handlers, "analyzeDocument")
+        assert hasattr(handlers, "compressVideo")
+        assert hasattr(handlers, "compressDocument")
     finally:
         # Clean up
         Path(test_file).unlink(missing_ok=True)
