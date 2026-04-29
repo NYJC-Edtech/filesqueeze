@@ -42,9 +42,8 @@ poetry run python -m filesqueeze service run  # Development install
 - [External Dependencies](#external-dependencies)
 - [Configuration](#configuration)
 - [Usage](#usage)
-- [Troubleshooting](#troubleshooting)
 - [Uninstallation](#uninstallation)
-- [Deployment](#deployment-for-maintainers)
+- [Additional Documentation](#additional-documentation)
 
 ---
 
@@ -509,27 +508,7 @@ For Google Shared Drives, Dropbox, OneDrive, or other cloud-synced folders:
 - ✅ **Expect delays** of 5-7 minutes for file processing
 - ❌ **Don't disable polling** - watchdog events are unreliable on network drives
 
-### Troubleshooting File Detection
-
-**Problem**: File not being processed
-
-1. **Check file extension**: Is it in the `extensions` list?
-2. **Wait longer**: Network drives may take 5-7 minutes
-3. **Check the log**: `filesqueeze.log` shows what files are detected
-4. **Verify file stability**: Is the file still being uploaded/synced?
-5. **Restart the service**: Forces an initial scan of all files
-
-**Problem**: Old file being processed again
-
-- This is normal behavior for files in the input directory
-- Move processed files out of the input directory if you don't want them re-processed
-- FileSqueeze removes the original file after successful compression
-
-**Problem**: File with wrong date not detected immediately
-
-- FileSqueeze will still process it, just not immediately via watchdog
-- Wait for the periodic poll (every 5 minutes by default)
-- Or restart the service to trigger an initial scan
+For file detection troubleshooting, see [TROUBLESHOOTING.md](TROUBLESHOOTING.md#file-detection-issues).
 
 ---
 
@@ -576,91 +555,11 @@ FileSqueeze guarantees these non-negotiable behaviors:
 
 ## Troubleshooting
 
-### Quick Diagnosis
+For common issues and solutions, see [TROUBLESHOOTING.md](TROUBLESHOOTING.md).
 
-Run the built-in diagnostic tool to check your installation:
-
+For quick diagnosis:
 ```bash
 poetry run python -m filesqueeze doctor
-```
-
-This will check:
-- Python version
-- Required Python modules
-- External binaries (FFmpeg, Ghostscript, Tesseract)
-- Configuration files
-- Directory permissions
-
-The doctor command provides specific fix suggestions for any issues found.
-
-### Python Not Found
-
-**Error:** `python: command not found`
-
-**Solution:** Install Python 3.11+ from https://python.org
-- Make sure to check "Add Python to PATH" during installation
-
-### Poetry Not Found
-
-**Error:** `poetry: command not found`
-
-**Solution:** Install Poetry:
-```bash
-curl -sSL https://install.python-poetry.org | python3 -
-```
-
-### FFmpeg Not Found
-
-**Error:** `FFmpeg not found`
-
-**Solution:**
-1. Install FFmpeg (see [External Dependencies](#external-dependencies))
-2. Or set path in `filesqueeze.toml`:
-```toml
-[ffmpeg]
-path = "C:/path/to/ffmpeg.exe"
-```
-
-### Ghostscript Not Found
-
-**Error:** `Ghostscript not found`
-
-**Solution:**
-1. Install Ghostscript (see [External Dependencies](#external-dependencies))
-2. Or set path in `filesqueeze.toml`:
-```toml
-[document]
-ghostscript_path = "C:/path/to/gswin64c.exe"
-```
-
-### Files Not Being Processed
-
-**Check:**
-- File extensions are in the `file_detection.extensions` list
-- Files meet minimum age requirement (`file_detection.min_age_seconds`)
-- Files meet minimum size requirement (`file_detection.min_size_bytes`)
-
-### OCR is Slow
-
-**Solution:**
-- Reduce OCR DPI: set `ocr.ocr_dpi = 200` (default is 300)
-- Disable OCR: set `ocr.enable_ocr = false`
-
-### Git LFS Warning During Commits
-
-**Error:** `This repository is configured for Git LFS but 'git-lfs' was not found on your path.`
-
-**Solution:** Remove Git LFS configuration (this project doesn't use Git LFS):
-
-```bash
-# Remove Git LFS hooks
-rm .git/hooks/post-checkout .git/hooks/post-commit .git/hooks/post-merge
-
-# Remove Git LFS configuration
-git config --remove-section lfs
-
-# Verify it's gone
-git config --list | grep lfs  # Should output nothing
 ```
 
 ---
@@ -709,106 +608,11 @@ rm filesqueeze.toml
 
 ---
 
-## Deployment (For Maintainers)
+## Additional Documentation
 
-If you're maintaining FileSqueeze and need to deploy the installation system:
+For development, testing, and deployment information, see [DEVELOPMENT.md](DEVELOPMENT.md).
 
-### 1. Update Repository URLs
-
-Replace placeholder URLs in install scripts:
-
-**In `install.ps1` (line 11):**
-```powershell
-[string]$RepoUrl = "https://github.com/YOUR_USERNAME/filesqueeze.git"
-```
-
-**In `install.sh` (line 10):**
-```bash
-REPO_URL="https://github.com/YOUR_USERNAME/filesqueeze.git"
-```
-
-### 2. Host Install Scripts
-
-**Option A: Host on website**
-```bash
-# Upload install.ps1 and install.sh to:
-# https://yourdomain.com/filesqueeze/install
-```
-
-**Option B: Use GitHub Raw**
-```powershell
-# Windows
-irm https://raw.githubusercontent.com/USERNAME/filesqueeze/main/install.ps1 | iex
-
-# Linux
-curl -sSL https://raw.githubusercontent.com/USERNAME/filesqueeze/main/install.sh | bash
-```
-
-**Option C: Use GitHub Gist**
-- Create a Gist with install.ps1 and install.sh
-- Use Gist raw URL for distribution
-
-### 3. Publish to PyPI
-
-```bash
-# Build package
-poetry build
-
-# Test on TestPyPI first
-poetry publish -r test-pypi
-
-# Publish to PyPI (requires API token)
-poetry publish
-```
-
-### 4. Create GitHub Release
-
-```bash
-# Tag the release
-git tag -a v0.1.0 -m "Release v0.1.0"
-git push origin v0.1.0
-
-# Create release on GitHub with:
-# - Installation instructions
-# - Release notes
-```
-
-### Deployment Checklist
-
-- [ ] Update repository URLs in install scripts
-- [ ] Upload install scripts to web server/GitHub
-- [ ] Test installer on fresh Windows machine
-- [ ] Test installer on fresh Linux machine
-- [ ] Publish to PyPI (or TestPyPI for testing)
-- [ ] Create GitHub release
-- [ ] Update documentation with actual URLs
-- [ ] Test PyPI installation: `pip install filesqueeze`
-
----
-
-## Development
-
-### Testing
-
-Run all tests:
-
-```bash
-# Run all tests
-poetry run pytest
-
-# Run with verbose output
-poetry run pytest -v
-
-# Run specific test file
-poetry run pytest tests/integration/test_handlers.py
-
-# Run tests without GUI/Service tests (for CI environments)
-poetry run pytest tests/integration/ -v --ignore=tests/integration/test_gui_behavior.py --ignore=tests/integration/test_service.py --ignore=tests/integration/test_single_instance.py
-```
-
-See [plans/filesqueeze-implementation-plan.md](../plans/filesqueeze-implementation-plan.md) for implementation details.
-
-See [FILE-LAYOUT.md](FILE-LAYOUT.md) for detailed information about file locations during installation.
+For troubleshooting and common issues, see [TROUBLESHOOTING.md](TROUBLESHOOTING.md).
 
 ## License
 
