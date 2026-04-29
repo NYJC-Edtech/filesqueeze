@@ -53,8 +53,10 @@ Runs on pull requests to main/develop branches:
 
 ### ruff
 - **Purpose**: Fast Python linting (replaces flake8)
-- **Config**: 127 character line length, ignores E203/E501/W503
+- **Focus**: Major code quality issues and correctness
+- **Config**: 127 character line length, ignores E501 (Black handles line length)
 - **Action**: Runs via pre-commit hooks to catch code quality issues
+- **Note**: We use pyright in VSCode for type checking, not in CI
 
 ## Platform Support
 
@@ -147,6 +149,5 @@ poetry run pytest tests/ -v --ignore=tests/integration/test_gui_behavior.py
 - [x] Add pre-commit hooks configuration
 - [x] Replace flake8 with ruff for better performance
 - [ ] Add security scanning (bandit)
-- [ ] Add type checking (pyright)
 - [ ] Windows CI runner for GUI/service tests
 - [ ] Documentation building tests
