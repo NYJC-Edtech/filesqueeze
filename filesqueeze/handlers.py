@@ -4,7 +4,7 @@ from pathlib import Path
 from . import ocr
 from .fsm import Format, Handler, State
 from .fsm.enums import Document, Slideshow, Video
-from .ops import document, video
+from .ops import document, image, video
 from .ops import presentation as pptx
 from .system import logger
 
@@ -73,7 +73,7 @@ def analyzeDocument(state: State) -> Handler:
             pass
         elif ext in [".jpg", ".jpeg", ".png"]:
             # Get image dimensions
-            width, height = document.get_image_size(str(state.target), ffmpeg_path=getattr(state.config, "ffmpeg_path", ""))
+            width, height = image.get_image_size(str(state.target), ffmpeg_path=getattr(state.config, "ffmpeg_path", ""))
             state.metadata["width"] = width
             state.metadata["height"] = height
     except OSError as e:

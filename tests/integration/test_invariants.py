@@ -49,6 +49,7 @@ class TestServiceExecutionInvariants:
         """Double-clicking tray icon should open status window."""
         pytest.skip("Requires GUI automation (e.g., pywinauto)")
 
+    @pytest.mark.skipif(not os.environ.get("DISPLAY"), reason="Requires X11 display")
     def test_service_launch_opens_status_window(self):
         """Service SHOULD open status window automatically when launched.
 
