@@ -771,6 +771,24 @@ git push origin v0.1.0
 
 ## Development
 
+### Testing
+
+Run all tests:
+
+```bash
+# Run all tests
+poetry run pytest
+
+# Run with verbose output
+poetry run pytest -v
+
+# Run specific test file
+poetry run pytest tests/integration/test_handlers.py
+
+# Run tests without GUI/Service tests (for CI environments)
+poetry run pytest tests/integration/ -v --ignore=tests/integration/test_gui_behavior.py --ignore=tests/integration/test_service.py --ignore=tests/integration/test_single_instance.py
+```
+
 See [plans/filesqueeze-implementation-plan.md](../plans/filesqueeze-implementation-plan.md) for implementation details.
 
 See [FILE-LAYOUT.md](FILE-LAYOUT.md) for detailed information about file locations during installation.
