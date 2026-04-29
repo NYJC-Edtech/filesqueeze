@@ -3,8 +3,8 @@
 Windows auto-start installation for FileSqueeze service.
 """
 
-import sys
 import os
+import sys
 from pathlib import Path
 
 
@@ -122,7 +122,7 @@ if ($SystemInstalled) {{
         # Clean up temp file
         try:
             Path(tmp_path).unlink()
-        except:
+        except Exception:
             pass
 
     return shortcut_path
@@ -149,7 +149,7 @@ def install_autostart(input_dir: Path, output_dir: Path) -> Path:
     # Create shortcut
     shortcut_path = create_batch_file(input_dir, output_dir, startup_folder)
 
-    print(f"Auto-start installed successfully!")
+    print("Auto-start installed successfully!")
     print(f"Shortcut created at: {shortcut_path}")
     print(f"Input directory: {input_dir}")
     print(f"Output directory: {output_dir}")
@@ -208,12 +208,12 @@ def uninstall_autostart() -> bool:
         removed_files.append(str(ps_wrapper))
 
     if removed_files:
-        print(f"Auto-start uninstalled successfully!")
+        print("Auto-start uninstalled successfully!")
         for f in removed_files:
             print(f"  Removed: {f}")
         return True
     else:
-        print(f"Auto-start is not installed.")
+        print("Auto-start is not installed.")
         print(f"No FileSqueeze files found in: {startup_folder}")
         return False
 

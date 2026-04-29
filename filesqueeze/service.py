@@ -3,18 +3,16 @@
 Service mode for watching directories and compressing files.
 """
 
-import os
-import sys
-import time
 import logging
+import sys
 import threading
+import time
 from dataclasses import dataclass, field
 from datetime import timedelta
 from pathlib import Path
-from typing import Optional, List
 
+from watchdog.events import FileSystemEventHandler
 from watchdog.observers import Observer
-from watchdog.events import FileSystemEventHandler, FileCreatedEvent, FileMovedEvent
 
 from .config import Config
 from .logger import setup_logging  # This is the actual Logger.setup, not a wrapper
@@ -50,8 +48,8 @@ class ServiceState:
     running: bool
     input_dir: Path
     output_dir: Path
-    processing_files: List[str] = field(default_factory=list)
-    processed_files: List[ProcessedFile] = field(default_factory=list)
+    processing_files: list[str] = field(default_factory=list)
+    processed_files: list[ProcessedFile] = field(default_factory=list)
     completed_count: int = 0
     failed_count: int = 0
     uptime: timedelta = field(default_factory=timedelta)
@@ -156,7 +154,7 @@ class NotificationManager:
             subprocess.Popen(["powershell", "-Command", ps_command], creationflags=subprocess.CREATE_NO_WINDOW)
             return True
 
-        except Exception as e:
+        except Exception:
             # Silently fail - don't disrupt the service if notifications don't work
             return False
 
@@ -260,8 +258,8 @@ class CompressionHandler(FileSystemEventHandler):
 
         try:
             # Import here to avoid circular imports
-            from .scanner import FileScanner
             from .file_type_registry import get_file_type_registry
+            from .scanner import FileScanner
 
             scanner = FileScanner(self.config)
 
@@ -321,7 +319,7 @@ class CompressionHandler(FileSystemEventHandler):
                     if reduction > 0:
                         self.logger.info(f"  Saved:  {reduction:.1f}%")
                     else:
-                        self.logger.info(f"  Note: Output is larger")
+                        self.logger.info("  Note: Output is larger")
 
                     # Show Windows notification for successful completion
                     # Include filename to replace the previous "compressing" notification
@@ -361,7 +359,7 @@ class CompressionHandler(FileSystemEventHandler):
                             f"Archive directory not configured - original file preserved in input: {filepath.name}"
                         )
                         self.logger.warning(
-                            f"To enable archiving, set 'directories.archive' in config. " f"See: filesqueeze init-config"
+                            "To enable archiving, set 'directories.archive' in config. " "See: filesqueeze init-config"
                         )
 
                     # Add to processed files
@@ -531,7 +529,7 @@ class RetentionManager:
     def _run_cleanup(self):
         """Run the cleanup process."""
         try:
-            from datetime import datetime, timedelta
+            from datetime import datetime
 
             # Check if confirmation needed for first run
             if self.require_confirmation and not self._first_run_confirmed:
@@ -713,7 +711,7 @@ class RetentionManager:
 class DirectoryWatcher(StateProvider):
     """Watcher for monitoring directories and compressing files."""
 
-    def __init__(self, input_dir: Path, output_dir: Path, config: Optional[Config] = None):
+    def __init__(self, input_dir: Path, output_dir: Path, config: Config | None = None):
         """Initialize the directory watcher.
 
         Args:
@@ -729,7 +727,7 @@ class DirectoryWatcher(StateProvider):
         self.logger = setup_logging(self.config)
 
         # Register logger with system for consistent logging across all modules
-        from .system import register_logger, register_binary_finder
+        from .system import register_binary_finder, register_logger
         from .system.binaries import BinaryFinder
 
         register_logger(self.logger)
@@ -931,13 +929,3 @@ class DirectoryWatcher(StateProvider):
         poll_thread = threading.Thread(target=poll_worker, daemon=True)
         poll_thread.start()
         self.logger.info(f"Periodic polling enabled (every {self._poll_interval}s)")
-
-    def run(self):
-        """Run the watcher until interrupted."""
-        self.start()
-        try:
-            while self._running:
-                time.sleep(1)
-        except KeyboardInterrupt:
-            self.logger.info("Received stop signal, shutting down...")
-            self.stop()

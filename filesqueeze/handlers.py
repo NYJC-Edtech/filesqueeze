@@ -1,10 +1,11 @@
 import tempfile
 from pathlib import Path
 
-from .fsm import Format, Handler, State
-from .fsm.enums import Video, Slideshow, Document
-from .ops import video, presentation as pptx, document, image
 from . import ocr
+from .fsm import Format, Handler, State
+from .fsm.enums import Document, Slideshow, Video
+from .ops import document, image, video
+from .ops import presentation as pptx
 from .system import logger
 
 
@@ -34,8 +35,8 @@ def analyzeVideo(state: State) -> Handler:
             state.metadata["duration"] = duration
         if size:
             state.metadata["width"], state.metadata["height"] = size
-    finally:
-        return compressVideo
+
+    return compressVideo
 
 
 def analyzeSlideshow(state: State) -> Handler:
@@ -72,15 +73,15 @@ def analyzeDocument(state: State) -> Handler:
             pass
         elif ext in [".jpg", ".jpeg", ".png"]:
             # Get image dimensions
-            width, height = document.get_image_size(str(state.target), ffmpeg_path=getattr(state.config, "ffmpeg_path", ""))
+            width, height = image.get_image_size(str(state.target), ffmpeg_path=getattr(state.config, "ffmpeg_path", ""))
             state.metadata["width"] = width
             state.metadata["height"] = height
-    except (OSError, IOError) as e:
+    except OSError as e:
         # File access errors - log but don't terminate
         logger.debug(f"File access error during analysis: {e}")
         state.metadata["error"] = "Error during document analysis"
-    finally:
-        return compressDocument
+
+    return compressDocument
 
 
 def compressDocument(state: State) -> Handler:
@@ -193,8 +194,8 @@ def compressDocument(state: State) -> Handler:
         state.error(f"Error compressing document: {e}")
     else:
         state.set_target(outpath)
-    finally:
-        return cleanupFiles
+
+    return cleanupFiles
 
 
 def pptxToVideo(state: State) -> Handler:
@@ -239,22 +240,25 @@ def compressVideo(state: State) -> Handler:
         state.error("Error compressing MP4 video")
     else:
         state.set_target(outfile)
-    finally:
-        return cleanupFiles
+
+    return cleanupFiles
 
 
 def selectAnalyzer(
     state: State,
-    handler={
-        Video: analyzeVideo,
-        Slideshow: analyzeSlideshow,
-        Document: analyzeDocument,
-    },
+    handler=None,
 ) -> Handler:
     """
     First transition of state machine.
     Detects origin format and returns an appropriate handler for analysis.
     """
+    if handler is None:
+        handler = {
+            Video: analyzeVideo,
+            Slideshow: analyzeSlideshow,
+            Document: analyzeDocument,
+        }
+
     # Map format enums to their handlers
     suffix = state.target.suffix.lstrip(".").upper()  # Enums store file extension in uppercase
     for format_enum in Format:

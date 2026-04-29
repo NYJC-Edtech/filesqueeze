@@ -9,7 +9,7 @@ import platform
 import subprocess
 import threading
 from pathlib import Path
-from typing import Optional, Tuple
+from typing import Optional
 
 from filesqueeze.constants import ConfigKeys
 
@@ -257,7 +257,7 @@ class BinaryFinder:
 
         return results
 
-    def find_ffmpeg(self) -> Tuple[Optional[str], str]:
+    def find_ffmpeg(self) -> tuple[str | None, str]:
         """Find FFmpeg executable.
 
         Returns:
@@ -273,7 +273,7 @@ class BinaryFinder:
         else:
             return self._find_ffmpeg_linux()
 
-    def find_ghostscript(self) -> Tuple[Optional[str], str]:
+    def find_ghostscript(self) -> tuple[str | None, str]:
         """Find Ghostscript executable.
 
         Returns:
@@ -289,7 +289,7 @@ class BinaryFinder:
         else:
             return self._find_ghostscript_linux()
 
-    def find_tesseract(self) -> Tuple[Optional[str], str]:
+    def find_tesseract(self) -> tuple[str | None, str]:
         """Find Tesseract OCR executable.
 
         Returns:
@@ -305,7 +305,7 @@ class BinaryFinder:
         else:
             return self._find_tesseract_linux()
 
-    def find_powershell(self) -> Tuple[Optional[str], str]:
+    def find_powershell(self) -> tuple[str | None, str]:
         """Find PowerShell executable.
 
         Returns:
@@ -341,7 +341,7 @@ class BinaryFinder:
         except (FileNotFoundError, subprocess.TimeoutExpired):
             return False
 
-    def _find_ffmpeg_windows(self) -> Tuple[Optional[str], str]:
+    def _find_ffmpeg_windows(self) -> tuple[str | None, str]:
         """Find FFmpeg on Windows.
 
         Returns:
@@ -361,7 +361,7 @@ class BinaryFinder:
 
         return None, "Not found in common locations"
 
-    def _find_ffmpeg_linux(self) -> Tuple[Optional[str], str]:
+    def _find_ffmpeg_linux(self) -> tuple[str | None, str]:
         """Find FFmpeg on Linux.
 
         Returns:
@@ -375,7 +375,7 @@ class BinaryFinder:
 
         return None, "Not found in common locations"
 
-    def _find_ghostscript_windows(self) -> Tuple[Optional[str], str]:
+    def _find_ghostscript_windows(self) -> tuple[str | None, str]:
         """Find Ghostscript on Windows.
 
         Returns:
@@ -403,7 +403,7 @@ class BinaryFinder:
 
         return None, "Not found in common locations"
 
-    def _find_ghostscript_linux(self) -> Tuple[Optional[str], str]:
+    def _find_ghostscript_linux(self) -> tuple[str | None, str]:
         """Find Ghostscript on Linux.
 
         Returns:
@@ -417,7 +417,7 @@ class BinaryFinder:
 
         return None, "Not found in common locations"
 
-    def _find_tesseract_windows(self) -> Tuple[Optional[str], str]:
+    def _find_tesseract_windows(self) -> tuple[str | None, str]:
         """Find Tesseract on Windows.
 
         Returns:
@@ -432,7 +432,7 @@ class BinaryFinder:
 
         return None, "Not found in common locations"
 
-    def _find_tesseract_linux(self) -> Tuple[Optional[str], str]:
+    def _find_tesseract_linux(self) -> tuple[str | None, str]:
         """Find Tesseract on Linux.
 
         Returns:
@@ -446,7 +446,7 @@ class BinaryFinder:
 
         return None, "Not found in common locations"
 
-    def _find_powershell_windows(self) -> Tuple[Optional[str], str]:
+    def _find_powershell_windows(self) -> tuple[str | None, str]:
         """Find PowerShell on Windows.
 
         Returns:

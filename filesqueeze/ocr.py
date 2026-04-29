@@ -8,8 +8,6 @@ import os
 import subprocess
 import tempfile
 from pathlib import Path
-from typing import Optional, Tuple
-import shutil
 
 from .system import logger
 
@@ -218,7 +216,6 @@ def ocr_pdf(
             logger.error("No images were generated from PDF")
             return False
 
-        logger = logger
         logger.info(f"OCR Processing {len(images)} pages...")
 
         # Step 3: Run OCR on each image to create individual PDFs
@@ -270,7 +267,7 @@ def ocr_pdf(
             return False
 
 
-def needs_ocr(pdf_path: str, config: Optional[dict] = None) -> bool:
+def needs_ocr(pdf_path: str, config: dict | None = None) -> bool:
     """Determine if a PDF needs OCR.
 
     Args:
@@ -291,8 +288,8 @@ def needs_ocr(pdf_path: str, config: Optional[dict] = None) -> bool:
 
 
 def process_pdf_with_ocr(
-    pdf_path: str, output_path: str, config: Optional[dict] = None, ocr_only: bool = False
-) -> Tuple[bool, str]:
+    pdf_path: str, output_path: str, config: dict | None = None, ocr_only: bool = False
+) -> tuple[bool, str]:
     """Process a PDF with OCR if needed.
 
     Args:

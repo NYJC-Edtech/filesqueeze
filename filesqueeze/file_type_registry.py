@@ -5,8 +5,7 @@ to their appropriate processing functions, eliminating hardcoded mappings
 and making it easier to add new file types.
 """
 
-from typing import Callable, Optional
-from pathlib import Path
+from typing import Callable
 
 
 class FileTypeRegistry:
@@ -40,7 +39,7 @@ class FileTypeRegistry:
         self._processor_map[file_type] = processor_func
         self.FILE_PROCESSORS[file_type] = extensions
 
-    def get_processor(self, extension: str) -> Optional[Callable]:
+    def get_processor(self, extension: str) -> Callable | None:
         """Get the appropriate processor function for a file extension.
 
         Args:
@@ -118,7 +117,7 @@ def _initialize_registry(registry: FileTypeRegistry) -> None:
         This function is called once to register all processor functions.
         Import is done here to avoid circular imports.
     """
-    from . import make_video, make_pdf, make_image, make_presentation
+    from . import make_image, make_pdf, make_presentation, make_video
 
     registry.register_processor("video", make_video, ["mp4", "wmv", "avi", "mkv", "mov", "flv"])
     registry.register_processor("pdf", make_pdf, ["pdf"])

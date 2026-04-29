@@ -43,7 +43,7 @@ class EnumMeta(type):
 class Enum(metaclass=EnumMeta):
     """A custom string Enum class for bundling constants."""
 
-    __slots__ = tuple()
+    __slots__ = ()
 
     def __init__(self):
         raise SyntaxError("Enum class cannot be instantiated directly.")

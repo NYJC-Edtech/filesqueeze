@@ -1,8 +1,9 @@
 """Test document compression functionality."""
 
 import os
+
 import pytest
-from pathlib import Path
+
 from filesqueeze.ops.document import compress_pdf
 from filesqueeze.ops.image import compress_image, get_image_size
 

@@ -14,10 +14,7 @@ Usage:
 """
 
 # Public API exports
-from filesqueeze.ops import video
-from filesqueeze.ops import document
-from filesqueeze.ops import image
-from filesqueeze.ops import presentation
+from filesqueeze.ops import document, image, presentation, video
 
 __all__ = [
     "video",

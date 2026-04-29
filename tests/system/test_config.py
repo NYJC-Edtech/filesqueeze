@@ -3,14 +3,11 @@
 import tempfile
 from pathlib import Path
 
-import pytest
-
 from filesqueeze.config import Config
 
 
 def test_config_defaults():
     """Test that default config values are loaded."""
-    import os
 
     # Use empty dict to test pure defaults without user config interference
     config = Config({})

@@ -11,7 +11,6 @@ show-stopper issues like:
 Users cannot fix these issues themselves - they indicate broken code.
 """
 
-import pytest
 from pathlib import Path
 
 
@@ -79,8 +78,9 @@ def test_cleanup_stats_fields():
 
 def test_state_object_mutability():
     """State object must support required mutations."""
-    from filesqueeze.fsm.default import State
     import tempfile
+
+    from filesqueeze.fsm.default import State
 
     # Use actual file instead of non-existent path
     with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as f:

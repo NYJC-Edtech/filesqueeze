@@ -1,9 +1,10 @@
 """Test video compression functionality."""
 
 import os
+
 import pytest
-from pathlib import Path
-from filesqueeze.ops.video import get_ffmpeg_path, get_ffprobe_path, width_height, duration, compress
+
+from filesqueeze.ops.video import compress, duration, get_ffmpeg_path, get_ffprobe_path, width_height
 
 
 class TestVideoHelpers:

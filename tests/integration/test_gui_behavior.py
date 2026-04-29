@@ -4,12 +4,12 @@ These tests verify GUI behavior at the code/logic level without
 requiring actual GUI rendering or automation frameworks.
 """
 
-import pytest
 import sys
 import time
 from pathlib import Path
 from unittest.mock import Mock, patch
-import threading
+
+import pytest
 
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
@@ -31,8 +31,8 @@ class TestSingletonStatusWindow:
         the singleton check in the right place, without mocking or GUI.
         """
         import inspect
+
         from filesqueeze.tray import TrayService
-        from filesqueeze.config import Config
 
         # Verify the implementation has singleton enforcement logic
         # by inspecting the actual source code
@@ -98,8 +98,8 @@ class TestSingletonStatusWindow:
         This is a behavioral test - we verify that the tray service
         handles multiple requests correctly.
         """
-        from filesqueeze.tray import TrayService
         from filesqueeze.config import Config
+        from filesqueeze.tray import TrayService
 
         config = Config()
         input_dir = tmp_path / "input"
@@ -145,8 +145,9 @@ class TestStatusWindowRefresh:
         # We can't easily test the actual tkinter without complex mocking
         # But we CAN verify the signature accepts the right parameter
 
-        from filesqueeze.gui import StatusWindow
         import inspect
+
+        from filesqueeze.gui import StatusWindow
 
         # Check the __init__ signature
         sig = inspect.signature(StatusWindow.__init__)
@@ -172,8 +173,9 @@ class TestStatusWindowContent:
 
         Required sections: State, Uptime, Statistics, Directories, Processing
         """
-        from filesqueeze.gui import StatusWindow
         import inspect
+
+        from filesqueeze.gui import StatusWindow
 
         # Get all methods that update display
         update_methods = [

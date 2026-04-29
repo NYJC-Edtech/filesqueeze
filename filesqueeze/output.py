@@ -5,15 +5,13 @@ Output path generation and metadata handling.
 
 import json
 import os
-import shutil
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
 
 from .config import Config
 
 
-def generate_output_path(input_path: Path, output_dir: Path, structure: str = "flat", config: Optional[Config] = None) -> Path:
+def generate_output_path(input_path: Path, output_dir: Path, structure: str = "flat", config: Config | None = None) -> Path:
     """Generate output path based on structure setting.
 
     Args:
@@ -95,7 +93,7 @@ def generate_output_path(input_path: Path, output_dir: Path, structure: str = "f
     return output_dir / compressed_filename
 
 
-def save_metadata(output_path: Path, metadata: dict, config: Optional[Config] = None) -> None:
+def save_metadata(output_path: Path, metadata: dict, config: Config | None = None) -> None:
     """Save metadata alongside output file.
 
     Args:
@@ -120,7 +118,7 @@ def save_metadata(output_path: Path, metadata: dict, config: Optional[Config] = 
         json.dump(metadata, f, indent=2, default=str)
 
 
-def preserve_timestamps(input_path: Path, output_path: Path, config: Optional[Config] = None) -> None:
+def preserve_timestamps(input_path: Path, output_path: Path, config: Config | None = None) -> None:
     """Copy timestamps from input to output file.
 
     Args:

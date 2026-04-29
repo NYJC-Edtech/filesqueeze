@@ -6,15 +6,14 @@ Default state class for the conversion pipeline.
 from datetime import datetime
 from os import PathLike
 from pathlib import Path
-from typing import Optional
 
-from .enums import Format, Status
+from .enums import Status
 
 
 class State:
     __slots__ = ("__data",)
 
-    def __init__(self, origin: PathLike, output_path: Optional[PathLike] = None, config=None):
+    def __init__(self, origin: PathLike, output_path: PathLike | None = None, config=None):
         self.__data = {
             "origin": Path(origin),
             "status": Status.PENDING,
@@ -35,7 +34,7 @@ class State:
 
     # Public getter methods for commonly accessed attributes
     # These provide explicit public API instead of relying on __getattr__
-    def get_output_path(self) -> Optional[Path]:
+    def get_output_path(self) -> Path | None:
         """Get the output path for this file.
 
         Returns:
@@ -43,7 +42,7 @@ class State:
         """
         return self.__data.get("output_path")
 
-    def get_format(self) -> Optional[str]:
+    def get_format(self) -> str | None:
         """Get the target format for conversion.
 
         Returns:

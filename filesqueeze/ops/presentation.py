@@ -7,10 +7,12 @@ It uses the system package for logging and subprocess utilities.
 """
 
 from pathlib import Path
-from typing import Optional
+
+# Import from system package
+from filesqueeze.system import get_binary_finder
 
 # Import subprocess utilities
-from filesqueeze.utils.subprocess_helper import run_subprocess, verify_output_file, SubprocessTimeout, SubprocessError
+from filesqueeze.utils.subprocess_helper import SubprocessError, SubprocessTimeout, run_subprocess, verify_output_file
 
 # Constants
 SCRIPTPATH = str(Path(__file__).parent.parent.joinpath("bin", "pptx2mp4.ps1"))
@@ -53,8 +55,8 @@ def to_mp4(infile: str, outfile: str = "", *, config=None) -> None:
         FileNotFoundError: If input file doesn't exist or output file is not created.
         RuntimeError: If PowerShell script fails or times out.
     """
-    from filesqueeze.system.decorators import trace_function
     from filesqueeze.system.config_adapters import PresentationConfig
+    from filesqueeze.system.decorators import trace_function
 
     @trace_function
     def _to_mp4(infile: str, outfile: str = "", *, config=None) -> None:
@@ -86,7 +88,7 @@ def to_mp4(infile: str, outfile: str = "", *, config=None) -> None:
         try:
             run_subprocess(cmd, timeout=timeout, tool_name="PowerShell", input_file=str(infile))
         except SubprocessTimeout:
-            raise RuntimeError(f"PowerShell timeout converting presentation: {infile}")
+            raise RuntimeError(f"PowerShell timeout converting presentation: {infile}") from None
         except SubprocessError as e:
             raise RuntimeError(f"PowerShell failed to convert presentation: {infile}") from e
 

@@ -10,13 +10,11 @@ To run these tests in isolation:
     pytest tests/integration/test_single_instance.py -v
 """
 
-import os
 import sys
-import subprocess
 import time
-import pytest
 from pathlib import Path
-from unittest.mock import patch
+
+import pytest
 
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
@@ -60,12 +58,11 @@ class TestSingleInstanceInvariant:
         This is a CODE-LEVEL test verifying the implementation
         has the logic to prevent multiple instances.
         """
-        from filesqueeze.cli import cmd_service
-        from filesqueeze.config import Config
-        import argparse
 
         # Check if the cmd_service function has single-instance logic
         import inspect
+
+        from filesqueeze.cli import cmd_service
 
         source = inspect.getsource(cmd_service)
 
@@ -98,8 +95,9 @@ class TestSingleInstanceInvariant:
         This test documents that TrayService should enforce single instance.
         """
         import ctypes
-        from filesqueeze.tray import TrayService
+
         from filesqueeze.config import Config
+        from filesqueeze.tray import TrayService
 
         # Create first service
         config = Config()
@@ -131,8 +129,9 @@ class TestSingleInstanceInvariant:
         This test verifies the single-instance enforcement actually works.
         """
         import ctypes
-        from filesqueeze.tray import TrayService
+
         from filesqueeze.config import Config
+        from filesqueeze.tray import TrayService
 
         # Create first service
         config = Config()

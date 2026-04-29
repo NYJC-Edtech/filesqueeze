@@ -4,9 +4,9 @@ These tests verify the lazy logger registration pattern used
 in the system package.
 """
 
-import pytest
 import logging
-from unittest.mock import MagicMock, patch
+
+import pytest
 
 
 class TestLoggerRegistration:
@@ -14,10 +14,9 @@ class TestLoggerRegistration:
 
     def test_register_and_get_logger(self):
         """Register custom logger and retrieve it."""
-        from filesqueeze.system.logger import register_logger, get_logger
-
         # Reset state
         import filesqueeze.system.logger as logger_module
+        from filesqueeze.system.logger import get_logger, register_logger
 
         logger_module._logger = None
 
@@ -31,10 +30,9 @@ class TestLoggerRegistration:
 
     def test_get_logger_before_registration(self):
         """Get default logger before registration."""
-        from filesqueeze.system.logger import get_logger
-
         # Reset state
         import filesqueeze.system.logger as logger_module
+        from filesqueeze.system.logger import get_logger
 
         logger_module._logger = None
 
@@ -45,10 +43,9 @@ class TestLoggerRegistration:
 
     def test_double_registration_raises(self):
         """Double registration should raise RuntimeError."""
-        from filesqueeze.system.logger import register_logger
-
         # Reset state
         import filesqueeze.system.logger as logger_module
+        from filesqueeze.system.logger import register_logger
 
         logger_module._logger = None
 
@@ -61,10 +58,9 @@ class TestLoggerRegistration:
 
     def test_lazy_logger_works_before_registration(self):
         """Lazy logger proxy works before registration."""
-        from filesqueeze.system.logger import logger, register_logger
-
         # Reset state
         import filesqueeze.system.logger as logger_module
+        from filesqueeze.system.logger import logger, register_logger
 
         logger_module._logger = None
 
@@ -85,11 +81,11 @@ class TestLoggerRegistration:
 
     def test_lazy_logger_after_registration(self):
         """Lazy logger works correctly after registration."""
-        from filesqueeze.system.logger import logger, register_logger
         from io import StringIO
 
         # Reset state
         import filesqueeze.system.logger as logger_module
+        from filesqueeze.system.logger import logger, register_logger
 
         logger_module._logger = None
 
@@ -115,10 +111,9 @@ class TestLoggerRegistration:
 
     def test_get_logger_returns_same_instance(self):
         """get_logger returns same instance on multiple calls."""
-        from filesqueeze.system.logger import register_logger, get_logger
-
         # Reset state
         import filesqueeze.system.logger as logger_module
+        from filesqueeze.system.logger import get_logger, register_logger
 
         logger_module._logger = None
 
@@ -149,10 +144,10 @@ class TestLoggerThreadSafety:
     def test_concurrent_registration(self):
         """Concurrent registrations should be safe."""
         import threading
-        from filesqueeze.system.logger import register_logger, get_logger
 
         # Reset state
         import filesqueeze.system.logger as logger_module
+        from filesqueeze.system.logger import register_logger
 
         logger_module._logger = None
 
@@ -187,7 +182,7 @@ class TestLoggerResetBetweenTests:
 
     def test_test_isolation(self):
         """Verify tests don't interfere with each other."""
-        from filesqueeze.system.logger import register_logger, get_logger
+        from filesqueeze.system.logger import get_logger, register_logger
 
         # Register logger in this test
         register_logger(logging.getLogger("test_isolation"))

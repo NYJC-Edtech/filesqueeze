@@ -5,9 +5,7 @@ import threading
 import time
 from datetime import timedelta
 from pathlib import Path
-from unittest.mock import Mock, patch
-
-import pytest
+from unittest.mock import Mock
 
 from filesqueeze.config import Config
 from filesqueeze.service import CompressionHandler, DirectoryWatcher
@@ -18,7 +16,7 @@ class TestServiceState:
 
     def test_service_state_creation(self):
         """Test that ServiceState can be created with all fields."""
-        from filesqueeze.service import ServiceState, ProcessedFile
+        from filesqueeze.service import ProcessedFile, ServiceState
 
         processed_file = ProcessedFile(filename="test.mp4", timestamp="2026-01-27T10:30:00", success=True)
 

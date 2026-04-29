@@ -4,13 +4,12 @@ These tests verify the Installation Experience invariant by running
 the actual PowerShell installers and checking their behavior.
 """
 
-import os
-import sys
 import subprocess
-import pytest
+import sys
 import time
 from pathlib import Path
-from typing import Optional
+
+import pytest
 
 # Mark all tests in this module as Windows-only
 pytestmark = pytest.mark.skipif(sys.platform != "win32", reason="Installer tests are Windows-specific")
@@ -62,7 +61,7 @@ class InstallerTestHelpers:
             return []
 
     @staticmethod
-    def start_filesqueeze_service() -> Optional[subprocess.Popen]:
+    def start_filesqueeze_service() -> subprocess.Popen | None:
         """Start FileSqueeze service in background.
 
         Returns:

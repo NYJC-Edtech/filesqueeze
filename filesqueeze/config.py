@@ -12,7 +12,7 @@ calls throughout the codebase.
 
 import os
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 try:
     import tomllib  # Python 3.11+
@@ -32,7 +32,7 @@ class Config:
     4. FILESQUEEZE_* environment variables - Runtime overrides
     """
 
-    def __init__(self, config_path: Optional[str | Path | dict] = None):
+    def __init__(self, config_path: str | Path | dict | None = None):
         """Initialize configuration.
 
         Args:
@@ -42,7 +42,7 @@ class Config:
         self._config = {}
         self._load_configs(config_path)
 
-    def _load_configs(self, config_path: Optional[str | Path | dict]) -> None:
+    def _load_configs(self, config_path: str | Path | dict | None) -> None:
         """Load configurations from all sources in priority order.
 
         Priority (highest to lowest):
@@ -98,8 +98,8 @@ class Config:
         # Strategy 1: Try importlib.resources (Python 3.7+)
         # This works for installed packages and is the recommended approach
         try:
-            import importlib.resources
             import importlib
+            import importlib.resources
 
             package = importlib.import_module("filesqueeze")
             with importlib.resources.files(package).joinpath("default.toml").open("rb") as f:
@@ -262,7 +262,7 @@ class Config:
         return Path(path_str)
 
     @property
-    def archive_dir(self) -> Optional[Path]:
+    def archive_dir(self) -> Path | None:
         """Get archive directory path for original files after compression.
 
         Returns None if archive is disabled (empty string in config).

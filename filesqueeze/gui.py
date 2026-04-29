@@ -4,12 +4,11 @@ GUI status window for FileSqueeze service monitoring.
 """
 
 import tkinter as tk
-from tkinter import ttk, scrolledtext
+from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Optional
-from datetime import timedelta, datetime
+from tkinter import scrolledtext, ttk
 
-from .service import StateProvider, ServiceState
+from .service import ServiceState, StateProvider
 
 
 class StatusWindow:
@@ -28,7 +27,7 @@ class StatusWindow:
     ensuring loose coupling with the service implementation.
     """
 
-    def __init__(self, state_provider: StateProvider, refresh_interval: Optional[int] = 2000):
+    def __init__(self, state_provider: StateProvider, refresh_interval: int | None = 2000):
         """Initialize the status window.
 
         Args:
@@ -267,7 +266,7 @@ class StatusWindow:
                 dt = datetime.fromisoformat(cleanup_stats.last_cleanup_time)
                 time_str = dt.strftime("%Y-%m-%d %H:%M:%S")
                 self.last_cleanup_value.config(text=time_str)
-            except:
+            except Exception:
                 self.last_cleanup_value.config(text=cleanup_stats.last_cleanup_time)
         else:
             self.last_cleanup_value.config(text="Never")
@@ -328,7 +327,7 @@ class StatusWindow:
                 try:
                     dt = datetime.fromisoformat(processed_file.timestamp)
                     timestamp_str = dt.strftime("%Y-%m-%d %H:%M:%S")
-                except:
+                except Exception:
                     timestamp_str = processed_file.timestamp
 
                 # Format status icon
@@ -355,7 +354,7 @@ class StatusWindow:
 
             # Read last 1000 lines
             if log_file.exists():
-                with open(log_file, "r", encoding="utf-8", errors="replace") as f:
+                with open(log_file, encoding="utf-8", errors="replace") as f:
                     lines = f.readlines()
                     last_1000 = lines[-1000:] if len(lines) > 1000 else lines
 

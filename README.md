@@ -646,6 +646,23 @@ ghostscript_path = "C:/path/to/gswin64c.exe"
 - Reduce OCR DPI: set `ocr.ocr_dpi = 200` (default is 300)
 - Disable OCR: set `ocr.enable_ocr = false`
 
+### Git LFS Warning During Commits
+
+**Error:** `This repository is configured for Git LFS but 'git-lfs' was not found on your path.`
+
+**Solution:** Remove Git LFS configuration (this project doesn't use Git LFS):
+
+```bash
+# Remove Git LFS hooks
+rm .git/hooks/post-checkout .git/hooks/post-commit .git/hooks/post-merge
+
+# Remove Git LFS configuration
+git config --remove-section lfs
+
+# Verify it's gone
+git config --list | grep lfs  # Should output nothing
+```
+
 ---
 
 ## Uninstallation
@@ -770,6 +787,24 @@ git push origin v0.1.0
 ---
 
 ## Development
+
+### Testing
+
+Run all tests:
+
+```bash
+# Run all tests
+poetry run pytest
+
+# Run with verbose output
+poetry run pytest -v
+
+# Run specific test file
+poetry run pytest tests/integration/test_handlers.py
+
+# Run tests without GUI/Service tests (for CI environments)
+poetry run pytest tests/integration/ -v --ignore=tests/integration/test_gui_behavior.py --ignore=tests/integration/test_service.py --ignore=tests/integration/test_single_instance.py
+```
 
 See [plans/filesqueeze-implementation-plan.md](../plans/filesqueeze-implementation-plan.md) for implementation details.
 

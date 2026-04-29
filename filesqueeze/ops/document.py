@@ -7,13 +7,12 @@ It uses the system package for binary detection and logging.
 """
 
 from pathlib import Path
-from typing import Optional
 
 # Import from system package
-from filesqueeze.system import get_binary_finder, logger
+from filesqueeze.system import get_binary_finder
 
 # Import subprocess utilities
-from filesqueeze.utils.subprocess_helper import run_subprocess, verify_output_file, SubprocessTimeout, SubprocessError
+from filesqueeze.utils.subprocess_helper import SubprocessError, SubprocessTimeout, run_subprocess, verify_output_file
 
 
 def get_ghostscript_path(config_path: str = "") -> str:
@@ -59,8 +58,8 @@ def compress_pdf(
         RuntimeError: If Ghostscript fails.
         ValueError: If quality setting is invalid.
     """
-    from filesqueeze.system.decorators import trace_function
     from filesqueeze.system.config_adapters import DocumentConfig
+    from filesqueeze.system.decorators import trace_function
 
     @trace_function
     def _compress_pdf(
@@ -139,4 +138,3 @@ def compress_pdf(
 
 # Backward compatibility: re-export image operations from ops.image
 # (historically, these were in document.py before extraction)
-from filesqueeze.ops.image import compress_image, get_image_size

@@ -7,13 +7,12 @@ It uses the system package for binary detection and logging.
 """
 
 from pathlib import Path
-from typing import Tuple, Optional
 
 # Import from system package
-from filesqueeze.system import get_binary_finder, logger
+from filesqueeze.system import get_binary_finder
 
 # Import subprocess utilities
-from filesqueeze.utils.subprocess_helper import run_subprocess, verify_output_file, SubprocessTimeout, SubprocessError
+from filesqueeze.utils.subprocess_helper import SubprocessError, SubprocessTimeout, run_subprocess, verify_output_file
 
 
 def get_ffmpeg_path(config_path: str = "") -> str:
@@ -69,7 +68,7 @@ def get_ffprobe_path(ffmpeg_path: str = "") -> str:
     return finder.get_ffprobe_path()
 
 
-def get_image_size(infile: str, ffmpeg_path: str = "") -> Tuple[int, int]:
+def get_image_size(infile: str, ffmpeg_path: str = "") -> tuple[int, int]:
     """Get image dimensions using ffprobe.
 
     Args:
@@ -85,7 +84,7 @@ def get_image_size(infile: str, ffmpeg_path: str = "") -> Tuple[int, int]:
     from filesqueeze.system.decorators import trace_function
 
     @trace_function
-    def _get_image_size(infile: str, ffmpeg_path: str = "") -> Tuple[int, int]:
+    def _get_image_size(infile: str, ffmpeg_path: str = "") -> tuple[int, int]:
         # Find ffprobe
         if ffmpeg_path and Path(ffmpeg_path).exists():
             ffprobe = str(Path(ffmpeg_path).parent / "ffprobe.exe")
@@ -109,7 +108,7 @@ def get_image_size(infile: str, ffmpeg_path: str = "") -> Tuple[int, int]:
         try:
             data = run_subprocess(cmd, timeout=60, tool_name="ffprobe", input_file=infile, capture_output=True, text_mode=True)
         except SubprocessTimeout:
-            raise RuntimeError(f"ffprobe timeout analyzing image: {infile}")
+            raise RuntimeError(f"ffprobe timeout analyzing image: {infile}") from None
         except SubprocessError:
             raise
 
@@ -127,8 +126,8 @@ def compress_image(
     outfile: str,
     *,
     quality: int = 85,
-    max_width: Optional[int] = None,
-    max_height: Optional[int] = None,
+    max_width: int | None = None,
+    max_height: int | None = None,
     convert_to_jpeg: bool = False,
     ffmpeg_path: str = "",
     config=None,
@@ -149,8 +148,8 @@ def compress_image(
         FileNotFoundError: If output file is not created.
         RuntimeError: If FFmpeg fails.
     """
-    from filesqueeze.system.decorators import trace_function
     from filesqueeze.system.config_adapters import ImageConfig
+    from filesqueeze.system.decorators import trace_function
 
     @trace_function
     def _compress_image(
@@ -158,8 +157,8 @@ def compress_image(
         outfile: str,
         *,
         quality: int = 85,
-        max_width: Optional[int] = None,
-        max_height: Optional[int] = None,
+        max_width: int | None = None,
+        max_height: int | None = None,
         convert_to_jpeg: bool = False,
         ffmpeg_path: str = "",
         config=None,
@@ -245,16 +244,16 @@ def compress_image(
         try:
             run_subprocess(cmd, timeout=timeout, tool_name="FFmpeg", input_file=infile)
         except SubprocessTimeout:
-            raise RuntimeError(f"FFmpeg timeout compressing image: {infile}")
+            raise RuntimeError(f"FFmpeg timeout compressing image: {infile}") from None
         except SubprocessError:
-            raise RuntimeError(f"FFmpeg failed to compress image: {infile}")
+            raise RuntimeError(f"FFmpeg failed to compress image: {infile}") from None
 
         # Verify output file exists and meets size requirements
         try:
             verify_output_file(outfile, min_size=min_size)
         except FileNotFoundError:
             raise
-        except RuntimeError as e:
+        except RuntimeError:
             raise
 
         output = verify_output_file(outfile, min_size=min_size)

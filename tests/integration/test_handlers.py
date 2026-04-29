@@ -1,10 +1,8 @@
 """Test handlers and state machine integration."""
 
-import pytest
-from pathlib import Path
+from filesqueeze import handlers
 from filesqueeze.fsm.default import State
 from filesqueeze.fsm.enums import Document, Video
-from filesqueeze import handlers
 
 
 class TestStateClass:

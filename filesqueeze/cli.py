@@ -61,7 +61,7 @@ def cmd_init_config(args):
         example_config = package_dir / "default.toml"
 
     if not example_config.exists():
-        print(f"Error: Example configuration not found")
+        print("Error: Example configuration not found")
         print(f"Searched in: {script_dir} and package directory")
         sys.exit(1)
 
@@ -113,19 +113,19 @@ def cmd_init_config(args):
         config_data["ffmpeg"]["path"] = normalize_path(detection["ffmpeg"]["path"])
         print(f"  [OK] FFmpeg detected: {detection['ffmpeg']['path']}")
     else:
-        print(f"  [X] FFmpeg not found - using default (PATH)")
+        print("  [X] FFmpeg not found - using default (PATH)")
 
     if detection["ghostscript"]["found"] and detection["ghostscript"]["path"]:
         config_data["document"]["ghostscript_path"] = normalize_path(detection["ghostscript"]["path"])
         print(f"  [OK] Ghostscript detected: {detection['ghostscript']['path']}")
     else:
-        print(f"  [X] Ghostscript not found - using default (PATH)")
+        print("  [X] Ghostscript not found - using default (PATH)")
 
     if detection["tesseract"]["found"] and detection["tesseract"]["path"]:
         config_data["ocr"]["tesseract_path"] = normalize_path(detection["tesseract"]["path"])
         print(f"  [OK] Tesseract detected: {detection['tesseract']['path']}")
     else:
-        print(f"  [X] Tesseract not found - using default (PATH)")
+        print("  [X] Tesseract not found - using default (PATH)")
     print()
 
     # Expand tilde in log file path for system installations
@@ -146,7 +146,7 @@ def cmd_init_config(args):
         import shutil
 
         shutil.copy(example_config, output_path)
-        print(f"Note: tomli_w not installed, using default config without auto-detected paths")
+        print("Note: tomli_w not installed, using default config without auto-detected paths")
     else:
         with open(output_path, "wb") as f:
             tomli_w.dump(config_data, f)
@@ -160,10 +160,10 @@ def cmd_init_config(args):
 
 def cmd_compress(args):
     """Compress a single file."""
+    from filesqueeze import make_image, make_pdf, make_video
     from filesqueeze.config import Config
     from filesqueeze.logger import setup_logging
-    from filesqueeze import make_video, make_pdf, make_image
-    from filesqueeze.system import register_logger, register_binary_finder
+    from filesqueeze.system import register_binary_finder, register_logger
     from filesqueeze.system.binaries import BinaryFinder
 
     # Load config
@@ -220,7 +220,7 @@ def cmd_compress(args):
             print("Supported types: mp4, wmv, avi, mkv, mov, flv, pdf, jpg, jpeg, png")
             sys.exit(1)
 
-        print(f"\n[OK] Success!")
+        print("\n[OK] Success!")
         print(f"Output: {result_path}")
 
         # Show file size reduction if possible
@@ -228,13 +228,13 @@ def cmd_compress(args):
         output_size = Path(result_path).stat().st_size
         reduction = (1 - output_size / input_size) * 100
 
-        print(f"\nFile sizes:")
+        print("\nFile sizes:")
         print(f"  Input:  {input_size:,} bytes ({input_size / 1024 / 1024:.2f} MB)")
         print(f"  Output: {output_size:,} bytes ({output_size / 1024 / 1024:.2f} MB)")
         if reduction > 0:
             print(f"  Saved:  {reduction:.1f}% smaller")
         else:
-            print(f"  Note:  Output is larger (original may be highly compressed)")
+            print("  Note:  Output is larger (original may be highly compressed)")
 
     except Exception as e:
         print(f"\n[X] Error: {e}")
@@ -244,20 +244,19 @@ def cmd_compress(args):
 def cmd_scan(args):
     """Scan input directory and process files."""
     # Import here to avoid issues if modules have errors
+    from filesqueeze import make_image, make_pdf, make_video
     from filesqueeze.config import Config
     from filesqueeze.logger import setup_logging
-    from filesqueeze.scanner import FileScanner
     from filesqueeze.output import (
-        generate_output_path,
         ensure_output_dir,
-        save_metadata,
-        preserve_timestamps,
+        generate_output_path,
         get_unique_output_path,
+        preserve_timestamps,
+        save_metadata,
     )
-    from filesqueeze import make_video, make_pdf, make_image
-    from filesqueeze.system import register_logger, register_binary_finder
+    from filesqueeze.scanner import FileScanner
+    from filesqueeze.system import register_binary_finder, register_logger
     from filesqueeze.system.binaries import BinaryFinder
-    import filesqueeze
 
     # Load config
     config = Config()
@@ -312,24 +311,24 @@ def cmd_scan(args):
 
             # Process file based on type
             if ext in ["mp4", "wmv", "avi"]:
-                print(f"  Type: Video")
+                print("  Type: Video")
                 print(f"  Output: {output_path}")
-                result_path = make_video(str(filepath), config=config, output_path=str(output_path))
+                make_video(str(filepath), config=config, output_path=str(output_path))
             elif ext == "pdf":
-                print(f"  Type: PDF")
+                print("  Type: PDF")
                 print(f"  Output: {output_path}")
-                result_path = make_pdf(str(filepath), config=config, output_path=str(output_path))
+                make_pdf(str(filepath), config=config, output_path=str(output_path))
             elif ext in ["jpg", "jpeg", "png"]:
-                print(f"  Type: Image")
+                print("  Type: Image")
                 print(f"  Output: {output_path}")
-                result_path = make_image(str(filepath), config=config, output_path=str(output_path))
+                make_image(str(filepath), config=config, output_path=str(output_path))
             elif ext == "pptx":
-                print(f"  Type: PowerPoint (not yet supported)")
-                print(f"  Skipping...")
+                print("  Type: PowerPoint (not yet supported)")
+                print("  Skipping...")
                 continue
             else:
                 print(f"  Type: Unknown ({ext})")
-                print(f"  Skipping...")
+                print("  Skipping...")
                 continue
 
             # Save metadata if enabled
@@ -347,7 +346,7 @@ def cmd_scan(args):
             # Preserve timestamps if enabled
             preserve_timestamps(filepath, output_path, config=config)
 
-            print(f"  [OK] Success")
+            print("  [OK] Success")
             success_count += 1
 
         except Exception as e:
@@ -355,7 +354,7 @@ def cmd_scan(args):
             error_count += 1
 
     print("\n" + "=" * 60)
-    print(f"Scan complete!")
+    print("Scan complete!")
     print(f"  Total files found: {file_count}")
     print(f"  Successfully processed: {success_count}")
     print(f"  Errors: {error_count}")
@@ -364,7 +363,7 @@ def cmd_scan(args):
 
 def cmd_detect(args):
     """Detect FFmpeg and Ghostscript binaries."""
-    from filesqueeze.system.binaries import print_detection_results, BinaryFinder
+    from filesqueeze.system.binaries import BinaryFinder, print_detection_results
 
     if args.json:
         import json
@@ -413,8 +412,8 @@ def cmd_service(args):
 
 def cmd_service_install(args):
     """Install FileSqueeze to start automatically on boot."""
+    from filesqueeze.autostart import check_autostart_installed, install_autostart
     from filesqueeze.config import Config
-    from filesqueeze.autostart import install_autostart, check_autostart_installed
 
     # Load config
     config = Config()

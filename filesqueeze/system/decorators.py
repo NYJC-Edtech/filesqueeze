@@ -6,7 +6,7 @@ for business logic functions.
 
 import functools
 import time
-from typing import Callable, Optional
+from typing import Callable
 
 
 def trace_function(func: Callable) -> Callable:
