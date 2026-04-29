@@ -5,8 +5,8 @@ on:
     branches: ['**']
 
 jobs:
-  quick-checks:
-    name: Smoke, Unit & Code Quality
+  smoke-tests:
+    name: Smoke Tests
     runs-on: ubuntu-latest
     env:
       CI: true
@@ -24,19 +24,80 @@ jobs:
           cache: 'poetry'
 
       - name: Install dependencies
-        run: poetry install --with dev,ci
-
-      - name: Install FFmpeg and Ghostscript
-        run: sudo apt-get update && sudo apt-get install -y ffmpeg ghostscript
+        run: poetry install --with dev
 
       - name: Run smoke tests
         run: poetry run pytest tests/smoke/ -v
 
+  unit-tests:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    env:
+      CI: true
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Poetry
+        run: pip install poetry
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'poetry'
+
+      - name: Install dependencies
+        run: poetry install --with dev
+
       - name: Run unit tests
         run: poetry run pytest tests/unit/ -v
 
+  system-tests:
+    name: System Tests
+    runs-on: ubuntu-latest
+    env:
+      CI: true
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Poetry
+        run: pip install poetry
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'poetry'
+
+      - name: Install dependencies
+        run: poetry install --with dev
+
+      - name: Install FFmpeg and Ghostscript
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg ghostscript
+
       - name: Run system tests
         run: poetry run pytest tests/system/ -v
+
+  code-quality:
+    name: Code Quality (Black + Ruff)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Poetry
+        run: pip install poetry
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'poetry'
+
+      - name: Install dependencies
+        run: poetry install --with ci
 
       - name: Check code style with Black
         run: poetry run black --check --diff --config pyproject.toml filesqueeze/ tests/
@@ -61,13 +122,10 @@ jobs:
           cache: 'poetry'
 
       - name: Install dependencies
-        run: poetry install --with dev
+        run: poetry install --with dev,ci
 
-      - name: Install FFmpeg
-        run: sudo apt-get update && sudo apt-get install -y ffmpeg
-
-      - name: Install Ghostscript
-        run: sudo apt-get install -y ghostscript
+      - name: Install FFmpeg and Ghostscript
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg ghostscript
 
       - name: Run integration tests
         run: poetry run pytest tests/integration/ -v --ignore=tests/integration/test_gui_behavior.py --ignore=tests/integration/test_service.py --ignore=tests/integration/test_single_instance.py
