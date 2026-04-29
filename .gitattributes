@@ -1,4 +1,5 @@
 # Ensure consistent line endings and prevent Git from converting them
+# Note: This project does not use Git LFS
 * text eol=lf
 *.py text eol=lf
 *.yml text eol=lf

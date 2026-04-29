@@ -646,6 +646,23 @@ ghostscript_path = "C:/path/to/gswin64c.exe"
 - Reduce OCR DPI: set `ocr.ocr_dpi = 200` (default is 300)
 - Disable OCR: set `ocr.enable_ocr = false`
 
+### Git LFS Warning During Commits
+
+**Error:** `This repository is configured for Git LFS but 'git-lfs' was not found on your path.`
+
+**Solution:** Remove Git LFS configuration (this project doesn't use Git LFS):
+
+```bash
+# Remove Git LFS hooks
+rm .git/hooks/post-checkout .git/hooks/post-commit .git/hooks/post-merge
+
+# Remove Git LFS configuration
+git config --remove-section lfs
+
+# Verify it's gone
+git config --list | grep lfs  # Should output nothing
+```
+
 ---
 
 ## Uninstallation
