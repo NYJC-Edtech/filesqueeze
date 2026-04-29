@@ -303,8 +303,9 @@ class Doctor:
         if sys.version_info >= (3, 11):
             # Python 3.11+ has tomllib built-in
             try:
-                import tomllib
+                import importlib
 
+                importlib.import_module("tomllib")
                 self.passed.append("[OK] TOML library (built-in tomllib)")
             except ImportError:
                 self.issues.append("[FAIL] TOML library (built-in tomllib not available)")

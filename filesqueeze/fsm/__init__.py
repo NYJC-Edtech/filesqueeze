@@ -8,7 +8,7 @@ from typing import Callable, Generic, TypeVar
 
 from ..system import logger
 from .default import State
-from .enums import Format
+from .enums import Format as Format
 
 # Generic type for state object
 S = TypeVar("S")

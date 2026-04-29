@@ -3,7 +3,7 @@
 ## Transitions are handled by handlers, which are functions that take in a State object
 ## and return another handler, which is the next transition for the state machine.
 
-from typing import Callable, Optional
+from typing import Callable
 
 # Export system modules
 from . import (
