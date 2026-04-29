@@ -246,16 +246,19 @@ def compressVideo(state: State) -> Handler:
 
 def selectAnalyzer(
     state: State,
-    handler={
-        Video: analyzeVideo,
-        Slideshow: analyzeSlideshow,
-        Document: analyzeDocument,
-    },
+    handler=None,
 ) -> Handler:
     """
     First transition of state machine.
     Detects origin format and returns an appropriate handler for analysis.
     """
+    if handler is None:
+        handler = {
+            Video: analyzeVideo,
+            Slideshow: analyzeSlideshow,
+            Document: analyzeDocument,
+        }
+
     # Map format enums to their handlers
     suffix = state.target.suffix.lstrip(".").upper()  # Enums store file extension in uppercase
     for format_enum in Format:

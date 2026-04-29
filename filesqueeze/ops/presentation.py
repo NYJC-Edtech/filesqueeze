@@ -8,6 +8,9 @@ It uses the system package for logging and subprocess utilities.
 
 from pathlib import Path
 
+# Import from system package
+from filesqueeze.system import get_binary_finder
+
 # Import subprocess utilities
 from filesqueeze.utils.subprocess_helper import SubprocessError, SubprocessTimeout, run_subprocess, verify_output_file
 
@@ -85,7 +88,7 @@ def to_mp4(infile: str, outfile: str = "", *, config=None) -> None:
         try:
             run_subprocess(cmd, timeout=timeout, tool_name="PowerShell", input_file=str(infile))
         except SubprocessTimeout:
-            raise RuntimeError(f"PowerShell timeout converting presentation: {infile}")
+            raise RuntimeError(f"PowerShell timeout converting presentation: {infile}") from None
         except SubprocessError as e:
             raise RuntimeError(f"PowerShell failed to convert presentation: {infile}") from e
 
