@@ -24,7 +24,7 @@ jobs:
           cache: 'poetry'
 
       - name: Install dependencies
-        run: poetry install --with dev
+        run: poetry install --with dev,ci
 
       - name: Install FFmpeg and Ghostscript
         run: sudo apt-get update && sudo apt-get install -y ffmpeg ghostscript
@@ -39,14 +39,10 @@ jobs:
         run: poetry run pytest tests/system/ -v
 
       - name: Check code style with Black
-        run: |
-          poetry run pip install black==26.3.1
-          poetry run black --check --diff --config pyproject.toml filesqueeze/ tests/
+        run: poetry run black --check --diff --config pyproject.toml filesqueeze/ tests/
 
       - name: Lint with ruff
-        run: |
-          poetry run pip install ruff
-          poetry run ruff check filesqueeze/ tests/ --select=E9,F63,F7,F82 --output-format=concise
+        run: poetry run ruff check filesqueeze/ tests/ --select=E9,F63,F7,F82 --output-format=concise
 
   integration-tests:
     name: Integration & Regression Tests
@@ -96,7 +92,7 @@ jobs:
           cache: 'poetry'
 
       - name: Install dependencies
-        run: poetry install --with dev
+        run: poetry install --with dev,ci
 
       - name: Install FFmpeg and Ghostscript
         run: sudo apt-get update && sudo apt-get install -y ffmpeg ghostscript
