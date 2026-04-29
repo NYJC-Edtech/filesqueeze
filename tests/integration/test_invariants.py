@@ -340,13 +340,11 @@ class TestConfigurationManagementInvariant:
         config_dir = tmp_path / ".config" / "filesqueeze"
         config_dir.mkdir(parents=True)
         config_file = config_dir / "config.toml"
-        config_file.write_text(
-            """
+        config_file.write_text("""
 [directories]
 input = "/test/input"
 output = "/test/output"
-"""
-        )
+""")
 
         # Load config
         config = Config(config_path=str(config_file))
