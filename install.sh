@@ -2,6 +2,13 @@
 # FileSqueeze One-Click Installer for Linux
 # Run with: bash install.sh
 # Or download and run: curl -sSL https://nyjc.app/filesqueeze/install | bash
+#
+# This script follows FileSqueeze Installation Principles documented in INSTALLATION_PRINCIPLES.md
+# Key features:
+# - Robust error handling with verbose logging
+# - PATH refresh after Poetry installation
+# - Graceful fallbacks for missing tools
+# - Clear error messages with recovery instructions
 
 set -e
 
@@ -125,9 +132,12 @@ if ! command -v poetry &> /dev/null; then
     status "Installing Poetry..."
 
     # Download Poetry installer
-    curl -sSL https://install.python-poetry.org | python3 -
+    if ! curl -sSL https://install.python-poetry.org | python3 -; then
+        error "Poetry installation failed. Please install manually:
+  curl -sSL https://install.python-poetry.org | python3 -"
+    fi
 
-    # Add Poetry to PATH
+    # Add Poetry to PATH for current session
     export PATH="$HOME/.local/bin:$PATH"
 
     # Verify installation
@@ -136,10 +146,11 @@ if ! command -v poetry &> /dev/null; then
   curl -sSL https://install.python-poetry.org | python3 -"
     fi
 
-    POETRY_VERSION=$(poetry --version)
-    echo -e "  ${GRAY}Poetry installed: $POETRY_VERSION${NC}"
+    POETRY_VERSION=$(poetry --version 2>&1)
+    echo -e "  ${GREEN}Poetry installed: $POETRY_VERSION${NC}"
+    echo -e "  ${YELLOW}Note: Poetry added to PATH for current session${NC}"
 else
-    POETRY_VERSION=$(poetry --version)
+    POETRY_VERSION=$(poetry --version 2>&1)
     echo -e "  ${GRAY}Found: $POETRY_VERSION${NC}"
 fi
 
@@ -154,24 +165,36 @@ echo -e "  ${GRAY}Repository cloned successfully${NC}"
 # Install dependencies
 if [ "$SKIP_DEPS" = false ]; then
     status "Installing dependencies (this may take a few minutes)..."
+    echo -e "  ${GRAY}Running: poetry install${NC}"
+
     if ! poetry install; then
-        error "Failed to install dependencies."
+        error "Failed to install dependencies.
+  Try running manually: cd $INSTALL_DIR/repo && poetry install"
     fi
-    echo -e "  ${GRAY}Dependencies installed successfully${NC}"
+
+    echo -e "  ${GREEN}Dependencies installed successfully${NC}"
 else
-    status "Skipping dependency installation (--skip-deps)" "${YELLOW}"
+    status "Skipping dependency installation (--skip-deps)"
 fi
 
 # Detect binaries and generate config
 status "Detecting FFmpeg, Ghostscript, and Tesseract..."
-poetry run python -m filesqueeze detect || warn "Binary detection had issues"
+echo -e "  ${GRAY}Running: poetry run python -m filesqueeze detect${NC}"
+
+if ! poetry run python -m filesqueeze detect; then
+    warn "Binary detection had issues"
+    echo -e "  ${YELLOW}Some dependencies may be missing. Run 'filesqueeze doctor' after installation.${NC}"
+fi
 
 # Generate configuration
 status "Generating configuration file..."
+echo -e "  ${GRAY}Running: poetry run python -m filesqueeze init-config --output '$INSTALL_DIR/filesqueeze.toml'${NC}"
+
 if poetry run python -m filesqueeze init-config --output "$INSTALL_DIR/filesqueeze.toml"; then
-    echo -e "  ${GRAY}Configuration created: $INSTALL_DIR/filesqueeze.toml${NC}"
+    echo -e "  ${GREEN}Configuration created: $INSTALL_DIR/filesqueeze.toml${NC}"
 else
-    warn "Config generation failed. You can create it manually."
+    warn "Config generation failed. You can create it manually:"
+    echo -e "  ${GRAY}poetry run python -m filesqueeze init-config --output '$INSTALL_DIR/filesqueeze.toml'${NC}"
 fi
 
 # Create start scripts
@@ -198,6 +221,15 @@ echo -e "  ${GRAY}Start scripts created in $INSTALL_DIR${NC}"
 
 # Create systemd service (optional)
 status "Creating systemd service file..."
+mkdir -p "$HOME/.config/systemd/user"
+
+# Get absolute path to poetry
+POETRY_PATH=$(which poetry)
+if [ -z "$POETRY_PATH" ]; then
+    warn "Poetry not found in PATH, using relative path"
+    POETRY_PATH="poetry"
+fi
+
 cat > "$HOME/.config/systemd/user/filesqueeze.service" << EOF
 [Unit]
 Description=FileSqueeze Compression Service
@@ -206,16 +238,17 @@ After=network.target
 [Service]
 Type=simple
 WorkingDirectory=$INSTALL_DIR/repo
-ExecStart=$(which poetry) run python -m filesqueeze service
+ExecStart=$POETRY_PATH run python -m filesqueeze service
 Restart=on-failure
 
 [Install]
 WantedBy=default.target
 EOF
 
-echo -e "  ${GRAY}Systemd service created: ~/.config/systemd/user/filesqueeze.service${NC}"
-echo -e "  ${GRAY}To enable: systemctl --user enable filesqueeze.service${NC}"
-echo -e "  ${GRAY}To start: systemctl --user start filesqueeze.service${NC}"
+echo -e "  ${GREEN}Systemd service created: ~/.config/systemd/user/filesqueeze.service${NC}"
+echo -e "  ${YELLOW}To enable auto-start:${NC} systemctl --user enable filesqueeze.service"
+echo -e "  ${YELLOW}To start service:${NC}   systemctl --user start filesqueeze.service"
+echo -e "  ${YELLOW}To view status:${NC}      systemctl --user status filesqueeze.service"
 
 # Success message
 echo ""
@@ -245,10 +278,21 @@ echo -e "${GREEN}Thank you for installing FileSqueeze!${NC}"
 echo ""
 
 # Offer to start service
+echo ""
 read -p "Start FileSqueeze service now? (Y/N) " -n 1 -r
 echo
 if [[ $REPLY =~ ^[Yy]$ ]]; then
     status "Starting FileSqueeze service..."
     cd "$INSTALL_DIR/repo"
-    poetry run python -m filesqueeze service
+
+    echo -e "  ${GRAY}Running: poetry run python -m filesqueeze service${NC}"
+
+    if poetry run python -m filesqueeze service &
+    then
+        echo -e "  ${GREEN}FileSqueeze service started in background${NC}"
+        echo -e "  ${YELLOW}Press Ctrl+C to stop, or close this terminal${NC}"
+    else
+        warn "Failed to start service. Try manually:"
+        echo -e "  ${GRAY}cd $INSTALL_DIR/repo && poetry run python -m filesqueeze service${NC}"
+    fi
 fi

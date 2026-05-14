@@ -106,10 +106,10 @@ try {
             throw "Poetry build failed"
         }
     } else {
-        Write-Host "  Using pip to build..." -ForegroundColor Gray
-        python -m pip build --quiet
+        Write-Host "  Poetry not found, using Python build module..." -ForegroundColor Gray
+        python -m build --quiet
         if ($LASTEXITCODE -ne 0) {
-            throw "pip build failed"
+            throw "Python build failed. Install Poetry or build module: pip install build"
         }
     }
 
@@ -184,6 +184,10 @@ try {
 
     if ($InstallSuccess) {
         Write-Host "  FileSqueeze installed successfully" -ForegroundColor Gray
+
+        # Refresh PATH environment variable to make filesqueeze command available in current session
+        $env:PATH = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
+        Write-Host "  PATH refreshed for current session" -ForegroundColor Gray
     } else {
         Write-Error-Status "Failed to install FileSqueeze. Exit code: $InstallExitCode`nOutput: $Output"
     }
@@ -313,8 +317,13 @@ if ($autostart -eq "" -or $autostart -eq "Y" -or $autostart -eq "y") {
             try {
                 # Read config to get directories using more robust pattern matching
                 $configContent = Get-Content $ConfigPath -Raw -ErrorAction Stop
-                # Try different patterns for input (handle both with and without [service] section)
-                if ($configContent -match 'input\s*=\s*"([^"]+)"') {
+                # Try different patterns for input (handle [directories], [service], or root level)
+                if ($configContent -match '\[directories\]([\s\S]*?)\[.*?\]' -or $configContent -match '\[directories\]([\s\S]*?)$') {
+                    $directoriesSection = $matches[1]
+                    if ($directoriesSection -match 'input\s*=\s*"([^"]+)"') {
+                        $inputDir = $matches[1]
+                    }
+                } elseif ($configContent -match 'input\s*=\s*"([^"]+)"') {
                     $inputDir = $matches[1]
                 } elseif ($configContent -match '\[service\]([\s\S]*?)\[.*?\]' -or $configContent -match '\[service\]([\s\S]*?)$') {
                     $serviceSection = $matches[1]
@@ -323,8 +332,13 @@ if ($autostart -eq "" -or $autostart -eq "Y" -or $autostart -eq "y") {
                     }
                 }
 
-                # Try different patterns for output
-                if ($configContent -match 'output\s*=\s*"([^"]+)"') {
+                # Try different patterns for output (handle [directories], [service], or root level)
+                if ($configContent -match '\[directories\]([\s\S]*?)\[.*?\]' -or $configContent -match '\[directories\]([\s\S]*?)$') {
+                    $directoriesSection = $matches[1]
+                    if ($directoriesSection -match 'output\s*=\s*"([^"]+)"') {
+                        $outputDir = $matches[1]
+                    }
+                } elseif ($configContent -match 'output\s*=\s*"([^"]+)"') {
                     $outputDir = $matches[1]
                 } elseif ($configContent -match '\[service\]([\s\S]*?)\[.*?\]' -or $configContent -match '\[service\]([\s\S]*?)$') {
                     $serviceSection = $matches[1]
@@ -346,9 +360,50 @@ if ($autostart -eq "" -or $autostart -eq "Y" -or $autostart -eq "y") {
         if ($inputDir) { $cmd += " --input `"$inputDir`"" }
         if ($outputDir) { $cmd += " --output `"$outputDir`"" }
 
-        Invoke-Expression $cmd
+        # Log the command for debugging
+        Write-Host "  Running: $cmd" -ForegroundColor Gray
+
+        # Try to run the command, with fallback to python -m filesqueeze
+        $success = $false
+        $output = ""
+
+        try {
+            # First try: direct filesqueeze command
+            $output = Invoke-Expression $cmd 2>&1
+            $exitCode = $LASTEXITCODE
+
+            # Check if command failed due to "not recognized" error
+            if ($exitCode -ne 0 -and $output -match "not recognized") {
+                throw "Command not found"
+            }
+
+            if ($exitCode -eq 0) {
+                $success = $true
+            }
+        } catch {
+            # Second try: use python -m filesqueeze
+            Write-Host "  filesqueeze command not found, trying python -m filesqueeze..." -ForegroundColor Yellow
+            $cmd = $cmd -replace "^filesqueeze", "python -m filesqueeze"
+            Write-Host "  Running: $cmd" -ForegroundColor Gray
+
+            $output = Invoke-Expression $cmd 2>&1
+            $exitCode = $LASTEXITCODE
+
+            if ($exitCode -eq 0) {
+                $success = $true
+            }
+        }
+
+        if (-not $success) {
+            throw "Command failed with exit code $exitCode. Output: $output"
+        }
+
+        Write-Host "  Auto-start installed successfully" -ForegroundColor Green
     } catch {
-        Write-Host "  Note: You can enable auto-start later by running:" -ForegroundColor Yellow
+        Write-Host "  Auto-start installation failed:" -ForegroundColor Red
+        Write-Host "  Error: $_" -ForegroundColor Red
+        Write-Host ""
+        Write-Host "  You can enable auto-start later by running:" -ForegroundColor Yellow
         Write-Host "        filesqueeze service install" -ForegroundColor Gray
     }
 } else {

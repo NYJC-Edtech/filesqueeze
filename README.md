@@ -49,7 +49,7 @@ poetry run python -m filesqueeze service run  # Development install
 
 ## Installation
 
-FileSqueeze supports two installation methods:
+FileSqueeze supports multiple installation methods. Our installation scripts follow [Installation Principles](INSTALLATION_PRINCIPLES.md) that ensure robust error handling, PATH refresh, and graceful fallbacks.
 
 ### Method 1: System-Wide Installer (Recommended for End Users)
 
@@ -554,6 +554,17 @@ FileSqueeze guarantees these non-negotiable behaviors:
 ---
 
 ## Troubleshooting
+
+### Installation Issues
+
+If you encounter problems during installation, our scripts provide detailed error messages and recovery instructions. For information about our installation design principles and common issues, see [INSTALLATION_PRINCIPLES.md](INSTALLATION_PRINCIPLES.md).
+
+**Common installation issues:**
+- **"Command not found" errors**: Use `python -m filesqueeze` instead of `filesqueeze`
+- **Build tool missing**: Install Poetry (`pip install poetry`) or use the fallback build system
+- **PATH not updated**: Restart your shell or use `python -m` syntax
+
+### Application Issues
 
 For common issues and solutions, see [TROUBLESHOOTING.md](TROUBLESHOOTING.md).
 
