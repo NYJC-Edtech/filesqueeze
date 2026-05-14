@@ -460,6 +460,8 @@ class RetentionManager:
         self.cleanup_interval_hours = self.config.get("retention.cleanup_interval_hours", 1)
         self.compressed_retention_hours = self.config.get("retention.compressed_retention_hours", 48)
         self.archive_retention_days = self.config.get("retention.archive_retention_days", 30)
+        self.max_compressed_size_gb = self.config.get("retention.max_compressed_size_gb", 0)
+        self.max_archive_size_gb = self.config.get("retention.max_archive_size_gb", 0)
         self.min_age_hours = self.config.get("retention.min_age_hours", 1)
         self.dry_run = self.config.get("retention.dry_run", False)
         self.require_confirmation = self.config.get("retention.require_confirmation", True)
@@ -484,8 +486,12 @@ class RetentionManager:
         self.logger.info(f"Mode: {interval_desc}")
         self.logger.info(f"Cleanup interval: {self.cleanup_interval_hours} hour(s)")
         self.logger.info(f"Compressed files retention: {self.compressed_retention_hours} hours")
+        if self.max_compressed_size_gb > 0:
+            self.logger.info(f"Compressed files size limit: {self.max_compressed_size_gb} GB")
         if self.archive_dir:
             self.logger.info(f"Archived files retention: {self.archive_retention_days} days")
+            if self.max_archive_size_gb > 0:
+                self.logger.info(f"Archived files size limit: {self.max_archive_size_gb} GB")
         self.logger.info(f"Minimum age safeguard: {self.min_age_hours} hours")
         self.logger.info("=" * 60)
 
@@ -553,6 +559,23 @@ class RetentionManager:
             if self.archive_dir:
                 archived_deleted, additional_space = self._cleanup_archived_files()
                 space_freed += additional_space
+
+            # Size-based cleanup if limits exceeded
+            if self._should_cleanup_by_size():
+                self.logger.info("=" * 60)
+                self.logger.info("Size limits exceeded, running size-based cleanup")
+                self.logger.info("=" * 60)
+
+                compressed_size_deleted, size_space_freed = self._cleanup_compressed_files_by_size()
+                if self.archive_dir:
+                    archived_size_deleted, additional_size_space = self._cleanup_archived_files_by_size()
+                    size_space_freed += additional_size_space
+                else:
+                    archived_size_deleted = 0
+
+                compressed_deleted += compressed_size_deleted
+                archived_deleted += archived_size_deleted
+                space_freed += size_space_freed
 
             # Update statistics
             with self._stats_lock:
@@ -704,6 +727,201 @@ class RetentionManager:
 
         except Exception as e:
             self.logger.error(f"Error scanning archive directory: {e}")
+
+        return archived_deleted, space_freed
+
+    def _get_directory_size(self, directory: Path) -> int:
+        """Calculate total size of directory in bytes.
+
+        Args:
+            directory: Directory path to calculate size for.
+
+        Returns:
+            Total size in bytes. Returns 0 if directory doesn't exist or on error.
+        """
+        try:
+            total_size = 0
+            for filepath in directory.iterdir():
+                if filepath.is_file():
+                    total_size += filepath.stat().st_size
+            return total_size
+        except Exception as e:
+            self.logger.warning(f"Error calculating directory size for {directory}: {e}")
+            return 0
+
+    def _should_cleanup_by_size(self) -> bool:
+        """Check if size-based cleanup should be run.
+
+        Returns:
+            True if any size limits are configured and exceeded.
+        """
+        # Check compressed files size limit
+        if self.max_compressed_size_gb > 0:
+            compressed_size = self._get_directory_size(self.output_dir)
+            compressed_limit_bytes = self.max_compressed_size_gb * 1024 * 1024 * 1024
+            if compressed_size > compressed_limit_bytes:
+                return True
+
+        # Check archive files size limit
+        if self.max_archive_size_gb > 0 and self.archive_dir:
+            archive_size = self._get_directory_size(self.archive_dir)
+            archive_limit_bytes = self.max_archive_size_gb * 1024 * 1024 * 1024
+            if archive_size > archive_limit_bytes:
+                return True
+
+        return False
+
+    def _cleanup_compressed_files_by_size(self) -> tuple[int, int]:
+        """Clean up compressed files by deleting largest files until under size limit.
+
+        Returns:
+            Tuple of (files_deleted, space_freed)
+        """
+        from datetime import datetime, timedelta
+
+        compressed_deleted = 0
+        space_freed = 0
+
+        if self.max_compressed_size_gb <= 0:
+            return compressed_deleted, space_freed
+
+        max_size_bytes = self.max_compressed_size_gb * 1024 * 1024 * 1024
+        min_age_time = datetime.now() - timedelta(hours=self.min_age_hours)
+
+        self.logger.info(f"Size-based cleanup for compressed directory: {self.output_dir}")
+        self.logger.info(f"Size limit: {self.max_compressed_size_gb} GB ({max_size_bytes:,} bytes)")
+
+        try:
+            # Get all files with their sizes and modification times
+            files = []
+            for filepath in self.output_dir.iterdir():
+                if not filepath.is_file():
+                    continue
+
+                try:
+                    file_size = filepath.stat().st_size
+                    file_mtime = datetime.fromtimestamp(filepath.stat().st_mtime)
+                    files.append((filepath, file_size, file_mtime))
+                except Exception as e:
+                    self.logger.warning(f"Error getting file info for {filepath.name}: {e}")
+
+            # Calculate current total size
+            total_size = sum(file_size for _, file_size, _ in files)
+
+            if total_size <= max_size_bytes:
+                self.logger.info(
+                    f"Current size: {total_size:,} bytes ({total_size / 1024 / 1024 / 1024:.2f} GB) - within limit"
+                )
+                return compressed_deleted, space_freed
+
+            self.logger.info(f"Current size: {total_size:,} bytes ({total_size / 1024 / 1024 / 1024:.2f} GB) - exceeds limit")
+            self.logger.info(f"Deleting largest files until under {self.max_compressed_size_gb} GB limit")
+
+            # Sort by size (largest first)
+            files.sort(key=lambda x: x[1], reverse=True)
+
+            # Delete largest files until under limit
+            for filepath, file_size, file_mtime in files:
+                if total_size <= max_size_bytes:
+                    break
+
+                # Check minimum age safeguard
+                if file_mtime > min_age_time:
+                    self.logger.debug(f"Skipping (too young): {filepath.name}")
+                    continue
+
+                try:
+                    if self.dry_run:
+                        self.logger.info(f"Would delete: {filepath.name} ({file_size:,} bytes)")
+                    else:
+                        filepath.unlink()
+                        self.logger.info(f"Deleted: {filepath.name} ({file_size:,} bytes)")
+                        compressed_deleted += 1
+                        space_freed += file_size
+                        total_size -= file_size
+
+                except Exception as e:
+                    self.logger.warning(f"Error deleting {filepath.name}: {e}")
+
+        except Exception as e:
+            self.logger.error(f"Error during size-based cleanup of compressed directory: {e}")
+
+        return compressed_deleted, space_freed
+
+    def _cleanup_archived_files_by_size(self) -> tuple[int, int]:
+        """Clean up archived files by deleting largest files until under size limit.
+
+        Returns:
+            Tuple of (files_deleted, space_freed)
+        """
+        from datetime import datetime, timedelta
+
+        archived_deleted = 0
+        space_freed = 0
+
+        if not self.archive_dir or self.max_archive_size_gb <= 0:
+            return archived_deleted, space_freed
+
+        max_size_bytes = self.max_archive_size_gb * 1024 * 1024 * 1024
+        min_age_time = datetime.now() - timedelta(hours=self.min_age_hours)
+
+        self.logger.info(f"Size-based cleanup for archive directory: {self.archive_dir}")
+        self.logger.info(f"Size limit: {self.max_archive_size_gb} GB ({max_size_bytes:,} bytes)")
+
+        try:
+            # Get all files with their sizes and modification times
+            files = []
+            for filepath in self.archive_dir.iterdir():
+                if not filepath.is_file():
+                    continue
+
+                try:
+                    file_size = filepath.stat().st_size
+                    file_mtime = datetime.fromtimestamp(filepath.stat().st_mtime)
+                    files.append((filepath, file_size, file_mtime))
+                except Exception as e:
+                    self.logger.warning(f"Error getting file info for {filepath.name}: {e}")
+
+            # Calculate current total size
+            total_size = sum(file_size for _, file_size, _ in files)
+
+            if total_size <= max_size_bytes:
+                self.logger.info(
+                    f"Current size: {total_size:,} bytes ({total_size / 1024 / 1024 / 1024:.2f} GB) - within limit"
+                )
+                return archived_deleted, space_freed
+
+            self.logger.info(f"Current size: {total_size:,} bytes ({total_size / 1024 / 1024 / 1024:.2f} GB) - exceeds limit")
+            self.logger.info(f"Deleting largest files until under {self.max_archive_size_gb} GB limit")
+
+            # Sort by size (largest first)
+            files.sort(key=lambda x: x[1], reverse=True)
+
+            # Delete largest files until under limit
+            for filepath, file_size, file_mtime in files:
+                if total_size <= max_size_bytes:
+                    break
+
+                # Check minimum age safeguard
+                if file_mtime > min_age_time:
+                    self.logger.debug(f"Skipping (too young): {filepath.name}")
+                    continue
+
+                try:
+                    if self.dry_run:
+                        self.logger.info(f"Would delete: {filepath.name} ({file_size:,} bytes)")
+                    else:
+                        filepath.unlink()
+                        self.logger.info(f"Deleted: {filepath.name} ({file_size:,} bytes)")
+                        archived_deleted += 1
+                        space_freed += file_size
+                        total_size -= file_size
+
+                except Exception as e:
+                    self.logger.warning(f"Error deleting {filepath.name}: {e}")
+
+        except Exception as e:
+            self.logger.error(f"Error during size-based cleanup of archive directory: {e}")
 
         return archived_deleted, space_freed
 
