@@ -122,6 +122,10 @@ cleanup_interval_hours = 1
 compressed_retention_hours = 48
 # Retention period for archived original files in days (30 = 1 month)
 archive_retention_days = 30
+# Maximum archive directory size in GB (0 = disabled, deletes largest files when exceeded)
+max_archive_size_gb = 0
+# Maximum compressed directory size in GB (0 = disabled, deletes largest files when exceeded)
+max_compressed_size_gb = 0
 # Minimum age in hours before files can be deleted (safety safeguard)
 min_age_hours = 1
 # Dry-run mode: log what would be deleted without actually deleting
