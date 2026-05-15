@@ -3,7 +3,7 @@
 # Run with: bash install.sh
 # Or download and run: curl -sSL https://nyjc.app/filesqueeze/install | bash
 #
-# This script follows FileSqueeze Installation Principles documented in INSTALLATION_PRINCIPLES.md
+# This script follows FileSqueeze Installation Principles documented in docs/INSTALLATION_PRINCIPLES.md
 # Key features:
 # - Robust error handling with verbose logging
 # - PATH refresh after Poetry installation

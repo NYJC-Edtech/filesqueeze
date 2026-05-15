@@ -49,7 +49,7 @@ poetry run python -m filesqueeze service run  # Development install
 
 ## Installation
 
-FileSqueeze supports multiple installation methods. Our installation scripts follow [Installation Principles](INSTALLATION_PRINCIPLES.md) that ensure robust error handling, PATH refresh, and graceful fallbacks.
+FileSqueeze supports multiple installation methods. Our installation scripts follow [Installation Principles](docs/INSTALLATION_PRINCIPLES.md) that ensure robust error handling, PATH refresh, and graceful fallbacks.
 
 ### Method 1: System-Wide Installer (Recommended for End Users)
 
@@ -508,7 +508,7 @@ For Google Shared Drives, Dropbox, OneDrive, or other cloud-synced folders:
 - ✅ **Expect delays** of 5-7 minutes for file processing
 - ❌ **Don't disable polling** - watchdog events are unreliable on network drives
 
-For file detection troubleshooting, see [TROUBLESHOOTING.md](TROUBLESHOOTING.md#file-detection-issues).
+For file detection troubleshooting, see [TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md#file-detection-issues).
 
 ---
 
@@ -557,7 +557,7 @@ FileSqueeze guarantees these non-negotiable behaviors:
 
 ### Installation Issues
 
-If you encounter problems during installation, our scripts provide detailed error messages and recovery instructions. For information about our installation design principles and common issues, see [INSTALLATION_PRINCIPLES.md](INSTALLATION_PRINCIPLES.md).
+If you encounter problems during installation, our scripts provide detailed error messages and recovery instructions. For information about our installation design principles and common issues, see [INSTALLATION_PRINCIPLES.md](docs/INSTALLATION_PRINCIPLES.md).
 
 **Common installation issues:**
 - **"Command not found" errors**: Use `python -m filesqueeze` instead of `filesqueeze`
@@ -566,7 +566,7 @@ If you encounter problems during installation, our scripts provide detailed erro
 
 ### Application Issues
 
-For common issues and solutions, see [TROUBLESHOOTING.md](TROUBLESHOOTING.md).
+For common issues and solutions, see [TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md).
 
 For quick diagnosis:
 ```bash
@@ -621,9 +621,9 @@ rm filesqueeze.toml
 
 ## Additional Documentation
 
-For development, testing, and deployment information, see [DEVELOPMENT.md](DEVELOPMENT.md).
+For development, testing, and deployment information, see [DEVELOPMENT.md](docs/DEVELOPMENT.md).
 
-For troubleshooting and common issues, see [TROUBLESHOOTING.md](TROUBLESHOOTING.md).
+For troubleshooting and common issues, see [TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md).
 
 ## License
 
