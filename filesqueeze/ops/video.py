@@ -109,8 +109,10 @@ def width_height(infile: str, ffmpeg_path: str = "") -> tuple[int, int] | None:
             raise RuntimeError(f"ffprobe failed with return code {e.returncode}: {infile}") from None
 
         if data and "x" in data:
-            width, height = data.split("x")
-            return int(width), int(height)
+            # Handle trailing 'x' in ffprobe output (e.g., "1920x1080x")
+            parts = [p for p in data.split("x") if p]
+            if len(parts) >= 2:
+                return int(parts[0]), int(parts[1])
 
         return None
 
