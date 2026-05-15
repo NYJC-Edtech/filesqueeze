@@ -296,6 +296,94 @@ pytest tests/ -x
 pytest tests/ --cov=filesqueeze --cov-report=html
 ```
 
+## Static Checking with Ruff
+
+Static checking complements runtime testing by catching issues before code execution. Our project uses Ruff for both linting and type checking.
+
+### Enhanced Static Type Checking
+
+We've enhanced our Ruff configuration to catch more issues:
+
+```toml
+[tool.ruff.lint.select = [
+    "E",   # pycodestyle errors (syntax errors)
+    "F",   # pyflakes (undefined names, unused imports)
+    "W",   # pycodestyle warnings (dangerous patterns)
+    "I",   # isort (import sorting)
+    "B",   # flake8-bugbear (common bugs)
+    "C4",  # flake8-comprehensions (unnecessary comprehensions)
+    "UP",  # pyupgrade (modernize Python syntax)
+    "ANN", # flake8-annotations (type annotations)
+    "RUF", # Ruff-specific rules
+]
+```
+
+### Running Static Checks
+
+```bash
+# Check for all issues
+ruff check .
+
+# Check for type annotation issues only
+ruff check . --select ANN
+
+# Auto-fix issues where possible
+ruff check . --fix
+
+# Check specific files
+ruff check filesqueeze/handlers.py
+```
+
+### Case Study: State Class Error Prevention
+
+A recent bug occurred when code tried to directly assign to `state.status`:
+```python
+state.status = "Error during file analysis"  # WRONG - causes AttributeError
+```
+
+The `State` class uses `__slots__` and doesn't support direct attribute assignment. We fixed this through:
+
+1. **Better Error Messages**: The State class now has a custom `__setattr__` that provides clear guidance
+2. **Type Annotations**: All methods now have proper type hints
+3. **API Documentation**: Clear warnings in docstrings about correct usage
+
+### Best Practices for Static Checking
+
+#### 1. Always Use State Methods
+```python
+# ❌ WRONG
+state.status = "Error"
+state.metadata["key"] = "value"
+
+# ✅ CORRECT
+state.error("Error message")
+# metadata is accessed via property, not modified directly
+```
+
+#### 2. Add Type Annotations
+```python
+# ❌ WRONG
+def process(state):
+    state.status_analyze()
+
+# ✅ CORRECT
+def process(state: State) -> None:
+    state.status_analyze()
+```
+
+#### 3. Run Static Checks Before Committing
+```bash
+# Make it part of your development workflow
+ruff check . && black .
+```
+
+### Benefits of Static Checking
+
+- **Early Error Detection**: Catches issues at code-writing time, not runtime
+- **Better IDE Support**: Type annotations enable autocomplete and inline documentation
+- **Code Quality**: Enforces consistent style and catches common bugs
+- **API Clarity**: Type hints serve as documentation for function signatures
+
 ## Debugging Tests
 
 ### Print Debug Info
@@ -421,6 +509,7 @@ Before committing a test, verify:
 - [ ] Test is independent (can run alone)
 - [ ] Test has descriptive name explaining what it tests
 - [ ] Test follows AAA pattern (Arrange, Act, Assert)
+- [ ] Code passes static checks: `ruff check .`
 
 ## Troubleshooting
 
@@ -462,3 +551,12 @@ def test_good(tmp_path):
 - [pytest documentation](https://docs.pytest.org/)
 - [pytest fixtures](https://docs.pytest.org/en/stable/fixture.html)
 - [pytest markers](https://docs.pytest.org/en/stable/mark.html)
+- [Ruff documentation](https://docs.astral.sh/ruff/)
+
+## Future Improvements
+
+1. **Pre-commit Hooks**: Add Ruff to git hooks to catch issues before commit
+2. **CI Integration**: Run Ruff in CI to enforce code quality
+3. **Strict Mode**: Consider enabling more strict Ruff rules over time
+4. **Type Stub Files**: Add `.pyi` files for better type checking of complex modules
+5. **Coverage Targets**: Set minimum coverage thresholds for CI/CD
