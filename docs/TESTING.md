@@ -334,6 +334,66 @@ ruff check . --fix
 ruff check filesqueeze/handlers.py
 ```
 
+### Code Formatting with Ruff
+
+Our project uses Ruff for both linting and formatting (replacing Black):
+
+```bash
+# Format all Python files
+ruff format .
+
+# Check formatting without making changes
+ruff format --check .
+
+# Format specific files
+ruff format filesqueeze/handlers.py
+
+# Format and check in one command
+ruff format . && ruff check .
+```
+
+**Why Ruff format?**
+- **10-100x faster** than Black
+- **Compatible configuration** - matches Black's default style
+- **All-in-one tool** - single dependency for linting and formatting
+- **Active development** - rapid improvements and new features
+
+### Git Hooks
+
+Our project includes automated git hooks for code quality:
+
+#### Pre-commit Hook
+Runs automatically before each commit:
+1. **Ruff type checking** (`ruff check . --select ANN`)
+2. **Smoke tests** (`pytest tests/smoke/ -q`)
+
+If either check fails, the commit is rejected with helpful error messages.
+
+#### Post-edit Hook
+Automatically formats Python files after editing:
+- **Auto-formats** with `ruff format` when you save a `.py` file
+- **Zero friction** - no manual formatting commands needed
+
+**Installing Git Hooks:**
+```bash
+# Linux/macOS
+bash .githooks/install.sh
+
+# Windows PowerShell
+powershell -ExecutionPolicy Bypass -File .githooks\install.ps1
+```
+
+**Manual Hook Testing:**
+```bash
+# Test pre-commit checks
+ruff check . --select ANN
+pytest tests/smoke/ -v
+
+# Test formatting
+ruff format . --check  # Check if formatting needed
+ruff format .          # Apply formatting
+```
+
 ### Case Study: State Class Error Prevention
 
 A recent bug occurred when code tried to directly assign to `state.status`:
@@ -374,7 +434,7 @@ def process(state: State) -> None:
 #### 3. Run Static Checks Before Committing
 ```bash
 # Make it part of your development workflow
-ruff check . && black .
+ruff format . && ruff check .
 ```
 
 ### Benefits of Static Checking

@@ -1,0 +1,13 @@
+#!/bin/bash
+# FileSqueeze post-edit hook
+# Auto-formats Python files using ruff after editing
+
+# Get the file being edited
+FILE=$1
+
+# Only process Python files
+if [[ "$FILE" == *.py ]]; then
+    echo "🎨 Auto-formatting $FILE with ruff..."
+    ruff format "$FILE"
+    echo "✅ Formatting complete"
+fi

@@ -1,17 +1,24 @@
 #!/bin/bash
-# Install FileSqueeze pre-commit hooks
+# Install FileSqueeze git hooks
 
 set -e
 
-echo "🔧 Installing FileSqueeze pre-commit hooks..."
+echo "🔧 Installing FileSqueeze git hooks..."
 
-# Copy the pre-commit hook to .git/hooks/
+# Copy the hooks to .git/hooks/
 cp .githooks/pre-commit .git/hooks/pre-commit
+cp .githooks/post-edit .git/hooks/post-edit
 
-# Make it executable
+# Make them executable
 chmod +x .git/hooks/pre-commit
+chmod +x .git/hooks/post-edit
 
-echo "✅ Pre-commit hooks installed successfully"
+echo "✅ Git hooks installed successfully"
 echo ""
-echo "Smoke tests will now run automatically before each commit."
-echo "To test manually: pytest tests/smoke/ -v"
+echo "📋 Installed hooks:"
+echo "  • pre-commit: Ruff type checking + smoke tests"
+echo "  • post-edit: Auto-format Python files with ruff"
+echo ""
+echo "To test manually:"
+echo "  • pytest tests/smoke/ -v"
+echo "  • ruff check . --select ANN"

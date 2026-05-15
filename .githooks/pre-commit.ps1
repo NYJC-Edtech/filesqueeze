@@ -1,7 +1,22 @@
 # FileSqueeze pre-commit hook (Windows PowerShell)
-# Runs smoke tests to ensure commits don't break critical system functionality
+# Runs ruff type checking and smoke tests to ensure commits don't break functionality
 
 $ErrorActionPreference = "Stop"
+
+Write-Host "🔍 Running Ruff type checking..." -ForegroundColor Yellow
+
+# Run ruff type checking
+$process = Start-Process -FilePath "ruff" -ArgumentList "check", ".", "--select", "ANN" -Wait -PassThru -NoNewWindow
+
+if ($process.ExitCode -eq 0) {
+    Write-Host "✅ Type checking passed" -ForegroundColor Green
+} else {
+    Write-Host "❌ Type checking failed - commit rejected" -ForegroundColor Red
+    Write-Host ""
+    Write-Host "Ruff found type annotation issues. Please fix them before committing."
+    Write-Host "Run 'ruff check . --select ANN' for details, or 'ruff check . --fix' to auto-fix."
+    exit 1
+}
 
 Write-Host "🔥 Running FileSqueeze smoke tests..." -ForegroundColor Yellow
 
