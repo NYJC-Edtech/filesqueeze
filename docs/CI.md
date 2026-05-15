@@ -11,7 +11,7 @@ Runs on every push to any branch:
 - **Smoke Tests**: Critical imports and basic functionality
 - **Unit Tests**: Fast, isolated component tests  
 - **System Tests**: Configuration, circular imports, logger tests
-- **Code Quality**: Black formatting checks + ruff linting
+- **Code Quality**: Ruff formatting + linting + type checking
 
 ### 2. Integration Tests (PRs Only)
 Runs on pull requests to main/develop branches:
@@ -41,22 +41,17 @@ Runs on pull requests to main/develop branches:
 ## Code Quality Tools
 
 ### Pre-commit Hooks
-- **Purpose**: Automatically format code before commits
-- **Tools**: Black (formatting) + ruff (linting)
-- **Setup**: Run `pip install pre-commit && pre-commit install` once after cloning
-- **Action**: Automatically formats Python files on every commit
+- **Purpose**: Automatically format and validate code before commits
+- **Tools**: Ruff (formatting + linting + type checking)
+- **Setup**: Run `bash .githooks/install.sh` (Linux/macOS) or `powershell .githooks\install.ps1` (Windows)
+- **Action**: Auto-formats Python files and validates type annotations on every commit
 
-### Black
-- **Purpose**: Code formatting consistency
-- **Config**: 127 character line length, Python 3.11 target
-- **Action**: Automatically formats code via pre-commit hooks
-
-### ruff
-- **Purpose**: Fast Python linting (replaces flake8)
-- **Focus**: Major code quality issues and correctness
-- **Config**: 127 character line length, ignores E501 (Black handles line length)
-- **Action**: Runs via pre-commit hooks to catch code quality issues
-- **Note**: We use pyright in VSCode for type checking, not in CI
+### Ruff
+- **Purpose**: All-in-one Python formatting and linting
+- **Formatting**: 127 character line length, double quotes, Python 3.11 target
+- **Linting**: Major code quality issues and correctness checks
+- **Type Checking**: Type annotation validation (ANN rules)
+- **Action**: Runs via git hooks and CI for comprehensive code quality
 
 ## Platform Support
 
@@ -82,19 +77,31 @@ Runs on pull requests to main/develop branches:
 
 ### Common Issues
 
-**Black formatting failures:**
+**Ruff formatting failures:**
 ```bash
 # Locally format code
-poetry run black filesqueeze/ tests/
+poetry run ruff format filesqueeze/ tests/
+
+# Check formatting without making changes
+poetry run ruff format --check filesqueeze/ tests/
 ```
 
-**ruff warnings:**
+**Ruff linting warnings:**
 ```bash
 # Run linting locally
 poetry run ruff check filesqueeze/ tests/
 
 # Auto-fix issues where possible
 poetry run ruff check --fix filesqueeze/ tests/
+```
+
+**Type annotation failures:**
+```bash
+# Check type annotations locally
+poetry run ruff check filesqueeze/ tests/ --select ANN
+
+# Auto-fix issues where possible
+poetry run ruff check --fix filesqueeze/ tests/ --select ANN
 ```
 
 **Integration test failures:**
@@ -110,13 +117,16 @@ poetry run ruff check --fix filesqueeze/ tests/
 
 ## Local Testing
 
-### Setup Pre-commit Hooks (Recommended)
+### Setup Git Hooks (Recommended)
 ```bash
-# Install pre-commit and set up hooks
-pip install pre-commit
-pre-commit install
+# Install git hooks for auto-formatting and validation
+# Linux/macOS:
+bash .githooks/install.sh
 
-# Now your code will be automatically formatted before each commit
+# Windows PowerShell:
+powershell -ExecutionPolicy Bypass -File .githooks\install.ps1
+
+# Now your code will be automatically formatted and validated before each commit
 ```
 
 ### Quick Check (What runs on push)
@@ -129,10 +139,13 @@ poetry run pytest tests/smoke/ tests/unit/ tests/system/ -v
 ### Manual Formatting (If needed)
 ```bash
 # Format all files manually
-poetry run black filesqueeze/ tests/
+poetry run ruff format filesqueeze/ tests/
 
 # Check formatting without making changes
-poetry run black --check filesqueeze/ tests/
+poetry run ruff format --check filesqueeze/ tests/
+
+# Run all quality checks
+poetry run ruff format filesqueeze/ tests/ && poetry run ruff check filesqueeze/ tests/
 ```
 
 ### Full Test Suite (What runs on PR)
@@ -146,8 +159,8 @@ poetry run pytest tests/ -v --ignore=tests/integration/test_gui_behavior.py
 
 ## Future Improvements
 
-- [x] Add pre-commit hooks configuration
-- [x] Replace flake8 with ruff for better performance
+- [x] Add git hooks for auto-formatting and type checking
+- [x] Replace Black with Ruff for all-in-one formatting and linting
 - [ ] Add security scanning (bandit)
 - [ ] Windows CI runner for GUI/service tests
 - [ ] Documentation building tests
