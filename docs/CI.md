@@ -40,11 +40,31 @@ Runs on pull requests to main/develop branches:
 
 ## Code Quality Tools
 
-### Pre-commit Hooks
+### Git Hooks
+
+**Pre-commit Hook:**
 - **Purpose**: Automatically format and validate code before commits
-- **Tools**: Ruff (formatting + linting + type checking)
-- **Setup**: Run `bash .githooks/install.sh` (Linux/macOS) or `powershell .githooks\install.ps1` (Windows)
-- **Action**: Auto-formats Python files and validates type annotations on every commit
+- **Tools**: Ruff (type checking) + pytest (smoke tests)
+- **Action**: Validates type annotations and runs smoke tests
+
+**Post-edit Hook:**
+- **Purpose**: Auto-format Python files after editing
+- **Tools**: Ruff formatter
+- **Action**: Formats Python files when saved
+
+**Pre-push Hook:**
+- **Purpose**: Prevent pushing desynchronized poetry lockfiles
+- **Tools**: Poetry lock check
+- **Action**: Blocks push if poetry.lock is out of sync with pyproject.toml
+
+**Setup:**
+```bash
+# Linux/macOS
+bash .githooks/install.sh
+
+# Windows PowerShell
+powershell -ExecutionPolicy Bypass -File .githooks\install.ps1
+```
 
 ### Ruff
 - **Purpose**: All-in-one Python formatting and linting

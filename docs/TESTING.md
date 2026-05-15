@@ -374,6 +374,13 @@ Automatically formats Python files after editing:
 - **Auto-formats** with `ruff format` when you save a `.py` file
 - **Zero friction** - no manual formatting commands needed
 
+#### Pre-push Hook
+Runs automatically before each push:
+- **Poetry lockfile sync check** (`poetry lock --check`)
+- Prevents pushing desynchronized lockfiles that cause dependency issues
+
+If the lockfile is out of sync, the push is rejected with instructions to fix it.
+
 **Installing Git Hooks:**
 ```bash
 # Linux/macOS
@@ -392,6 +399,10 @@ pytest tests/smoke/ -v
 # Test formatting
 ruff format . --check  # Check if formatting needed
 ruff format .          # Apply formatting
+
+# Test poetry lockfile sync
+poetry lock --check    # Should pass if lockfile is current
+poetry lock           # Update lockfile if needed
 ```
 
 ### Case Study: State Class Error Prevention
