@@ -82,6 +82,8 @@ select = [
     "B",   # flake8-bugbear (common bugs)
     "C4",  # flake8-comprehensions (unnecessary comprehensions)
     "UP",  # pyupgrade (modernize Python syntax)
+    "ANN", # flake8-annotations (type annotations)
+    "RUF", # Ruff-specific rules
 ]
 ignore = [
     "E501",  # line too long (handled by Black)
