@@ -9,14 +9,14 @@ from .ops import presentation as pptx
 from .system import logger
 
 
-def cleanupFiles(state: State) -> None:
+def cleanupFiles(state: State) -> Handler:
     """
     Final transition of state machine.
     Removes origin file.
     """
     # state.origin.unlink()
     state.status_complete()
-    return None
+    return cleanupFiles
 
 
 def analyzeVideo(state: State) -> Handler:
@@ -178,7 +178,7 @@ def compressDocument(state: State) -> Handler:
             convert_to_jpeg = config.get("document.convert_to_jpeg", False) if config else False
             ffmpeg_path = config.ffmpeg_path if config else ""
 
-            document.compress_image(
+            image.compress_image(
                 str(state.target),
                 str(outpath),
                 quality=img_quality,
@@ -192,6 +192,7 @@ def compressDocument(state: State) -> Handler:
             return cleanupFiles
     except Exception as e:
         state.error(f"Error compressing document: {e}")
+        return cleanupFiles
     else:
         state.set_target(outpath)
 

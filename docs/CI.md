@@ -161,6 +161,4 @@ poetry run pytest tests/ -v --ignore=tests/integration/test_gui_behavior.py
 
 - [x] Add git hooks for auto-formatting and type checking
 - [x] Replace Black with Ruff for all-in-one formatting and linting
-- [ ] Add security scanning (bandit)
 - [ ] Windows CI runner for GUI/service tests
-- [ ] Documentation building tests
