@@ -28,7 +28,7 @@ def analyzeVideo(state: State) -> Handler:
         duration = video.duration(str(state.target))
         size = video.width_height(str(state.target))
     except Exception:
-        state.status = "Error during file analysis"
+        state.error("Error during file analysis")
         # No need to terminate; can still proceed without metadata
     else:
         if duration:
