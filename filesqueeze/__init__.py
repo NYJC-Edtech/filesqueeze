@@ -122,19 +122,19 @@ def make_presentation(
 
 
 __all__ = [
-    "video",
+    "binaries",
     "document",
     "image",
-    "pptx",  # Alias for presentation
     "logger",
-    "platform",
-    "binaries",
-    "make_video",
-    "make_pdf",
     "make_image",
+    "make_pdf",
     "make_presentation",
-    "register_logger",
+    "make_video",
+    "platform",
+    "pptx",  # Alias for presentation
     "register_binary_finder",
+    "register_logger",
     "trace_context",
     "trace_handler",
+    "video",
 ]

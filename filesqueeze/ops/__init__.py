@@ -17,8 +17,8 @@ Usage:
 from filesqueeze.ops import document, image, presentation, video
 
 __all__ = [
-    "video",
     "document",
     "image",
     "presentation",
+    "video",
 ]

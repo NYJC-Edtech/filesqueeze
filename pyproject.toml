@@ -86,6 +86,11 @@ select = [
 ignore = [
     "E501",  # line too long (handled by formatter)
     "UP035", # Import from collections.abc (too noisy for now)
+    "ANN204", # __init__ methods (well-known to return None, obvious from class)
+    "ANN202", # Private methods (internal implementation, not public API)
+    "ANN206", # Private classmethods (internal implementation, not public API)
+    "ANN002", # *args (often pass-through, context-dependent)
+    "ANN003", # **kwargs (often pass-through, context-dependent)
 ]
 exclude = [
     ".git",

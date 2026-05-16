@@ -187,7 +187,7 @@ def ocr_pdf(
                 "-dBATCH",
                 f"-r{dpi}",
                 "-sDEVICE=png16m",
-                f"-sOutputFile={str(image_pattern)}",
+                f"-sOutputFile={image_pattern!s}",
                 str(pdf_path),
             ]
 

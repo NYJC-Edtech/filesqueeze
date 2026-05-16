@@ -108,7 +108,7 @@ def test_handler_classes_instantiable():
         state = State(str(test_file))
 
         # Verify handler modules are accessible (ops modules, not handlers module)
-        from filesqueeze.ops import video, document, image
+        from filesqueeze.ops import document, image, video
 
         assert video is not None
         assert document is not None
