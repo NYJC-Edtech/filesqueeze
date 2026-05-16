@@ -231,9 +231,9 @@ class TestUninstallationProcessInvariant:
         assert not removes_config, "Uninstaller should not remove user configuration directory"
 
         # Also check that the script says it keeps config
-        assert (
-            "Keep user configuration" in content or "configuration and logs" in content or "preserves" in content.lower()
-        ), "Uninstaller should explicitly state it preserves user config"
+        assert "Keep user configuration" in content or "configuration and logs" in content or "preserves" in content.lower(), (
+            "Uninstaller should explicitly state it preserves user config"
+        )
 
     def test_uninstall_enables_fresh_install(self, project_root):
         """After uninstall, should be able to install again without errors."""
@@ -247,9 +247,9 @@ class TestUninstallationProcessInvariant:
 
         # Verify uninstall removes the package
         uninstall_content = uninstall_script.read_text()
-        assert (
-            "pip uninstall" in uninstall_content or "uninstall filesqueeze" in uninstall_content.lower()
-        ), "Uninstaller should remove FileSqueeze package"
+        assert "pip uninstall" in uninstall_content or "uninstall filesqueeze" in uninstall_content.lower(), (
+            "Uninstaller should remove FileSqueeze package"
+        )
 
         # Verify install can handle re-installation
         install_content = install_script.read_text()
@@ -291,9 +291,9 @@ class TestInstallerBehavior:
         content = install_script.read_text()
 
         # Verify it runs init-config or creates config
-        assert (
-            "init-config" in content or "config.toml" in content or "Generate configuration" in content
-        ), "Installer should generate configuration file"
+        assert "init-config" in content or "config.toml" in content or "Generate configuration" in content, (
+            "Installer should generate configuration file"
+        )
 
     def test_installer_checks_python_version(self, project_root):
         """Installer should verify Python 3.11+ is installed."""

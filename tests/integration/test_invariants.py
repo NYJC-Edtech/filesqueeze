@@ -94,9 +94,9 @@ class TestServiceExecutionInvariants:
         )
 
         # Verify that the start method focuses on tray icon creation
-        assert (
-            "icon" in start_source.lower() or "pystray" in start_source.lower()
-        ), "TrayService.start() should create the tray icon"
+        assert "icon" in start_source.lower() or "pystray" in start_source.lower(), (
+            "TrayService.start() should create the tray icon"
+        )
 
         # The invariant: status window opens AUTOMATICALLY when service starts
         # This provides immediate visual feedback to users
@@ -169,9 +169,9 @@ class TestWindowsIntegrationInvariants:
         assert "AppUserModelID" in source or "APP_USER_MODEL_ID" in source, "TrayService.start() should set AppUserModelID"
 
         # Verify logging happens at INFO level
-        assert (
-            "logger.info" in source or "logger.warning" in source or "logger.error" in source
-        ), "AppUserModelID setting should be logged"
+        assert "logger.info" in source or "logger.warning" in source or "logger.error" in source, (
+            "AppUserModelID setting should be logged"
+        )
 
         # The key invariant: AppUserModelID must be set BEFORE icon creation
         # We verify this by checking the code structure

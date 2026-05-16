@@ -244,20 +244,20 @@ class TestBehavioralRegression:
         # Verify behavior matches baseline
         assert result == baseline["success"], f"Success status differs! Expected {baseline['success']}, got {result}"
 
-        assert (
-            output.exists() == baseline["output_exists"]
-        ), f"Output existence differs! Expected {baseline['output_exists']}, got {output.exists()}"
+        assert output.exists() == baseline["output_exists"], (
+            f"Output existence differs! Expected {baseline['output_exists']}, got {output.exists()}"
+        )
 
         if output.exists():
             new_size = output.stat().st_size
-            assert (
-                new_size == baseline["output_size"]
-            ), f"Output size differs! Expected {baseline['output_size']}, got {new_size}"
+            assert new_size == baseline["output_size"], (
+                f"Output size differs! Expected {baseline['output_size']}, got {new_size}"
+            )
 
             new_hash = calculate_file_hash(output)
-            assert (
-                new_hash == baseline["output_hash"]
-            ), f"Output hash differs! File content changed.\nExpected: {baseline['output_hash']}\nGot:      {new_hash}"
+            assert new_hash == baseline["output_hash"], (
+                f"Output hash differs! File content changed.\nExpected: {baseline['output_hash']}\nGot:      {new_hash}"
+            )
 
     def test_video_compression_crf30_regression(self, sample_video, tmp_path):
         """Verify: Video compression with CRF=30 matches baseline."""
@@ -279,9 +279,9 @@ class TestBehavioralRegression:
 
         if output.exists():
             new_hash = calculate_file_hash(output)
-            assert (
-                new_hash == baseline["output_hash"]
-            ), f"Output with CRF=30 differs from baseline!\nExpected: {baseline['output_hash']}\nGot:      {new_hash}"
+            assert new_hash == baseline["output_hash"], (
+                f"Output with CRF=30 differs from baseline!\nExpected: {baseline['output_hash']}\nGot:      {new_hash}"
+            )
 
     def test_pdf_compression_regression(self, sample_generated_pdf, tmp_path):
         """Verify: PDF compression matches baseline after refactor."""
@@ -303,9 +303,9 @@ class TestBehavioralRegression:
 
         if output.exists():
             new_hash = calculate_file_hash(output)
-            assert (
-                new_hash == baseline["output_hash"]
-            ), f"PDF output differs from baseline!\nExpected: {baseline['output_hash']}\nGot:      {new_hash}"
+            assert new_hash == baseline["output_hash"], (
+                f"PDF output differs from baseline!\nExpected: {baseline['output_hash']}\nGot:      {new_hash}"
+            )
 
     def test_image_compression_regression(self, sample_image, tmp_path):
         """Verify: Image compression matches baseline after refactor."""
@@ -327,9 +327,9 @@ class TestBehavioralRegression:
 
         if output.exists():
             new_hash = calculate_file_hash(output)
-            assert (
-                new_hash == baseline["output_hash"]
-            ), f"Image output differs from baseline!\nExpected: {baseline['output_hash']}\nGot:      {new_hash}"
+            assert new_hash == baseline["output_hash"], (
+                f"Image output differs from baseline!\nExpected: {baseline['output_hash']}\nGot:      {new_hash}"
+            )
 
 
 # Helper function to run baseline tests manually
