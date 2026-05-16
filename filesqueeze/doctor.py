@@ -332,7 +332,7 @@ class Doctor:
 
         return len(self.issues), len(self.warnings), len(self.passed)
 
-    def print_summary(self):
+    def print_summary(self) -> None:
         """Print diagnostic summary."""
         print("=" * 60)
         print(Colors.header("Summary"))
@@ -427,17 +427,17 @@ class Doctor:
         print("=" * 60)
 
 
-def run_doctor():
+def run_doctor() -> None:
     """Run the diagnostic doctor."""
     doctor = Doctor()
-    issues, warnings, passed = doctor.run_all_checks()
+    issues, _warnings, _passed = doctor.run_all_checks()
     doctor.print_summary()
 
     # Exit with error code if there are issues
     sys.exit(1 if issues > 0 else 0)
 
 
-def main():
+def main() -> None:
     """Main entry point for doctor command."""
     run_doctor()
 
