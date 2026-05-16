@@ -134,7 +134,7 @@ class Doctor:
             self.issues.append(f"[FAIL] Python {major}.{minor}.{version.micro} (requires 3.11+)")
             return False
 
-    def check_module(self, module_name: str, display_name: str = None) -> bool:
+    def check_module(self, module_name: str, display_name: str | None = None) -> bool:
         """Check if a Python module is installed.
 
         Args:
@@ -154,7 +154,7 @@ class Doctor:
             self.issues.append(f"[FAIL] {name} not installed")
             return False
 
-    def check_module_optional(self, module_name: str, display_name: str = None) -> bool:
+    def check_module_optional(self, module_name: str, display_name: str | None = None) -> bool:
         """Check if an optional Python module is installed.
 
         Args:
