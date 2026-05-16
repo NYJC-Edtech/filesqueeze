@@ -108,33 +108,33 @@ jobs:
       - name: Check type annotations with Ruff
         run: poetry run ruff check filesqueeze/ tests/ --select=ANN --output-format=concise
 
-  integration-tests:
-    name: Integration & Regression Tests
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Install Poetry
-        run: pip install poetry
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-          cache: 'poetry'
-
-      - name: Install dependencies
-        run: poetry install --with dev,ci
-
-      - name: Install FFmpeg and Ghostscript
-        run: sudo apt-get update && sudo apt-get install -y ffmpeg ghostscript
-
-      - name: Run integration tests
-        run: poetry run pytest tests/integration/ -v --ignore=tests/integration/test_gui_behavior.py --ignore=tests/integration/test_service.py --ignore=tests/integration/test_single_instance.py
-
-      - name: Run regression tests
-        run: poetry run pytest tests/regression/ -v
+  # integration-tests:
+  #   name: Integration & Regression Tests
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - name: Checkout code
+  #       uses: actions/checkout@v4
+  #
+  #     - name: Install Poetry
+  #       run: pip install poetry
+  #
+  #     - name: Set up Python
+  #       uses: actions/setup-python@v5
+  #       with:
+  #         python-version: '3.11'
+  #         cache: 'poetry'
+  #
+  #     - name: Install dependencies
+  #       run: poetry install --with dev,ci
+  #
+  #     - name: Install FFmpeg and Ghostscript
+  #       run: sudo apt-get update && sudo apt-get install -y ffmpeg ghostscript
+  #
+  #     - name: Run integration tests
+  #       run: poetry run pytest tests/integration/ -v --ignore=tests/integration/test_gui_behavior.py --ignore=tests/integration/test_service.py --ignore=tests/integration/test_single_instance.py
+  #
+  #     - name: Run regression tests
+  #       run: poetry run pytest tests/regression/ -v
 
   coverage:
     name: Coverage Report

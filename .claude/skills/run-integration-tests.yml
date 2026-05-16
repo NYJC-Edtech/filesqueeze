@@ -1,0 +1,17 @@
+---
+name: integration-tests
+description: Run integration and regression tests manually - these tests are disabled in CI due to performance issues
+command: poetry run pytest tests/integration/ tests/regression/ -v --ignore=tests/integration/test_gui_behavior.py --ignore=tests/integration/test_service.py --ignore=tests/integration/test_single_instance.py
+---
+
+Use this skill to run integration and regression tests manually. These tests have been disabled in CI because they take too long to run and have been hanging on specific tests like `test_state_machine_with_config`.
+
+This skill will:
+1. Run all integration tests (excluding GUI behavior, service, and single instance tests)
+2. Run all regression tests
+3. Provide verbose output to help identify any issues
+
+Before running these tests, make sure you have:
+- FFmpeg installed
+- Ghostscript installed
+- All dependencies installed via `poetry install --with dev,ci`
