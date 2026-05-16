@@ -33,31 +33,31 @@ class _ModuleLoggerProxy:
             self._cached_logger = system_logger_module.get_logger()
         return self._cached_logger
 
-    def info(self, msg, *args, **kwargs):
+    def info(self, msg: str, *args, **kwargs):
         """Log info message."""
         return self._get_logger().info(msg, *args, **kwargs)
 
-    def debug(self, msg, *args, **kwargs):
+    def debug(self, msg: str, *args, **kwargs):
         """Log debug message."""
         return self._get_logger().debug(msg, *args, **kwargs)
 
-    def warning(self, msg, *args, **kwargs):
+    def warning(self, msg: str, *args, **kwargs):
         """Log warning message."""
         return self._get_logger().warning(msg, *args, **kwargs)
 
-    def error(self, msg, *args, **kwargs):
+    def error(self, msg: str, *args, **kwargs):
         """Log error message."""
         return self._get_logger().error(msg, *args, **kwargs)
 
-    def critical(self, msg, *args, **kwargs):
+    def critical(self, msg: str, *args, **kwargs):
         """Log critical message."""
         return self._get_logger().critical(msg, *args, **kwargs)
 
-    def exception(self, msg, *args, **kwargs):
+    def exception(self, msg: str, *args, **kwargs):
         """Log exception message."""
         return self._get_logger().exception(msg, *args, **kwargs)
 
-    def __getattr__(self, name):
+    def __getattr__(self, name: str):
         """Delegate any other attributes to the actual logger."""
         return getattr(self._get_logger(), name)
 
