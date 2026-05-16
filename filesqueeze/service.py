@@ -82,7 +82,7 @@ class NotificationManager:
         self._lock = threading.Lock()
         self._counter = 0  # For generating unique tags
 
-    def show(self, title: str, message: str, filename: str = None, tag: str = None) -> bool:
+    def show(self, title: str, message: str, filename: str | None = None, tag: str | None = None) -> bool:
         """Show a Windows toast notification.
 
         Args:
@@ -185,7 +185,7 @@ class NotificationManager:
 _notification_manager = NotificationManager()
 
 
-def show_windows_notification(title: str, message: str, filename: str = None) -> bool:
+def show_windows_notification(title: str, message: str, filename: str | None = None) -> bool:
     """Show a Windows toast notification.
 
     Args:
@@ -202,7 +202,7 @@ def show_windows_notification(title: str, message: str, filename: str = None) ->
 class CompressionHandler(FileSystemEventHandler):
     """Handler for file system events."""
 
-    def __init__(self, config: Config, input_dir: Path, output_dir: Path, logger: logging.Logger, watcher: typing.Any):
+    def __init__(self, config: Config, input_dir: Path, output_dir: Path, logger: logging.Logger, watcher: "DirectoryWatcher"):
         """Initialize the compression handler.
 
         Args:
