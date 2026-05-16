@@ -7,6 +7,7 @@ import logging
 import sys
 import threading
 import time
+import typing
 from dataclasses import dataclass, field
 from datetime import timedelta
 from pathlib import Path
@@ -170,7 +171,7 @@ class NotificationManager:
         with self._lock:
             return self._notifications.get(filename)
 
-    def clear(self, filename: str):
+    def clear(self, filename: str) -> None:
         """Clear the notification tag for a file.
 
         Args:
@@ -201,7 +202,7 @@ def show_windows_notification(title: str, message: str, filename: str = None) ->
 class CompressionHandler(FileSystemEventHandler):
     """Handler for file system events."""
 
-    def __init__(self, config: Config, input_dir: Path, output_dir: Path, logger: logging.Logger, watcher):
+    def __init__(self, config: Config, input_dir: Path, output_dir: Path, logger: logging.Logger, watcher: typing.Any):
         """Initialize the compression handler.
 
         Args:
@@ -219,7 +220,7 @@ class CompressionHandler(FileSystemEventHandler):
         self._processing = set()
         self._lock = threading.Lock()
 
-    def on_created(self, event):
+    def on_created(self, event: typing.Any) -> None:
         """Handle file creation event.
 
         Args:
@@ -231,7 +232,7 @@ class CompressionHandler(FileSystemEventHandler):
         filepath = Path(event.src_path)
         self._process_file(filepath)
 
-    def on_moved(self, event):
+    def on_moved(self, event: typing.Any) -> None:
         """Handle file move event.
 
         Args:
@@ -469,7 +470,7 @@ class RetentionManager:
         # Archive directory
         self.archive_dir = self.config.archive_dir
 
-    def start(self):
+    def start(self) -> None:
         """Start the periodic cleanup thread."""
         if not self.enable_cleanup:
             self.logger.info("Retention cleanup is disabled in configuration")
@@ -495,7 +496,7 @@ class RetentionManager:
         self.logger.info(f"Minimum age safeguard: {self.min_age_hours} hours")
         self.logger.info("=" * 60)
 
-    def stop(self):
+    def stop(self) -> None:
         """Stop the periodic cleanup thread."""
         self._running = False
         if self._cleanup_thread:
@@ -1039,7 +1040,7 @@ class DirectoryWatcher(StateProvider):
                 cleanup_stats=cleanup_stats,
             )
 
-    def start(self):
+    def start(self) -> None:
         """Start watching the directory."""
         self.observer.schedule(self.event_handler, str(self.input_dir), recursive=True)
         self.observer.start()
@@ -1067,7 +1068,7 @@ class DirectoryWatcher(StateProvider):
         self.logger.info("=" * 60)
         self.logger.info("Press Ctrl+C to stop...")
 
-    def stop(self):
+    def stop(self) -> None:
         """Stop watching the directory."""
         if self._running:
             self._running = False
@@ -1079,7 +1080,7 @@ class DirectoryWatcher(StateProvider):
             self.observer.join()
             self.logger.info("Watch mode stopped")
 
-    def run(self):
+    def run(self) -> None:
         """Run the watcher until interrupted."""
         self.start()
         try:
