@@ -117,7 +117,7 @@ class TrayService:
 
         return image
 
-    def _on_quit(self, icon=None, item=None):
+    def _on_quit(self, icon: object = None, item: object = None):
         """Handle quit action.
 
         Args:
@@ -127,7 +127,7 @@ class TrayService:
         self.logger.info("Quit requested from tray icon")
         self.stop()
 
-    def _on_toggle_pause(self, icon=None, item=None):
+    def _on_toggle_pause(self, icon: object = None, item: object = None):
         """Handle pause/resume action.
 
         Args:
@@ -143,7 +143,7 @@ class TrayService:
             self.watcher.start()
             # Update menu to show "Pause" option
 
-    def _on_open_input(self, icon=None, item=None):
+    def _on_open_input(self, icon: object = None, item: object = None):
         """Handle open input folder action.
 
         Args:
@@ -161,7 +161,7 @@ class TrayService:
         else:
             subprocess.run(["xdg-open", str(self.input_dir)])
 
-    def _on_open_output(self, icon=None, item=None):
+    def _on_open_output(self, icon: object = None, item: object = None):
         """Handle open output folder action.
 
         Args:
@@ -179,7 +179,7 @@ class TrayService:
         else:
             subprocess.run(["xdg-open", str(self.output_dir)])
 
-    def _on_show_status(self, icon=None, item=None):
+    def _on_show_status(self, icon: object = None, item: object = None):
         """Handle show status action - opens GUI status window.
 
         Enforces singleton pattern: only one status window can exist.
@@ -206,7 +206,7 @@ class TrayService:
         status_thread = threading.Thread(target=self._show_status_window, daemon=True)
         status_thread.start()
 
-    def _bring_to_foreground(self, root_window):
+    def _bring_to_foreground(self, root_window: object):
         """Bring a Tkinter window to the foreground.
 
         This method must be called from the Tkinter main thread using after().
@@ -258,7 +258,7 @@ class TrayService:
             # Clear the reference on error so user can try again
             self._status_window = None
 
-    def start(self):
+    def start(self) -> None:
         """Start the tray service."""
         self.logger.info("Starting FileSqueeze tray service")
 
@@ -320,7 +320,7 @@ class TrayService:
         # Use the tray icon's Quit menu option to stop the service.
         self.icon.run()
 
-    def stop(self):
+    def stop(self) -> None:
         """Stop the tray service."""
         if self.running:
             self.running = False
@@ -330,7 +330,7 @@ class TrayService:
             self.logger.info("Tray service stopped")
 
 
-def run_service(input_dir: Path, output_dir: Path, config: Config | None = None):
+def run_service(input_dir: Path, output_dir: Path, config: Config | None = None) -> None:
     """Run FileSqueeze as a service with system tray icon.
 
     Args:
