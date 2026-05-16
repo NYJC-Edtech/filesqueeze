@@ -42,14 +42,14 @@ class TestSingletonStatusWindow:
         # The singleton check MUST happen before creating a new window
         assert "_status_window" in on_show_status_source, "_on_show_status must check _status_window for singleton enforcement"
 
-        assert (
-            "is not None" in on_show_status_source or "_status_window" in on_show_status_source
-        ), "_on_show_status must check if _status_window already exists"
+        assert "is not None" in on_show_status_source or "_status_window" in on_show_status_source, (
+            "_on_show_status must check if _status_window already exists"
+        )
 
         # CRITICAL CHECK 2: Must return early if window exists
-        assert (
-            "return" in on_show_status_source
-        ), "_on_show_status must return early if window already exists (singleton enforcement)"
+        assert "return" in on_show_status_source, (
+            "_on_show_status must return early if window already exists (singleton enforcement)"
+        )
 
         # Verify the check happens at the BEGINNING (before thread creation)
         lines = on_show_status_source.split("\n")
@@ -194,9 +194,9 @@ class TestStatusWindowContent:
             assert hasattr(StatusWindow, section), f"StatusWindow should have {section} method for updating display"
 
         # Verify update_display exists (this is what refreshes all sections)
-        assert hasattr(
-            StatusWindow, "update_display"
-        ), "StatusWindow must have update_display() method to refresh all sections"
+        assert hasattr(StatusWindow, "update_display"), (
+            "StatusWindow must have update_display() method to refresh all sections"
+        )
 
 
 if __name__ == "__main__":

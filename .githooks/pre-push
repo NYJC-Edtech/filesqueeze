@@ -1,0 +1,22 @@
+#!/bin/bash
+# FileSqueeze pre-push hook
+# Checks for desynchronized poetry lockfile before pushing
+
+echo "🔒 Checking Poetry lockfile synchronization..."
+
+# Check if poetry.lock is out of sync with pyproject.toml
+if poetry lock --check 2>/dev/null; then
+    echo "✅ Poetry lockfile is synchronized"
+    exit 0
+else
+    echo "❌ Poetry lockfile is out of sync with pyproject.toml"
+    echo ""
+    echo "Your pyproject.toml has changed but poetry.lock has not been updated."
+    echo "This can cause dependency issues for other developers."
+    echo ""
+    echo "To fix this, run:"
+    echo "  poetry lock"
+    echo ""
+    echo "Then commit the updated poetry.lock file."
+    exit 1
+fi

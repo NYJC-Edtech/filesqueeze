@@ -16,7 +16,7 @@ def cleanupFiles(state: State) -> Handler:
     """
     # state.origin.unlink()
     state.status_complete()
-    return cleanupFiles
+    return None
 
 
 def analyzeVideo(state: State) -> Handler:

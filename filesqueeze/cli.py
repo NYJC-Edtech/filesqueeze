@@ -38,7 +38,7 @@ def cmd_init_config(args):
         import shutil
         from datetime import datetime
 
-        backup_path = output_path.with_suffix(f'.toml.backup.{datetime.now().strftime("%Y%m%d_%H%M%S")}')
+        backup_path = output_path.with_suffix(f".toml.backup.{datetime.now().strftime('%Y%m%d_%H%M%S')}")
         shutil.copy2(output_path, backup_path)
         print(f"Backup created at: {backup_path}")
 

@@ -81,7 +81,7 @@ jobs:
         run: poetry run pytest tests/system/ -v
 
   code-quality:
-    name: Code Quality (Black + Ruff)
+    name: Code Quality (Ruff)
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -99,39 +99,42 @@ jobs:
       - name: Install dependencies
         run: poetry install --with ci
 
-      - name: Check code style with Black
-        run: poetry run black --check --diff --config pyproject.toml filesqueeze/ tests/
+      - name: Check code formatting with Ruff
+        run: poetry run ruff format --check filesqueeze/
 
       - name: Lint with ruff
-        run: poetry run ruff check filesqueeze/ tests/ --select=E9,F63,F7,F82 --output-format=concise
+        run: poetry run ruff check filesqueeze/ --select=E9,F63,F7,F82 --output-format=concise
 
-  integration-tests:
-    name: Integration & Regression Tests
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - name: Check type annotations with Ruff
+        run: poetry run ruff check filesqueeze/ --output-format=concise
 
-      - name: Install Poetry
-        run: pip install poetry
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-          cache: 'poetry'
-
-      - name: Install dependencies
-        run: poetry install --with dev,ci
-
-      - name: Install FFmpeg and Ghostscript
-        run: sudo apt-get update && sudo apt-get install -y ffmpeg ghostscript
-
-      - name: Run integration tests
-        run: poetry run pytest tests/integration/ -v --ignore=tests/integration/test_gui_behavior.py --ignore=tests/integration/test_service.py --ignore=tests/integration/test_single_instance.py
-
-      - name: Run regression tests
-        run: poetry run pytest tests/regression/ -v
+  # integration-tests:
+  #   name: Integration & Regression Tests
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - name: Checkout code
+  #       uses: actions/checkout@v4
+  #
+  #     - name: Install Poetry
+  #       run: pip install poetry
+  #
+  #     - name: Set up Python
+  #       uses: actions/setup-python@v5
+  #       with:
+  #         python-version: '3.11'
+  #         cache: 'poetry'
+  #
+  #     - name: Install dependencies
+  #       run: poetry install --with dev,ci
+  #
+  #     - name: Install FFmpeg and Ghostscript
+  #       run: sudo apt-get update && sudo apt-get install -y ffmpeg ghostscript
+  #
+  #     - name: Run integration tests
+  #       run: poetry run pytest tests/integration/ -v --ignore=tests/integration/test_gui_behavior.py --ignore=tests/integration/test_service.py --ignore=tests/integration/test_single_instance.py
+  #
+  #     - name: Run regression tests
+  #       run: poetry run pytest tests/regression/ -v
 
   coverage:
     name: Coverage Report

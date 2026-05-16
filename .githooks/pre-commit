@@ -1,8 +1,26 @@
 #!/bin/bash
 # FileSqueeze pre-commit hook
-# Runs smoke tests to ensure commits don't break critical system functionality
+# Runs formatting, type checking and smoke tests to ensure commits don't break functionality
 
 set -e  # Exit on error
+
+echo "🎨 Auto-formatting with Ruff..."
+
+# Auto-format all files
+ruff format .
+
+echo "🔍 Running Ruff type checking..."
+
+# Run ruff type checking
+if ruff check . --select ANN; then
+    echo "✅ Type checking passed"
+else
+    echo "❌ Type checking failed - commit rejected"
+    echo ""
+    echo "Ruff found type annotation issues. Please fix them before committing."
+    echo "Run 'ruff check . --select ANN' for details, or 'ruff check . --fix' to auto-fix."
+    exit 1
+fi
 
 echo "🔥 Running FileSqueeze smoke tests..."
 
