@@ -2,10 +2,11 @@
 
 import argparse
 import sys
+import typing
 from pathlib import Path
 
 
-def cmd_init_config(args):
+def cmd_init_config(args: argparse.Namespace) -> None:
     """Generate an example configuration file with auto-detected binaries."""
     # Import here to avoid issues if config module has errors
     from filesqueeze.config import Config
@@ -70,7 +71,7 @@ def cmd_init_config(args):
     finder = BinaryFinder(Config())
 
     # Try to detect each binary (catch errors if not found)
-    def try_detect(detect_func):
+    def try_detect(detect_func: typing.Callable[[], Path]):
         try:
             path = detect_func()
             return {"found": True, "path": path}
@@ -158,7 +159,7 @@ def cmd_init_config(args):
     print("\nFor more information, see the README.md file")
 
 
-def cmd_compress(args):
+def cmd_compress(args: argparse.Namespace) -> None:
     """Compress a single file."""
     from filesqueeze import make_image, make_pdf, make_video
     from filesqueeze.config import Config
@@ -241,7 +242,7 @@ def cmd_compress(args):
         sys.exit(1)
 
 
-def cmd_scan(args):
+def cmd_scan(args: argparse.Namespace) -> None:
     """Scan input directory and process files."""
     # Import here to avoid issues if modules have errors
     from filesqueeze import make_image, make_pdf, make_video
@@ -361,7 +362,7 @@ def cmd_scan(args):
     print("=" * 60)
 
 
-def cmd_detect(args):
+def cmd_detect(args: argparse.Namespace) -> None:
     """Detect FFmpeg and Ghostscript binaries."""
     from filesqueeze.system.binaries import BinaryFinder, print_detection_results
 
@@ -375,7 +376,7 @@ def cmd_detect(args):
         print_detection_results()
 
 
-def cmd_watch(args):
+def cmd_watch(args: argparse.Namespace) -> None:
     """Watch directory for new files and compress them."""
     from filesqueeze.config import Config
     from filesqueeze.service import DirectoryWatcher
@@ -394,7 +395,7 @@ def cmd_watch(args):
     watcher.run()
 
 
-def cmd_service(args):
+def cmd_service(args: argparse.Namespace) -> None:
     """Run FileSqueeze as a service with system tray icon."""
     from filesqueeze.config import Config
     from filesqueeze.tray import run_service
@@ -410,7 +411,7 @@ def cmd_service(args):
     run_service(input_dir, output_dir, config)
 
 
-def cmd_service_install(args):
+def cmd_service_install(args: argparse.Namespace) -> None:
     """Install FileSqueeze to start automatically on boot."""
     from filesqueeze.autostart import check_autostart_installed, install_autostart
     from filesqueeze.config import Config
@@ -432,14 +433,14 @@ def cmd_service_install(args):
     install_autostart(input_dir, output_dir)
 
 
-def cmd_service_uninstall(args):
+def cmd_service_uninstall(args: argparse.Namespace) -> None:
     """Uninstall FileSqueeze auto-start."""
     from filesqueeze.autostart import uninstall_autostart
 
     uninstall_autostart()
 
 
-def cmd_service_status(args):
+def cmd_service_status(args: argparse.Namespace) -> None:
     """Show auto-start installation status."""
     from filesqueeze.autostart import check_autostart_installed, is_windows
 
@@ -455,14 +456,14 @@ def cmd_service_status(args):
         print("To install, run: python -m filesqueeze service-install")
 
 
-def cmd_doctor(args):
+def cmd_doctor(args: argparse.Namespace) -> None:
     """Run diagnostic checks on FileSqueeze installation."""
     from filesqueeze.doctor import run_doctor
 
     run_doctor()
 
 
-def main():
+def main() -> None:
     """Main entry point for FileSqueeze CLI."""
     parser = argparse.ArgumentParser(
         description="FileSqueeze - Compress videos, PDFs, and images",
@@ -603,7 +604,7 @@ Examples:
     if args.init_config_flag:
         # Create a namespace object with the init-config args
         class InitConfigArgs:
-            def __init__(self, output, force, user_config):
+            def __init__(self, output: str | None, force: bool, user_config: bool):
                 self.output = output
                 self.force = force
                 self.user_config = user_config
