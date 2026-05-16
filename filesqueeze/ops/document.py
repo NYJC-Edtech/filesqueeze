@@ -41,7 +41,13 @@ def get_ghostscript_path(config_path: str = "") -> str:
 
 
 def compress_pdf(
-    infile: str, outfile: str, *, quality: str = "ebook", compression_level: int = 2, ghostscript_path: str = "", config=None
+    infile: str,
+    outfile: str,
+    *,
+    quality: str = "ebook",
+    compression_level: int = 2,
+    ghostscript_path: str = "",
+    config: object = None,
 ) -> None:
     """Compress a PDF file using Ghostscript.
 
@@ -69,7 +75,7 @@ def compress_pdf(
         quality: str = "ebook",
         compression_level: int = 2,
         ghostscript_path: str = "",
-        config=None,
+        config: object = None,
     ) -> None:
         # Use config adapter if config provided
         if config:

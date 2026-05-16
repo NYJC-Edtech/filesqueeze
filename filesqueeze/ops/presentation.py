@@ -43,7 +43,7 @@ def get_powershell_path(config_path: str = "") -> str:
     return finder.get_powershell_path()
 
 
-def to_mp4(infile: str, outfile: str = "", *, config=None) -> None:
+def to_mp4(infile: str, outfile: str = "", *, config: object = None) -> None:
     """Convert a PowerPoint presentation to MP4 video.
 
     Args:
@@ -59,7 +59,7 @@ def to_mp4(infile: str, outfile: str = "", *, config=None) -> None:
     from filesqueeze.system.decorators import trace_function
 
     @trace_function
-    def _to_mp4(infile: str, outfile: str = "", *, config=None) -> None:
+    def _to_mp4(infile: str, outfile: str = "", *, config: object = None) -> None:
         # Validation & defaults
         infile = Path(infile)
         if not infile.exists():

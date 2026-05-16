@@ -130,7 +130,7 @@ def compress_image(
     max_height: int | None = None,
     convert_to_jpeg: bool = False,
     ffmpeg_path: str = "",
-    config=None,
+    config: object = None,
 ) -> None:
     """Compress an image file using FFmpeg.
 
@@ -161,7 +161,7 @@ def compress_image(
         max_height: int | None = None,
         convert_to_jpeg: bool = False,
         ffmpeg_path: str = "",
-        config=None,
+        config: object = None,
     ) -> None:
         # Use config adapter if config provided
         if config:
