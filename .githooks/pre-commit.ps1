@@ -1,7 +1,12 @@
 # FileSqueeze pre-commit hook (Windows PowerShell)
-# Runs ruff type checking and smoke tests to ensure commits don't break functionality
+# Runs formatting, type checking and smoke tests to ensure commits don't break functionality
 
 $ErrorActionPreference = "Stop"
+
+Write-Host "🎨 Auto-formatting with Ruff..." -ForegroundColor Yellow
+
+# Auto-format all files
+& ruff format .
 
 Write-Host "🔍 Running Ruff type checking..." -ForegroundColor Yellow
 

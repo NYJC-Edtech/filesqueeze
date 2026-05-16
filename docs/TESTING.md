@@ -364,10 +364,11 @@ Our project includes automated git hooks for code quality:
 
 #### Pre-commit Hook
 Runs automatically before each commit:
-1. **Ruff type checking** (`ruff check . --select ANN`)
-2. **Smoke tests** (`pytest tests/smoke/ -q`)
+1. **Ruff formatting** (`ruff format .`) - Auto-formats all code
+2. **Ruff type checking** (`ruff check . --select ANN`)
+3. **Smoke tests** (`pytest tests/smoke/ -q`)
 
-If either check fails, the commit is rejected with helpful error messages.
+If any check fails, the commit is rejected with helpful error messages.
 
 #### Post-edit Hook
 Automatically formats Python files after editing:

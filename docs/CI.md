@@ -44,8 +44,8 @@ Runs on pull requests to main/develop branches:
 
 **Pre-commit Hook:**
 - **Purpose**: Automatically format and validate code before commits
-- **Tools**: Ruff (type checking) + pytest (smoke tests)
-- **Action**: Validates type annotations and runs smoke tests
+- **Tools**: Ruff (formatting + type checking) + pytest (smoke tests)
+- **Action**: Auto-formats code, validates type annotations, and runs smoke tests
 
 **Post-edit Hook:**
 - **Purpose**: Auto-format Python files after editing

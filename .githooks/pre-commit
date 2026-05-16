@@ -1,8 +1,13 @@
 #!/bin/bash
 # FileSqueeze pre-commit hook
-# Runs ruff type checking and smoke tests to ensure commits don't break functionality
+# Runs formatting, type checking and smoke tests to ensure commits don't break functionality
 
 set -e  # Exit on error
+
+echo "🎨 Auto-formatting with Ruff..."
+
+# Auto-format all files
+ruff format .
 
 echo "🔍 Running Ruff type checking..."
 
