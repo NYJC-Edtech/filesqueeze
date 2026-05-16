@@ -359,7 +359,7 @@ class CompressionHandler(FileSystemEventHandler):
                             f"Archive directory not configured - original file preserved in input: {filepath.name}"
                         )
                         self.logger.warning(
-                            "To enable archiving, set 'directories.archive' in config. " "See: filesqueeze init-config"
+                            "To enable archiving, set 'directories.archive' in config. See: filesqueeze init-config"
                         )
 
                     # Add to processed files
@@ -960,7 +960,11 @@ class DirectoryWatcher(StateProvider):
 
         # Setup watcher
         self.event_handler = CompressionHandler(
-            self.config, self.input_dir, self.output_dir, self.logger, self  # Pass watcher reference to handler
+            self.config,
+            self.input_dir,
+            self.output_dir,
+            self.logger,
+            self,  # Pass watcher reference to handler
         )
         self.observer = Observer()
         self._running = False

@@ -70,9 +70,9 @@ def protect_user_config(monkeypatch):
         for protected in PROTECTED_CONFIG_PATHS:
             if str(self) == str(protected):
                 pytest.fail(
-                    f"\n{'='*80}\n"
+                    f"\n{'=' * 80}\n"
                     f"TEST SAFETY VIOLATION: Attempted to write to protected config file!\n"
-                    f"{'='*80}\n"
+                    f"{'=' * 80}\n"
                     f"Protected path: {protected}\n"
                     f"\n"
                     f"This test tried to modify the user's actual config file.\n"
@@ -86,7 +86,7 @@ def protect_user_config(monkeypatch):
                     f"      config_file = tmp_path / 'test_config.toml'\n"
                     f"      config_file.write_text('[test]\\nkey = \"value\"')\n"
                     f"      config = Config(config_path=config_file)\n"
-                    f"{'='*80}\n"
+                    f"{'=' * 80}\n"
                 )
         # Call original write_text
         return original_write_text(self, content, *args, **kwargs)
@@ -96,9 +96,9 @@ def protect_user_config(monkeypatch):
         for protected in PROTECTED_CONFIG_PATHS:
             if str(self) == str(protected):
                 pytest.fail(
-                    f"\n{'='*80}\n"
+                    f"\n{'=' * 80}\n"
                     f"TEST SAFETY VIOLATION: Attempted to write to protected config file (bytes)!\n"
-                    f"{'='*80}\n"
+                    f"{'=' * 80}\n"
                     f"Protected path: {protected}\n"
                     f"\n"
                     f"This test tried to modify the user's actual config file.\n"
@@ -106,7 +106,7 @@ def protect_user_config(monkeypatch):
                     f"\n"
                     f"Solution: Use the 'tmp_path' fixture or create a temporary\n"
                     f"directory for test-specific config files.\n"
-                    f"{'='*80}\n"
+                    f"{'=' * 80}\n"
                 )
         # Call original write_bytes
         return original_write_bytes(self, content, *args, **kwargs)

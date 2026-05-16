@@ -91,7 +91,7 @@ class TrayService:
 
         if last_error == ERROR_ALREADY_EXISTS:
             # Mutex already exists - another instance is running
-            self.logger.warning("Another FileSqueeze instance is already running. " "Only one instance is allowed at a time.")
+            self.logger.warning("Another FileSqueeze instance is already running. Only one instance is allowed at a time.")
             raise RuntimeError(
                 "FileSqueeze is already running. "
                 "Check the system tray for the FileSqueeze icon. "

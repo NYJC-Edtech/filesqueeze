@@ -61,7 +61,7 @@ class State:
         if attr in self.__data:
             return self.__data[attr]
         raise AttributeError(
-            f"'{type(self).__name__}' object has no attribute '{attr}'. " f"Use the appropriate method to modify state."
+            f"'{type(self).__name__}' object has no attribute '{attr}'. Use the appropriate method to modify state."
         )
 
     # Public getter methods for commonly accessed attributes
