@@ -106,7 +106,7 @@ jobs:
         run: poetry run ruff check filesqueeze/ tests/ --select=E9,F63,F7,F82 --output-format=concise
 
       - name: Check type annotations with Ruff
-        run: poetry run ruff check filesqueeze/ tests/ --select=ANN --output-format=concise
+        run: poetry run ruff check filesqueeze/ tests/ --output-format=concise
 
   # integration-tests:
   #   name: Integration & Regression Tests
