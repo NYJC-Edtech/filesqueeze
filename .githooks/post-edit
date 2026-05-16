@@ -8,6 +8,6 @@ FILE=$1
 # Only process Python files
 if [[ "$FILE" == *.py ]]; then
     echo "🎨 Auto-formatting $FILE with ruff..."
-    ruff format "$FILE"
+    poetry run ruff format "$FILE"
     echo "✅ Formatting complete"
 fi

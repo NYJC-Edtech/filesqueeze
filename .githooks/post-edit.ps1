@@ -9,6 +9,6 @@ param(
 # Only process Python files
 if ($FilePath -like "*.py") {
     Write-Host "🎨 Auto-formatting $FilePath with ruff..." -ForegroundColor Yellow
-    & ruff format $FilePath
+    & poetry run ruff format $FilePath
     Write-Host "✅ Formatting complete" -ForegroundColor Green
 }

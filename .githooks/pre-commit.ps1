@@ -3,15 +3,24 @@
 
 $ErrorActionPreference = "Stop"
 
+# Ensure we're in the project root where pyproject.toml is located
+$projectRoot = git rev-parse --show-toplevel
+Set-Location $projectRoot
+
 Write-Host "🎨 Auto-formatting with Ruff..." -ForegroundColor Yellow
 
-# Auto-format all files
-& ruff format .
+# Auto-format all files using poetry to ensure config is picked up
+& poetry run ruff format .
+
+Write-Host "🔧 Auto-fixing Ruff issues (including line length where possible)..." -ForegroundColor Yellow
+
+# Auto-fix issues where possible, including line length violations that can be fixed
+& poetry run ruff check . --fix --exit-zero
 
 Write-Host "🔍 Running Ruff type checking..." -ForegroundColor Yellow
 
-# Run ruff type checking
-$process = Start-Process -FilePath "ruff" -ArgumentList "check", ".", "--select", "ANN" -Wait -PassThru -NoNewWindow
+# Run ruff type checking using poetry to ensure config is picked up
+$process = Start-Process -FilePath "poetry" -ArgumentList "run", "ruff", "check", ".", "--select", "ANN" -Wait -PassThru -NoNewWindow
 
 if ($process.ExitCode -eq 0) {
     Write-Host "✅ Type checking passed" -ForegroundColor Green
@@ -19,7 +28,7 @@ if ($process.ExitCode -eq 0) {
     Write-Host "❌ Type checking failed - commit rejected" -ForegroundColor Red
     Write-Host ""
     Write-Host "Ruff found type annotation issues. Please fix them before committing."
-    Write-Host "Run 'ruff check . --select ANN' for details, or 'ruff check . --fix' to auto-fix."
+    Write-Host "Run 'poetry run ruff check . --select ANN' for details, or 'poetry run ruff check . --fix' to auto-fix."
     exit 1
 }
 
