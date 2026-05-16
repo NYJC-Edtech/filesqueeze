@@ -210,7 +210,7 @@ class StatusWindow:
         self.logs_text = scrolledtext.ScrolledText(logs_tab, wrap=tk.WORD, state=tk.DISABLED, font=("Consolas", 8))
         self.logs_text.grid(row=1, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
 
-    def update_display(self):
+    def update_display(self) -> None:
         """Update the display with current service state."""
         try:
             state = self.state_provider.get_state()
@@ -417,7 +417,7 @@ class StatusWindow:
 
         return " ".join(parts)
 
-    def start_auto_refresh(self):
+    def start_auto_refresh(self) -> None:
         """Start automatic state refresh."""
         if self.refresh_interval is not None and self._auto_refresh_job is None:
             self._schedule_refresh()
@@ -428,24 +428,24 @@ class StatusWindow:
             self.update_display()
             self._auto_refresh_job = self.root.after(self.refresh_interval, self._schedule_refresh)
 
-    def stop_auto_refresh(self):
+    def stop_auto_refresh(self) -> None:
         """Stop automatic state refresh."""
         if self._auto_refresh_job is not None:
             self.root.after_cancel(self._auto_refresh_job)
             self._auto_refresh_job = None
 
-    def show(self):
+    def show(self) -> None:
         """Show the window and start the event loop."""
         self.start_auto_refresh()
         self.root.mainloop()
 
-    def close(self):
+    def close(self) -> None:
         """Close the window and cleanup resources."""
         self.stop_auto_refresh()
         self.root.destroy()
 
 
-def show_status_window(state_provider: StateProvider, refresh_interval: int = 2000):
+def show_status_window(state_provider: StateProvider, refresh_interval: int = 2000) -> None:
     """Show a status window for the given StateProvider.
 
     This is a convenience function for creating and displaying a status window.
