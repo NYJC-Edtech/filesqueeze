@@ -163,6 +163,6 @@ class FileScanner:
         """
         return list(self.scan(directory))
 
-    def reset(self):
+    def reset(self) -> None:
         """Reset the processed files tracking."""
         self._processed.clear()
