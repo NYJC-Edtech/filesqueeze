@@ -2,14 +2,14 @@ import tempfile
 from pathlib import Path
 
 from . import ocr
-from .fsm import Format, Handler, State
-from .fsm.enums import Document, Slideshow, Video
+from .fsm import Handler, State
+from .fsm.enums import Document, Enum, EnumValue, Format, Slideshow, Video
 from .ops import document, image, video
 from .ops import presentation as pptx
 from .system import logger
 
 
-def cleanupFiles(state: State) -> Handler:
+def cleanupFiles(state: State) -> Handler | None:
     """
     Final transition of state machine.
     Removes origin file.
@@ -247,7 +247,7 @@ def compressVideo(state: State) -> Handler:
 
 def selectAnalyzer(
     state: State,
-    handler=None,
+    handler: dict[type[Enum] | EnumValue, Handler] | None = None,
 ) -> Handler:
     """
     First transition of state machine.

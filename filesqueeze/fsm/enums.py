@@ -3,18 +3,29 @@
 Enums for the conversion state machine.
 """
 
+import typing
+from typing import NamedTuple
+
+
+class EnumValue(NamedTuple):
+    """A simple wrapper for enum values to allow iteration over leaf
+    enums.
+    """
+
+    name: str
+    value: str
+
 
 class EnumMeta(type):
     """Metaclass for Enum to enable iteration over class attributes."""
 
-    def __iter__(cls):
+    def __iter__(cls: type) -> typing.Iterator:
         """Iterate over the enum members (class attributes).
 
         For nested enums (like Format), this returns the nested enum
         classes directly.
         For leaf enums (like Video), this returns an EnumValue wrapper.
         """
-        from collections import namedtuple
 
         # Check if this is a nested enum (contains other Enum classes)
         has_nested_enums = any(
@@ -31,11 +42,9 @@ class EnumMeta(type):
                 )
             )
         else:
-            # This is a leaf enum like Video - return EnumValue wrappers
-            EnumValue = namedtuple("EnumValue", ["name", "value"])
-            return iter((EnumValue(k, v) for k, v in cls.__dict__.items() if not k.startswith("_") and not callable(v)))
+            return iter(EnumValue(k, v) for k, v in cls.__dict__.items() if not k.startswith("_") and not callable(v))
 
-    def __getitem__(cls, key):
+    def __getitem__(cls, key: str) -> typing.Any:
         """Support format['MP4'] syntax."""
         return cls.__dict__.get(key)
 
@@ -45,7 +54,7 @@ class Enum(metaclass=EnumMeta):
 
     __slots__ = ()
 
-    def __init__(self):
+    def __init__(self) -> None:
         raise SyntaxError("Enum class cannot be instantiated directly.")
 
     @classmethod
