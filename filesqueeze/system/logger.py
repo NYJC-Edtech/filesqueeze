@@ -32,7 +32,7 @@ import uuid
 from contextlib import contextmanager
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any, Callable, Iterator
 
 # ============================================================================
 # Trace Context Support
@@ -84,7 +84,7 @@ _trace_context = threading.local()
 
 
 @contextmanager
-def trace_context(file_path: Path | None = None, workflow: str = "unknown", **kwargs):
+def trace_context(file_path: Path | None = None, workflow: str = "unknown", **kwargs) -> Iterator[None]:
     """Context manager for automatic trace context.
 
     Automatically enriches all log entries within the context with:
@@ -240,7 +240,7 @@ class _LazyLogger:
             extra["context"] = context.to_dict()
         return extra
 
-    def _log(self, level_method, msg: str, *args, **kwargs):
+    def _log(self, level_method: Callable[[str, Any, Any], None], msg: str, *args, **kwargs) -> None:
         """Log a message with automatic context enrichment."""
         extra = self._add_context(kwargs.pop("extra", None))
         level_method(msg, *args, extra=extra, **kwargs)
@@ -271,7 +271,7 @@ class _LazyLogger:
         extra = self._add_context(kwargs.pop("extra", None))
         actual_logger.exception(msg, *args, extra=extra, exc_info=True, **kwargs)
 
-    def __getattr__(self, name):
+    def __getattr__(self, name: str) -> Any:
         """Delegate any other attributes to the actual logger."""
         actual_logger = get_logger()
         return getattr(actual_logger, name)
@@ -311,7 +311,7 @@ def trace_handler(func: Callable) -> Callable:
     """
 
     @functools.wraps(func)
-    def wrapper(state, *args, **kwargs):
+    def wrapper(state: Any, *args, **kwargs) -> Any:
         # Get or create trace context
         context = get_trace_context()
         if not context and state:
@@ -374,7 +374,7 @@ def trace_handler(func: Callable) -> Callable:
     return wrapper
 
 
-def log_transition(from_handler: str, to_handler: str, state):
+def log_transition(from_handler: str, to_handler: str, state: Any) -> None:
     """Log a state machine transition.
 
     Called automatically by StateMachine.

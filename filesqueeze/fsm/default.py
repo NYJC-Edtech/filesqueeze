@@ -29,7 +29,7 @@ class State:
 
     __slots__ = ("__data",)
 
-    def __init__(self, origin: PathLike, output_path: PathLike | None = None, config=None) -> None:
+    def __init__(self, origin: PathLike, output_path: PathLike | None = None, config: object = None) -> None:
         self.__data: dict[str, Any] = {
             "origin": Path(origin),
             "status": Status.PENDING,
@@ -42,7 +42,7 @@ class State:
             "config": config,
         }
 
-    def __setattr__(self, name: str, value: Any) -> None:
+    def __setattr__(self, name: str, value: object) -> None:
         # Prevent direct attribute assignment to catch bugs early
         if name == "_State__data":
             # Allow initialization of __data
@@ -53,7 +53,7 @@ class State:
                 f"Use the appropriate method instead (e.g., status_analyze(), error(), etc.)"
             )
 
-    def __getattr__(self, attr: str) -> Any:
+    def __getattr__(self, attr: str):
         # Read-only access to attributes in __data
         if attr == "_State__data":
             # This shouldn't happen normally, but just in case

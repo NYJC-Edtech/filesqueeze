@@ -9,7 +9,7 @@ import platform
 import subprocess
 import threading
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 from filesqueeze.constants import ConfigKeys
 
@@ -100,7 +100,7 @@ class BinaryFinder:
         Path("/opt/tesseract/bin"),
     ]
 
-    def __init__(self, config=None):
+    def __init__(self, config: Any = None):
         """Initialize binary finder.
 
         Args:
