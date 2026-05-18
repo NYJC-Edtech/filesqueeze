@@ -5,6 +5,8 @@ eliminating magic strings scattered throughout the codebase and making refactori
 easier and less error-prone.
 """
 
+from typing import ClassVar
+
 
 class ConfigKeys:
     """Centralized configuration key constants.
@@ -48,19 +50,19 @@ class FileExtensions:
     """File extension constants for type checking and validation."""
 
     # Video extensions
-    VIDEO = ["mp4", "wmv", "avi", "mkv", "mov", "flv"]
+    VIDEO: ClassVar[list[str]] = ["mp4", "wmv", "avi", "mkv", "mov", "flv"]
 
     # Document extensions
-    DOCUMENT = ["pdf"]
+    DOCUMENT: ClassVar[list[str]] = ["pdf"]
 
     # Image extensions
-    IMAGE = ["jpg", "jpeg", "png"]
+    IMAGE: ClassVar[list[str]] = ["jpg", "jpeg", "png"]
 
     # Presentation extensions
-    PRESENTATION = ["ppt", "pptx"]
+    PRESENTATION: ClassVar[list[str]] = ["ppt", "pptx"]
 
     # All supported extensions
-    ALL_SUPPORTED = VIDEO + DOCUMENT + IMAGE + PRESENTATION
+    ALL_SUPPORTED: ClassVar[list[str]] = VIDEO + DOCUMENT + IMAGE + PRESENTATION
 
 
 class ErrorMessages:

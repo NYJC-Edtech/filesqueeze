@@ -9,7 +9,7 @@ import platform
 import subprocess
 import threading
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, ClassVar, Optional
 
 from filesqueeze.constants import ConfigKeys
 
@@ -64,37 +64,37 @@ class BinaryFinder:
     """Find FFmpeg, Ghostscript, and Tesseract installation paths."""
 
     # Common installation directories
-    WINDOWS_FFMPEG_PATHS = [
+    WINDOWS_FFMPEG_PATHS: ClassVar[list[Path]] = [
         Path("C:/Program Files/ffmpeg/bin"),
         Path("C:/Program Files (x86)/ffmpeg/bin"),
         Path("C:/ffmpeg/bin"),
         Path("C:/tools/ffmpeg/bin"),
     ]
 
-    WINDOWS_GHOSTSCRIPT_PATHS = [
+    WINDOWS_GHOSTSCRIPT_PATHS: ClassVar[list[Path]] = [
         Path("C:/Program Files/gs"),
         Path("C:/Program Files (x86)/gs"),
     ]
 
-    WINDOWS_TESSERACT_PATHS = [
+    WINDOWS_TESSERACT_PATHS: ClassVar[list[Path]] = [
         Path("C:/Program Files/Tesseract-OCR"),
         Path("C:/Program Files (x86)/Tesseract-OCR"),
         Path("C:/Tesseract-OCR"),
     ]
 
-    LINUX_FFMPEG_PATHS = [
+    LINUX_FFMPEG_PATHS: ClassVar[list[Path]] = [
         Path("/usr/bin"),
         Path("/usr/local/bin"),
         Path("/opt/ffmpeg/bin"),
     ]
 
-    LINUX_GHOSTSCRIPT_PATHS = [
+    LINUX_GHOSTSCRIPT_PATHS: ClassVar[list[Path]] = [
         Path("/usr/bin"),
         Path("/usr/local/bin"),
         Path("/opt/gs/bin"),
     ]
 
-    LINUX_TESSERACT_PATHS = [
+    LINUX_TESSERACT_PATHS: ClassVar[list[Path]] = [
         Path("/usr/bin"),
         Path("/usr/local/bin"),
         Path("/opt/tesseract/bin"),

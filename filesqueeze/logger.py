@@ -10,6 +10,7 @@ import logging
 import sys
 from logging.handlers import RotatingFileHandler, TimedRotatingFileHandler
 from pathlib import Path
+from typing import ClassVar
 
 from .config import Config
 from .system import logger as system_logger_module
@@ -82,7 +83,7 @@ class Logger:
     """Logger manager with dual output (console + file)."""
 
     # Log format templates
-    FORMATS = {
+    FORMATS: ClassVar[dict[str, str]] = {
         "simple": "%(levelname)s: %(message)s",
         "detailed": "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
         "json": "%(asctime)s %(name)s %(levelname)s %(message)s",

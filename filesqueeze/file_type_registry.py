@@ -5,7 +5,7 @@ to their appropriate processing functions, eliminating hardcoded mappings
 and making it easier to add new file types.
 """
 
-from typing import Callable
+from typing import Callable, ClassVar
 
 
 class FileTypeRegistry:
@@ -17,7 +17,7 @@ class FileTypeRegistry:
     """
 
     # File type mappings
-    FILE_PROCESSORS = {
+    FILE_PROCESSORS: ClassVar[dict[str, list[str]]] = {
         "video": ["mp4", "wmv", "avi", "mkv", "mov", "flv"],
         "pdf": ["pdf"],
         "image": ["jpg", "jpeg", "png"],
