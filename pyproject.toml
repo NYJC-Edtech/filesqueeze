@@ -91,6 +91,7 @@ ignore = [
     "ANN206", # Private classmethods (internal implementation, not public API)
     "ANN002", # *args (often pass-through, context-dependent)
     "ANN003", # **kwargs (often pass-through, context-dependent)
+    "ANN401", # typing.Any (necessary for dynamic code and interfaces)
 ]
 exclude = [
     ".git",
