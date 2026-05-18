@@ -8,20 +8,20 @@ from typing import Callable, Generic, TypeVar
 
 from ..system import logger
 from .default import State
-from .enums import Format as Format
 
 # Generic type for state object
 S = TypeVar("S")
 
-# A state machine transition function that takes a state and returns another handler
-Handler = Callable[[S], "Handler"]
+# A state machine transition function that takes a state and returns
+# another handler (or None to terminate the state machine)
+Handler = Callable[[S], "Handler | None"]
 # An external callback, called after each state transition
 StateCallback = Callable[[S], None]
 # A customisable factory function that creates a state object
 StateFactory = Callable[[PathLike], S]
 
 
-def default_state_factory(filepath, **kwargs):
+def default_state_factory(filepath: PathLike, **kwargs) -> State:
     """Default state factory that forwards kwargs to State constructor."""
     return State(filepath, **kwargs)
 
@@ -44,14 +44,14 @@ class StateMachine(Generic[S]):
         # First transition of state machine
         self.start = start
 
-    def transition(self, state: S, handler: Handler) -> tuple[S, Handler]:
+    def transition(self, state: S, handler: Handler) -> tuple[S, Handler | None]:
         """Execute the next transition for the state machine."""
         # Get handler names for logging
         current_name = handler.__name__ if hasattr(handler, "__name__") else str(handler)
 
         # Call the handler with the current state
         next_handler = handler(state)
-        next_name = next_handler.__name__ if hasattr(next_handler, "__name__") else str(next_handler)
+        next_name = next_handler.__name__ if next_handler and hasattr(next_handler, "__name__") else str(next_handler)
 
         # Log transition using system logger
         try:
