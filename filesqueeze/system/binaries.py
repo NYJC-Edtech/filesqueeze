@@ -9,7 +9,7 @@ import platform
 import subprocess
 import threading
 from pathlib import Path
-from typing import Any, ClassVar, Optional
+from typing import Any, Callable, ClassVar, Optional
 
 from filesqueeze.constants import ConfigKeys
 
@@ -194,7 +194,7 @@ class BinaryFinder:
         """
         return self._get_binary_path("powershell", ConfigKeys.PRESENTATION_POWERSHELL_PATH, self.find_powershell)
 
-    def _get_binary_path(self, binary_name: str, config_key: str, finder_method: callable) -> str:
+    def _get_binary_path(self, binary_name: str, config_key: str, finder_method: Callable[[], tuple[str | None, str]]) -> str:
         """Generic binary path finder with caching.
 
         Args:

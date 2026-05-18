@@ -78,7 +78,7 @@ class NotificationManager:
 
     def __init__(self):
         """Initialize the notification manager."""
-        self._notifications = {}  # Track notification tags by filename
+        self._notifications: dict[str, str] = {}  # Track notification tags by filename
         self._lock = threading.Lock()
         self._counter = 0  # For generating unique tags
 
@@ -159,7 +159,7 @@ class NotificationManager:
             # Silently fail - don't disrupt the service if notifications don't work
             return False
 
-    def get_tag(self, filename: str) -> str:
+    def get_tag(self, filename: str) -> str | None:
         """Get the notification tag for a file.
 
         Args:
