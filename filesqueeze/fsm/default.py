@@ -8,6 +8,7 @@ from os import PathLike
 from pathlib import Path
 from typing import Any
 
+from ..config import Config
 from .enums import Status
 
 
@@ -29,7 +30,7 @@ class State:
 
     __slots__ = ("__data",)
 
-    def __init__(self, origin: PathLike, output_path: PathLike | None = None, config: object = None) -> None:
+    def __init__(self, origin: PathLike, output_path: PathLike | None = None, config: Config | None = None) -> None:
         self.__data: dict[str, Any] = {
             "origin": Path(origin),
             "status": Status.PENDING,

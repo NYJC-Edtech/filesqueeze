@@ -9,6 +9,7 @@ import subprocess
 import tempfile
 from pathlib import Path
 
+from .config import Config
 from .system import logger
 
 
@@ -92,7 +93,7 @@ def ocr_image(
     language: str = "eng",
     oem: int = 3,
     psm: int = 3,
-    config: object = None,
+    config: Config | None = None,
 ) -> bool:
     """Run OCR on an image file and create a searchable PDF.
 
@@ -153,7 +154,7 @@ def ocr_pdf(
     psm: int = 3,
     dpi: int = 300,
     ghostscript_path: str = "gs",
-    config: object = None,
+    config: Config | None = None,
 ) -> bool:
     """Run OCR on a PDF by converting pages to images first.
 

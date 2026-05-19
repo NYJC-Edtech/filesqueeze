@@ -9,6 +9,7 @@ It uses the system package for logging and subprocess utilities.
 from pathlib import Path
 
 # Import from system package
+from filesqueeze.config import Config
 from filesqueeze.system import get_binary_finder
 
 # Import subprocess utilities
@@ -18,7 +19,7 @@ from filesqueeze.utils.subprocess_helper import SubprocessError, SubprocessTimeo
 SCRIPTPATH = str(Path(__file__).parent.parent.joinpath("bin", "pptx2mp4.ps1"))
 
 
-def get_powershell_path(config_path: str = "") -> str:
+def get_powershell_path(config_path: str = "") -> Path:
     """Get the PowerShell executable path.
 
     Args:
@@ -36,14 +37,14 @@ def get_powershell_path(config_path: str = "") -> str:
     """
     # If explicit path provided and it exists, use it
     if config_path and Path(config_path).exists():
-        return config_path
+        return Path(config_path)
 
     # Otherwise use registered finder
     finder = get_binary_finder()
     return finder.get_powershell_path()
 
 
-def to_mp4(infile: str, outfile: str = "", *, config: object = None) -> None:
+def to_mp4(infile: str, outfile: str = "", *, config: Config | None = None) -> None:
     """Convert a PowerPoint presentation to MP4 video.
 
     Args:
@@ -59,7 +60,7 @@ def to_mp4(infile: str, outfile: str = "", *, config: object = None) -> None:
     from filesqueeze.system.decorators import trace_function
 
     @trace_function
-    def _to_mp4(infile: str, outfile: str = "", *, config: object = None) -> None:
+    def _to_mp4(infile: str, outfile: str = "", *, config: Config | None = None) -> None:
         # Validation & defaults
         infile = Path(infile)
         if not infile.exists():
@@ -70,7 +71,7 @@ def to_mp4(infile: str, outfile: str = "", *, config: object = None) -> None:
         if config:
             pres_config = PresentationConfig(config)
             timeout = pres_config.timeout
-            powershell_path = config.powershell_path if hasattr(config, "powershell_path") else ""
+            powershell_path = pres_config.powershell_path
         else:
             timeout = 1800  # 30 minutes default for PPT conversion
             powershell_path = ""

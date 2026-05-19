@@ -9,13 +9,14 @@ It uses the system package for binary detection and logging.
 from pathlib import Path
 
 # Import from system package
+from filesqueeze.config import Config
 from filesqueeze.system import get_binary_finder
 
 # Import subprocess utilities
 from filesqueeze.utils.subprocess_helper import SubprocessError, SubprocessTimeout, run_subprocess, verify_output_file
 
 
-def get_ghostscript_path(config_path: str = "") -> str:
+def get_ghostscript_path(config_path: str = "") -> Path:
     """Get the Ghostscript executable path.
 
     Args:
@@ -33,7 +34,7 @@ def get_ghostscript_path(config_path: str = "") -> str:
     """
     # If explicit path provided and it exists, use it
     if config_path and Path(config_path).exists():
-        return config_path
+        return Path(config_path)
 
     # Otherwise use registered finder
     finder = get_binary_finder()
@@ -47,7 +48,7 @@ def compress_pdf(
     quality: str = "ebook",
     compression_level: int = 2,
     ghostscript_path: str = "",
-    config: object = None,
+    config: Config | None = None,
 ) -> None:
     """Compress a PDF file using Ghostscript.
 
@@ -75,7 +76,7 @@ def compress_pdf(
         quality: str = "ebook",
         compression_level: int = 2,
         ghostscript_path: str = "",
-        config: object = None,
+        config: Config | None = None,
     ) -> None:
         # Use config adapter if config provided
         if config:

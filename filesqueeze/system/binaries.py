@@ -9,8 +9,9 @@ import platform
 import subprocess
 import threading
 from pathlib import Path
-from typing import Any, Callable, ClassVar, Optional
+from typing import Callable, ClassVar, Optional
 
+from filesqueeze.config import Config
 from filesqueeze.constants import ConfigKeys
 
 # Global binary finder instance (None until registered)
@@ -100,7 +101,7 @@ class BinaryFinder:
         Path("/opt/tesseract/bin"),
     ]
 
-    def __init__(self, config: Any = None):
+    def __init__(self, config: Config | None = None):
         """Initialize binary finder.
 
         Args:
@@ -183,7 +184,7 @@ class BinaryFinder:
         """
         return self._get_binary_path("tesseract", ConfigKeys.OCR_TESSERACT_PATH, self.find_tesseract)
 
-    def get_powershell_path(self) -> str:
+    def get_powershell_path(self) -> Path:
         """Get PowerShell executable path.
 
         Returns:
