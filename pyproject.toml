@@ -107,6 +107,13 @@ exclude = [
 "tests/**/*.py" = ["S101", "ANN"]  # Allow assert in tests, skip type annotations in tests
 
 # Ruff formatting configuration (replaces Black)
+[tool.pyright]
+exclude = [
+    "tests/**",
+    "examples/**",
+    ".venv/**",
+]
+
 [tool.ruff.format]
 indent-style = "space"
 line-ending = "auto"
