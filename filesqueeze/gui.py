@@ -426,7 +426,8 @@ class StatusWindow:
         """Schedule the next refresh."""
         if self.root.winfo_exists():
             self.update_display()
-            self._auto_refresh_job = self.root.after(self.refresh_interval, self._schedule_refresh)
+            interval = self.refresh_interval if self.refresh_interval is not None else 2000
+            self._auto_refresh_job = self.root.after(interval, self._schedule_refresh)
 
     def stop_auto_refresh(self) -> None:
         """Stop automatic state refresh."""
@@ -445,7 +446,7 @@ class StatusWindow:
         self.root.destroy()
 
 
-def show_status_window(state_provider: StateProvider, refresh_interval: int = 2000) -> None:
+def show_status_window(state_provider: StateProvider, refresh_interval: int = 2000) -> StatusWindow:
     """Show a status window for the given StateProvider.
 
     This is a convenience function for creating and displaying a status window.

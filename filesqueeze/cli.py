@@ -85,10 +85,7 @@ def cmd_init_config(args: argparse.Namespace) -> None:
     }
 
     # Read example config
-    try:
-        import tomllib
-    except ImportError:
-        import tomli as tomllib
+    import tomllib
 
     with open(example_config, "rb") as f:
         config_data = tomllib.load(f)
@@ -602,15 +599,7 @@ Examples:
 
     # Handle --init-config flag
     if args.init_config_flag:
-        # Create a namespace object with the init-config args
-        class InitConfigArgs:
-            def __init__(self, output: str | None, force: bool, user_config: bool):
-                self.output = output
-                self.force = force
-                self.user_config = user_config
-
-        init_args = InitConfigArgs(args.output, args.force, getattr(args, "user_config", False))
-        return cmd_init_config(init_args)
+        return cmd_init_config(args)
 
     # Handle commands
     if args.command == "compress":

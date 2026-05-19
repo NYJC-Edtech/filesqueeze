@@ -8,7 +8,6 @@ authors = [
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
-    "tomli>=2.0.0; python_version < '3.11'",
     "tomli-w>=1.0.0",
     "watchdog (>=6.0.0,<7.0.0)",
     "pystray (>=0.19.5,<0.20.0)",
@@ -20,6 +19,7 @@ dev = [
     "pyright (>=1.1.409,<2.0.0)",
     "pytest>=7.0.0",
     "pytest-cov>=4.0.0",
+    "pytest-stubs>=0.0.1",
     "ruff>=0.0.0",
 ]
 ocr = [
@@ -39,7 +39,6 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.poetry.dependencies]
 python = "^3.11"
-tomli = {version = "^2.0.0", python = "<3.11"}
 tomli-w = "^1.0.0"
 
 [tool.poetry.group.dev.dependencies]

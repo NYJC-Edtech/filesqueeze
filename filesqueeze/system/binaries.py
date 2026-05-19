@@ -121,7 +121,7 @@ class BinaryFinder:
         """Get the architecture name."""
         return self.machine
 
-    def get_ffmpeg_path(self) -> str:
+    def get_ffmpeg_path(self) -> Path:
         """Get FFmpeg executable path.
 
         Returns:
@@ -161,7 +161,7 @@ class BinaryFinder:
 
         return self._cached_paths["ffprobe"]
 
-    def get_ghostscript_path(self) -> str:
+    def get_ghostscript_path(self) -> Path:
         """Get Ghostscript executable path.
 
         Returns:
@@ -172,7 +172,7 @@ class BinaryFinder:
         """
         return self._get_binary_path("ghostscript", ConfigKeys.DOCUMENT_GHOSTSCRIPT_PATH, self.find_ghostscript)
 
-    def get_tesseract_path(self) -> str:
+    def get_tesseract_path(self) -> Path:
         """Get Tesseract executable path.
 
         Returns:
@@ -194,7 +194,7 @@ class BinaryFinder:
         """
         return self._get_binary_path("powershell", ConfigKeys.PRESENTATION_POWERSHELL_PATH, self.find_powershell)
 
-    def _get_binary_path(self, binary_name: str, config_key: str, finder_method: Callable[[], tuple[str | None, str]]) -> str:
+    def _get_binary_path(self, binary_name: str, config_key: str, finder_method: Callable[[], tuple[str | None, str]]) -> Path:
         """Generic binary path finder with caching.
 
         Args:
@@ -213,14 +213,14 @@ class BinaryFinder:
             if self.config:
                 config_path = self.config.get(config_key)
                 if config_path:
-                    self._cached_paths[binary_name] = config_path
-                    return config_path
+                    self._cached_paths[binary_name] = Path(config_path)
+                    return self._cached_paths[binary_name]
 
             # Auto-detect
             path, msg = finder_method()
             if path is None:
                 raise RuntimeError(f"{binary_name} not found: {msg}")
-            self._cached_paths[binary_name] = path
+            self._cached_paths[binary_name] = Path(path)
 
         return self._cached_paths[binary_name]
 
