@@ -24,6 +24,7 @@ dev = [
 ]
 ocr = [
     "pdfminer.six>=20231228",
+    "PyPDF2>=3.0.0",
 ]
 notifications = [
     "win10toast>=0.9",

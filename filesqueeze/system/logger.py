@@ -84,7 +84,7 @@ _trace_context = threading.local()
 
 
 @contextmanager
-def trace_context(file_path: Path | None = None, workflow: str = "unknown", **kwargs) -> Iterator[None]:
+def trace_context(file_path: Path | None = None, workflow: str = "unknown", **kwargs) -> Iterator[TraceContext]:
     """Context manager for automatic trace context.
 
     Automatically enriches all log entries within the context with:
@@ -147,11 +147,11 @@ class StructuredFormatter(logging.Formatter):
 
         # Add structured context if present
         if hasattr(record, "context"):
-            log_entry.update(record.context)
+            log_entry.update(record.context)  # type: ignore[arg-type]
 
         # Add exception info if present
         if record.exc_info:
-            log_entry["exception"] = {
+            log_entry["exception"] = {  # type: ignore[assignment]
                 "type": record.exc_info[0].__name__ if record.exc_info[0] else None,
                 "message": str(record.exc_info[1]) if record.exc_info[1] else None,
             }
@@ -243,7 +243,7 @@ class _LazyLogger:
     def _log(self, level_method: Callable[[str, Any, Any], None], msg: str, *args, **kwargs) -> None:
         """Log a message with automatic context enrichment."""
         extra = self._add_context(kwargs.pop("extra", None))
-        level_method(msg, *args, extra=extra, **kwargs)
+        level_method(msg, *args, extra=extra, **kwargs)  # type: ignore[call-arg]
 
     def debug(self, msg: str, *args, **kwargs):
         """Log debug message with automatic context."""
@@ -357,7 +357,7 @@ def trace_handler(func: Callable) -> Callable:
             # Log exit (only if no exception, to avoid duplicate logs)
             if not exception_occurred:
                 duration_ms = int((time.time() - start_time) * 1000)
-                next_handler = result.__name__ if hasattr(result, "__name__") else None
+                next_handler = result.__name__ if hasattr(result, "__name__") else None  # type: ignore[attr-defined]
 
                 logger.info(
                     f"Handler exit: {func.__name__}",

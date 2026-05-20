@@ -217,17 +217,17 @@ class TrayService:
         """
         try:
             # Restore if minimized
-            root_window.deiconify()
+            root_window.deiconify()  # type: ignore[attr-defined]
 
             # Bring window to the top of the stacking order
-            root_window.lift()
+            root_window.lift()  # type: ignore[attr-defined]
 
             # Force the window to be on top of all other windows
-            root_window.attributes("-topmost", True)
-            root_window.after_idle(root_window.attributes, "-topmost", False)
+            root_window.attributes("-topmost", True)  # type: ignore[attr-defined]
+            root_window.after_idle(root_window.attributes, "-topmost", False)  # type: ignore[attr-defined]
 
             # Force focus on the window
-            root_window.focus_force()
+            root_window.focus_force()  # type: ignore[attr-defined]
 
             self.logger.debug("Window brought to foreground successfully")
         except Exception as e:

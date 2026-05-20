@@ -698,6 +698,10 @@ class RetentionManager:
         self.logger.info(f"Skipping files newer than: {min_age_time.isoformat()} (minimum age safeguard)")
 
         try:
+            if not self.archive_dir:
+                self.logger.warning("Archive directory not configured, skipping cleanup")
+                return 0, 0
+
             for filepath in self.archive_dir.iterdir():
                 if not filepath.is_file():
                     continue

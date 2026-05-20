@@ -113,7 +113,8 @@ def get_image_size(infile: str, ffmpeg_path: str = "") -> tuple[int, int]:
         except SubprocessError:
             raise
 
-        if data and "x" in data:
+        # Type guard: when capture_output=True and text_mode=True, run_subprocess returns str
+        if isinstance(data, str) and data and "x" in data:
             width, height = data.split("x")
             return int(width), int(height)
 
