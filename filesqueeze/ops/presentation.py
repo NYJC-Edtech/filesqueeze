@@ -62,16 +62,16 @@ def to_mp4(infile: str, outfile: str = "", *, config: Config | None = None) -> N
     @trace_function
     def _to_mp4(infile: str, outfile: str = "", *, config: Config | None = None) -> None:
         # Validation & defaults
-        infile = Path(infile)
-        if not infile.exists():
-            raise FileNotFoundError(f"{infile}: Input file not found")
-        outfile = Path(outfile) if outfile else infile.parent.joinpath(infile.stem + ".mp4")
+        infile_path = Path(infile)
+        if not infile_path.exists():
+            raise FileNotFoundError(f"{infile_path}: Input file not found")
+        outfile_path = Path(outfile) if outfile else infile_path.parent.joinpath(infile_path.stem + ".mp4")
 
         # Use config adapter if config provided
         if config:
             pres_config = PresentationConfig(config)
             timeout = pres_config.timeout
-            powershell_path = pres_config.powershell_path
+            powershell_path = config.get("presentation.powershell_path", "")
         else:
             timeout = 1800  # 30 minutes default for PPT conversion
             powershell_path = ""
@@ -80,18 +80,18 @@ def to_mp4(infile: str, outfile: str = "", *, config: Config | None = None) -> N
         powershell = get_powershell_path(powershell_path)
 
         cmd = [
-            powershell,
+            str(powershell),
             SCRIPTPATH,
-            str(infile),
-            str(outfile),
+            str(infile_path),
+            str(outfile_path),
         ]
 
         try:
-            run_subprocess(cmd, timeout=timeout, tool_name="PowerShell", input_file=str(infile))
+            run_subprocess(cmd, timeout=timeout, tool_name="PowerShell", input_file=str(infile_path))
         except SubprocessTimeout:
-            raise RuntimeError(f"PowerShell timeout converting presentation: {infile}") from None
+            raise RuntimeError(f"PowerShell timeout converting presentation: {infile_path}") from None
         except SubprocessError as e:
-            raise RuntimeError(f"PowerShell failed to convert presentation: {infile}") from e
+            raise RuntimeError(f"PowerShell failed to convert presentation: {infile_path}") from e
 
         # Verify output file exists and has reasonable size
         try:
