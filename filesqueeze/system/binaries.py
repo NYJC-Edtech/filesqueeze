@@ -9,10 +9,12 @@ import platform
 import subprocess
 import threading
 from pathlib import Path
-from typing import Callable, ClassVar, Optional
+from typing import TYPE_CHECKING, Callable, ClassVar, Optional
 
-from filesqueeze.config import Config
 from filesqueeze.constants import ConfigKeys
+
+if TYPE_CHECKING:
+    from filesqueeze.config import Config
 
 # Global binary finder instance (None until registered)
 _binary_finder: Optional["BinaryFinder"] = None
@@ -101,7 +103,7 @@ class BinaryFinder:
         Path("/opt/tesseract/bin"),
     ]
 
-    def __init__(self, config: Config | None = None):
+    def __init__(self, config: "Config | None" = None):
         """Initialize binary finder.
 
         Args:

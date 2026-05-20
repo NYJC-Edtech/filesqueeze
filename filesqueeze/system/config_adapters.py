@@ -4,7 +4,10 @@ Provides validated, type-safe access to configuration values
 for each operation type (video, document, image, presentation).
 """
 
-from filesqueeze.config import Config
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from filesqueeze.config import Config
 
 
 class ConfigValidationError(ValueError):
@@ -19,7 +22,7 @@ class VideoConfig:
     Provides validated access to video-related config values.
     """
 
-    def __init__(self, config: Config):
+    def __init__(self, config: "Config"):
         """Initialize video config adapter.
 
         Args:
@@ -92,7 +95,7 @@ class DocumentConfig:
     Provides validated access to document-related config values.
     """
 
-    def __init__(self, config: Config):
+    def __init__(self, config: "Config"):
         """Initialize document config adapter.
 
         Args:
@@ -156,7 +159,7 @@ class ImageConfig:
     Provides validated access to image-related config values.
     """
 
-    def __init__(self, config: Config):
+    def __init__(self, config: "Config"):
         """Initialize image config adapter.
 
         Args:
@@ -201,7 +204,7 @@ class PresentationConfig:
     Provides validated access to presentation-related config values.
     """
 
-    def __init__(self, config: Config):
+    def __init__(self, config: "Config"):
         """Initialize presentation config adapter.
 
         Args:
