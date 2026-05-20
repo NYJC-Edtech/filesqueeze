@@ -19,7 +19,6 @@ dev = [
     "pyright (>=1.1.409,<2.0.0)",
     "pytest>=7.0.0",
     "pytest-cov>=4.0.0",
-    "pytest-stubs>=0.0.1",
     "ruff>=0.0.0",
 ]
 ocr = [
