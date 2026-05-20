@@ -661,4 +661,19 @@ Examples:
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except Exception as e:
+        # Handle config errors specifically
+        from filesqueeze.config import DefaultConfigMissingError, ConfigParseError
+
+        if isinstance(e, DefaultConfigMissingError):
+            print(f"❌ {e}")
+            sys.exit(1)
+        elif isinstance(e, ConfigParseError):
+            print(f"❌ Configuration Error: {e}")
+            sys.exit(1)
+        else:
+            # For other exceptions, show the error and exit
+            print(f"❌ Error: {e}")
+            sys.exit(1)

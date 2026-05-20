@@ -15,7 +15,21 @@ import tomllib
 from pathlib import Path
 from typing import Any
 
-from .system import logger
+
+class ConfigError(RuntimeError):
+    """Base class for configuration errors."""
+
+
+class ConfigFileNotFoundError(ConfigError):
+    """Config file not found (non-fatal)."""
+
+
+class ConfigParseError(ConfigError):
+    """Config file has invalid syntax (fatal)."""
+
+
+class DefaultConfigMissingError(ConfigError):
+    """Installation is broken - default.toml missing (fatal)."""
 
 
 class Config:
@@ -47,6 +61,11 @@ class Config:
         3. User config (~/.config/filesqueeze/config.toml)
         4. Project config (./filesqueeze.toml)
         5. default.toml (bundled with package)
+
+        Raises:
+            DefaultConfigMissingError: If default.toml is missing (fatal).
+            ConfigParseError: If any config file has invalid syntax (fatal).
+            ConfigFileNotFoundError: Non-fatal, silently skipped.
         """
         # Load default.toml as base configuration
         self._config = self._load_default_config()
@@ -58,19 +77,27 @@ class Config:
             self._expand_paths()
             return
 
-        # Load user config
+        # Load user config (optional - skip if not found)
         user_config_path = Path.home() / ".config" / "filesqueeze" / "config.toml"
         if user_config_path.exists():
-            self._merge_toml(user_config_path)
+            try:
+                self._merge_toml(user_config_path)
+            except ConfigFileNotFoundError:
+                # File not found is OK - continue with defaults
+                pass
 
-        # Load project config
+        # Load project config (optional - skip if not found)
         if config_path:
             project_config = Path(config_path)
         else:
             project_config = Path.cwd() / "filesqueeze.toml"
 
         if project_config.exists():
-            self._merge_toml(project_config)
+            try:
+                self._merge_toml(project_config)
+            except ConfigFileNotFoundError:
+                # File not found is OK - continue with defaults
+                pass
 
         # Apply environment variable overrides (highest priority)
         self._apply_env_overrides()
@@ -88,7 +115,7 @@ class Config:
             Dictionary containing default configuration.
 
         Raises:
-            RuntimeError: If default.toml is missing from installation.
+            DefaultConfigMissingError: If default.toml is missing from installation.
         """
 
         # Strategy 1: Try importlib.resources (Python 3.7+)
@@ -109,8 +136,8 @@ class Config:
                     return tomllib.load(f)
 
         # If we get here, default.toml is missing - this is an installation error
-        logger.error(
-            "CRITICAL: default.toml not found in FileSqueeze installation.\n"
+        raise DefaultConfigMissingError(
+            "FileSqueeze installation error: default.toml not found.\n"
             "This indicates a broken or incomplete installation.\n\n"
             "Searched in:\n"
             f"  - Package resources (importlib.resources)\n"
@@ -120,19 +147,26 @@ class Config:
             "  2. Or if using the development version, ensure default.toml exists in the filesqueeze package directory\n"
         )
 
-        raise RuntimeError(
-            "FileSqueeze installation error: default.toml not found.\n"
-            "Please reinstall: pip install --force-reinstall filesqueeze"
-        )
-
     def _merge_toml(self, path: Path) -> None:
-        """Merge TOML config file into current config."""
+        """Merge TOML config file into current config.
+
+        Raises:
+            ConfigFileNotFoundError: If config file doesn't exist (non-fatal).
+            ConfigParseError: If config file has invalid TOML syntax (fatal).
+        """
         try:
             with open(path, "rb") as f:
                 data = tomllib.load(f)
             self._deep_merge(self._config, data)
+        except FileNotFoundError:
+            # File not found is OK - just skip it
+            raise ConfigFileNotFoundError(f"Config file not found: {path}")
+        except tomllib.TOMLDecodeError as e:
+            # Invalid TOML is a problem - raise for caller to handle
+            raise ConfigParseError(f"Invalid TOML in {path}: {e}")
         except Exception as e:
-            logger.warning(f"Failed to load config from {path}: {e}")
+            # Other errors (permissions, etc.) - treat as parse errors
+            raise ConfigParseError(f"Failed to load config from {path}: {e}")
 
     def _merge_dict(self, data: dict) -> None:
         """Merge dict directly into current config (for testing)."""
@@ -175,7 +209,6 @@ class Config:
                 if section not in self._config:
                     self._config[section] = {}
                 self._config[section][key] = value
-                logger.info(f"Config override from {env_var}: {value}")
 
     def _expand_paths(self) -> None:
         """Expand ~ and environment variables in all path config values.
