@@ -111,7 +111,7 @@ class StatusWindow:
 
         # Statistics section
         stats_frame = ttk.LabelFrame(status_tab, text="Statistics", padding="5")
-        stats_frame.grid(row=1, column=0, sticky=(tk.W, tk.E), pady=(0, 10))
+        stats_frame.grid(row=1, column=0, sticky=(tk.W, tk.E), pady=(0, 10))  # type: ignore[arg-type]
         stats_frame.columnconfigure(1, weight=1)
 
         # Completed count
@@ -126,7 +126,7 @@ class StatusWindow:
 
         # Cleanup Statistics section
         cleanup_frame = ttk.LabelFrame(status_tab, text="Retention Cleanup", padding="5")
-        cleanup_frame.grid(row=2, column=0, sticky=(tk.W, tk.E), pady=(0, 10))
+        cleanup_frame.grid(row=2, column=0, sticky=(tk.W, tk.E), pady=(0, 10))  # type: ignore[arg-type]
         cleanup_frame.columnconfigure(1, weight=1)
 
         # Last cleanup time
@@ -151,7 +151,7 @@ class StatusWindow:
 
         # Directories section
         dirs_frame = ttk.LabelFrame(status_tab, text="Directories", padding="5")
-        dirs_frame.grid(row=3, column=0, sticky=(tk.W, tk.E), pady=(0, 10))
+        dirs_frame.grid(row=3, column=0, sticky=(tk.W, tk.E), pady=(0, 10))  # type: ignore[arg-type]
         dirs_frame.columnconfigure(1, weight=1)
 
         # Input directory
@@ -166,15 +166,15 @@ class StatusWindow:
 
         # Currently processing (single line)
         processing_frame = ttk.LabelFrame(status_tab, text="Currently Processing", padding="5")
-        processing_frame.grid(row=4, column=0, sticky=(tk.W, tk.E), pady=(0, 10))
+        processing_frame.grid(row=4, column=0, sticky=(tk.W, tk.E), pady=(0, 10))  # type: ignore[arg-type]
         processing_frame.columnconfigure(0, weight=1)
 
         self.processing_value = ttk.Label(processing_frame, text="", font=("Helvetica", 9), anchor=tk.W)
-        self.processing_value.grid(row=0, column=0, sticky=(tk.W, tk.E))
+        self.processing_value.grid(row=0, column=0, sticky=(tk.W, tk.E))  # type: ignore[arg-type]
 
         # Processed files section (scrollable)
         processed_frame = ttk.LabelFrame(status_tab, text="Processed Files", padding="5")
-        processed_frame.grid(row=5, column=0, sticky=(tk.W, tk.E, tk.N, tk.S), pady=(0, 10))
+        processed_frame.grid(row=5, column=0, sticky=(tk.W, tk.E, tk.N, tk.S), pady=(0, 10))  # type: ignore[arg-type]
         processed_frame.columnconfigure(0, weight=1)
         processed_frame.rowconfigure(0, weight=1)
 
@@ -182,7 +182,7 @@ class StatusWindow:
         self.processed_text = scrolledtext.ScrolledText(
             processed_frame, height=15, wrap=tk.WORD, state=tk.DISABLED, font=("Consolas", 9)
         )
-        self.processed_text.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+        self.processed_text.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))  # type: ignore[arg-type]
 
         # Close button
         close_button = ttk.Button(status_tab, text="Close", command=self.close)
@@ -208,7 +208,7 @@ class StatusWindow:
 
         # Log content (scrollable)
         self.logs_text = scrolledtext.ScrolledText(logs_tab, wrap=tk.WORD, state=tk.DISABLED, font=("Consolas", 8))
-        self.logs_text.grid(row=1, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+        self.logs_text.grid(row=1, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))  # type: ignore[arg-type]
 
     def update_display(self) -> None:
         """Update the display with current service state."""
