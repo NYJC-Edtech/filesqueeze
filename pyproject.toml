@@ -114,6 +114,8 @@ exclude = [
     "examples/**",
     ".venv/**",
 ]
+typeCheckingMode = "standard"
+reportOptionalMemberAccess = "warning"
 
 [tool.ruff.format]
 indent-style = "space"

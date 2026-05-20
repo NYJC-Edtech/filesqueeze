@@ -62,7 +62,7 @@ class StatusWindow:
         """Create all UI widgets."""
         # Main frame with padding
         main_frame = ttk.Frame(self.root, padding="10")
-        main_frame.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+        main_frame.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))  # type: ignore[arg-type]  # type: ignore[arg-type]
 
         # Configure grid weights for resizing
         self.root.columnconfigure(0, weight=1)
@@ -76,7 +76,7 @@ class StatusWindow:
 
         # Create notebook (tabs)
         self.notebook = ttk.Notebook(main_frame)
-        self.notebook.grid(row=1, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+        self.notebook.grid(row=1, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))  # type: ignore[arg-type]  # type: ignore[arg-type]
 
         # Create Status tab
         self._create_status_tab()
@@ -96,7 +96,7 @@ class StatusWindow:
 
         # Service status section
         status_frame = ttk.LabelFrame(status_tab, text="Service Status", padding="5")
-        status_frame.grid(row=0, column=0, sticky=(tk.W, tk.E), pady=(0, 10))
+        status_frame.grid(row=0, column=0, sticky=(tk.W, tk.E), pady=(0, 10))  # type: ignore[arg-type]
         status_frame.columnconfigure(1, weight=1)
 
         # Running status
