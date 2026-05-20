@@ -113,6 +113,9 @@ exclude = [
     "tests/**",
     "examples/**",
     ".venv/**",
+    "**/node_modules",
+    "**/__pycache__",
+    "**/.*",
 ]
 typeCheckingMode = "standard"
 reportOptionalMemberAccess = "warning"
