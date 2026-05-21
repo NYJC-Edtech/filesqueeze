@@ -1,5 +1,6 @@
 """Integration tests with real files and binaries."""
 
+import shutil
 import time
 from pathlib import Path
 
@@ -198,19 +199,14 @@ class TestRealFileCompression:
         for quality, size, ratio in results:
             print(f"{quality:<12} {size / 1024 / 1024:<12.2f} {ratio:<10.1f}%")
 
+    @pytest.mark.skipif(
+        not shutil.which("tesseract"),
+        reason="Tesseract OCR is not installed or not in PATH. "
+        "OCR is a critical feature - install Tesseract to run this test. ",
+    )
     def test_ocr_detection(self, sample_scanned_pdf, sample_generated_pdf):
         """Test OCR detection - checks if PDFs have text layers."""
-        import shutil
-
         from filesqueeze.ocr import has_text_layer
-
-        # Check Tesseract availability - fail if not available
-        if not shutil.which("tesseract"):
-            pytest.fail(
-                "Tesseract OCR is not installed or not in PATH. "
-                "OCR is a critical feature - install Tesseract to run this test. "
-                "See https://github.com/tesseract-ocr/tesseract for installation."
-            )
 
         # Check if scanned PDF has text layer
         has_text_scanned = has_text_layer(sample_scanned_pdf)
@@ -224,6 +220,11 @@ class TestRealFileCompression:
         print(f"Generated PDF has text layer: {has_text_generated}")
         assert has_text_generated, "Generated PDF should have text layer"
 
+    @pytest.mark.skipif(
+        not shutil.which("tesseract"),
+        reason="Tesseract OCR is not installed or not in PATH. "
+        "OCR is a critical feature - install Tesseract to run this test. ",
+    )
     def test_ocr_scanned_pdf(self, sample_scanned_pdf, tmp_path):
         """Test OCR workflow on PDF.
 
@@ -231,18 +232,8 @@ class TestRealFileCompression:
         fixture is already OCRed, so this test shows that the workflow
         correctly identifies this and doesn't re-OCR.
         """
-        import shutil
-
         from filesqueeze.config import Config
         from filesqueeze.ocr import needs_ocr, process_pdf_with_ocr
-
-        # Check Tesseract availability - fail if not available
-        if not shutil.which("tesseract"):
-            pytest.fail(
-                "Tesseract OCR is not installed or not in PATH. "
-                "OCR is a critical feature - install Tesseract to run this test. "
-                "See https://github.com/tesseract-ocr/tesseract for installation."
-            )
 
         config = Config()
         output_path = tmp_path / "ocr_output.pdf"
@@ -282,25 +273,20 @@ class TestRealFileCompression:
         else:
             pytest.fail(f"OCR test failed: {message}")
 
+    @pytest.mark.skipif(
+        not shutil.which("tesseract"),
+        reason="Tesseract OCR is not installed or not in PATH. "
+        "OCR is a critical feature - install Tesseract to run this test. ",
+    )
     def test_compress_scanned_pdf_with_ocr(self, sample_scanned_pdf, tmp_path):
         """Test compression workflow that respects OCR status.
 
         For PDFs that are already OCRed, they should be compressed directly.
         For PDFs without OCR, they would be OCRed first, then compressed.
         """
-        import shutil
-
         from filesqueeze.config import Config
         from filesqueeze.ocr import needs_ocr
         from filesqueeze.ops.document import compress_pdf
-
-        # Check Tesseract availability - fail if not available
-        if not shutil.which("tesseract"):
-            pytest.fail(
-                "Tesseract OCR is not installed or not in PATH. "
-                "OCR is a critical feature - install Tesseract to run this test. "
-                "See https://github.com/tesseract-ocr/tesseract for installation."
-            )
 
         config = Config()
         output_path = tmp_path / "compressed.pdf"

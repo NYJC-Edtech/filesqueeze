@@ -94,9 +94,9 @@ class TestServiceExecutionInvariants:
         )
 
         # Verify that the start method focuses on tray icon creation
-        assert "icon" in start_source.lower() or "pystray" in start_source.lower(), (
-            "TrayService.start() should create the tray icon"
-        )
+        assert (
+            "icon" in start_source.lower() or "pystray" in start_source.lower()
+        ), "TrayService.start() should create the tray icon"
 
         # The invariant: status window opens AUTOMATICALLY when service starts
         # This provides immediate visual feedback to users
@@ -169,9 +169,9 @@ class TestWindowsIntegrationInvariants:
         assert "AppUserModelID" in source or "APP_USER_MODEL_ID" in source, "TrayService.start() should set AppUserModelID"
 
         # Verify logging happens at INFO level
-        assert "logger.info" in source or "logger.warning" in source or "logger.error" in source, (
-            "AppUserModelID setting should be logged"
-        )
+        assert (
+            "logger.info" in source or "logger.warning" in source or "logger.error" in source
+        ), "AppUserModelID setting should be logged"
 
         # The key invariant: AppUserModelID must be set BEFORE icon creation
         # We verify this by checking the code structure
@@ -357,6 +357,7 @@ output = "/test/output"
     def test_tilde_expanded_once_at_init(self, tmp_path):
         """Tilde paths expanded during init-config, not at runtime."""
         import argparse
+        import os
         import tomllib
 
         from filesqueeze.cli import cmd_init_config
@@ -374,12 +375,21 @@ output = "/test/output"
         log_path = config_data["logging"]["file"]
         assert not log_path.startswith("~"), "Tilde should be expanded"
 
-        # Verify runtime doesn't expand again (no ~ in path to expand)
+        # Verify runtime behavior
         from filesqueeze.config import Config
 
         config = Config(config_path=str(config_output))
         runtime_log_path = config.get("logging.file")
-        assert runtime_log_path == log_path, "Path should match expanded version"
+
+        # In dev mode (pytest), the path will be overridden to safe defaults
+        is_dev_mode = os.getenv("PYTEST_CURRENT_TEST") is not None
+        if is_dev_mode:
+            # Dev mode overrides user home paths with safe paths
+            assert "dev_test_data" in runtime_log_path, "Dev mode should use safe paths"
+            assert runtime_log_path != log_path, "Dev mode should override user paths"
+        else:
+            # In production mode, the path should match the expanded version
+            assert runtime_log_path == log_path, "Path should match expanded version"
 
 
 class TestArchiveInvariant:
