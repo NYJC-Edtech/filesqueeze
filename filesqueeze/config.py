@@ -58,15 +58,25 @@ class Config:
         Priority (highest to lowest):
         1. Environment variables (FILESQUEEZE_*)
         2. Config file (if provided)
-        3. User config (~/.config/filesqueeze/config.toml)
-        4. Project config (./filesqueeze.toml)
+        3. User config (~/.config/filesqueeze/config.toml) - SKIPPED in dev mode
+        4. Project config (./filesqueeze.toml) - Optional dev config in dev mode
         5. default.toml (bundled with package)
+
+        Dev mode detection: PYTEST_CURRENT_TEST or FILEQUEEZE_DEV_MODE=1
 
         Raises:
             DefaultConfigMissingError: If default.toml is missing (fatal).
             ConfigParseError: If any config file has invalid syntax (fatal).
             ConfigFileNotFoundError: Non-fatal, silently skipped.
         """
+        import os
+
+        # Detect dev mode
+        is_dev_mode = (
+            os.getenv("PYTEST_CURRENT_TEST") is not None
+            or os.getenv("FILEQUEEZE_DEV_MODE") == "1"
+        )
+
         # Load default.toml as base configuration
         self._config = self._load_default_config()
 
@@ -77,20 +87,29 @@ class Config:
             self._expand_paths()
             return
 
-        # Load user config (optional - skip if not found)
-        user_config_path = Path.home() / ".config" / "filesqueeze" / "config.toml"
-        if user_config_path.exists():
-            try:
-                self._merge_toml(user_config_path)
-            except ConfigFileNotFoundError:
-                # File not found is OK - continue with defaults
-                pass
+        # In dev mode, skip user config to avoid production state contamination
+        if not is_dev_mode:
+            # Load user config (optional - skip if not found)
+            user_config_path = Path.home() / ".config" / "filesqueeze" / "config.toml"
+            if user_config_path.exists():
+                try:
+                    self._merge_toml(user_config_path)
+                except ConfigFileNotFoundError:
+                    # File not found is OK - continue with defaults
+                    pass
 
         # Load project config (optional - skip if not found)
         if config_path:
             project_config = Path(config_path)
         else:
-            project_config = Path.cwd() / "filesqueeze.toml"
+            # In dev mode, prefer dev-specific config
+            if is_dev_mode:
+                project_config = Path.cwd() / "filesqueeze.dev.toml"
+                if not project_config.exists():
+                    # Fall back to regular project config in dev mode
+                    project_config = Path.cwd() / "filesqueeze.toml"
+            else:
+                project_config = Path.cwd() / "filesqueeze.toml"
 
         if project_config.exists():
             try:
@@ -101,6 +120,11 @@ class Config:
 
         # Apply environment variable overrides (highest priority)
         self._apply_env_overrides()
+
+        # In dev mode, override any user home paths with safe defaults
+        # This must happen AFTER env overrides and path expansion to catch ~/ paths
+        if is_dev_mode:
+            self._set_dev_mode_defaults()
 
         # Expand all paths (tilde and environment variables)
         self._expand_paths()
@@ -209,6 +233,54 @@ class Config:
                 if section not in self._config:
                     self._config[section] = {}
                 self._config[section][key] = value
+
+    def _set_dev_mode_defaults(self) -> None:
+        """Set safe default directories for development/testing mode.
+
+        In dev mode, we use in-project directories that are gitignored
+        to avoid contaminating production user directories or state.
+
+        This ensures tests and development work completely isolated from
+        any production FileSqueeze installation.
+
+        This method FORCE OVERRIDES any paths pointing to user directories,
+        even if they were set in default.toml or other config files.
+        """
+        from pathlib import Path
+
+        # Set safe default paths relative to project root
+        dev_base = Path.cwd() / "dev_test_data"
+
+        # Initialize directories if needed
+        if "directories" not in self._config:
+            self._config["directories"] = {}
+
+        # FORCE OVERRIDE any user home paths with safe dev paths
+        user_home = str(Path.home())
+
+        # Check and override input directory if it points to user home
+        current_input = self._config.get("directories", {}).get("input", "")
+        if current_input and ("~" in current_input or user_home in current_input):
+            self._config["directories"]["input"] = str(dev_base / "input")
+        elif not current_input:
+            self._config["directories"]["input"] = str(dev_base / "input")
+
+        # Check and override output directory if it points to user home
+        current_output = self._config.get("directories", {}).get("output", "")
+        if current_output and ("~" in current_output or user_home in current_output):
+            self._config["directories"]["output"] = str(dev_base / "output")
+        elif not current_output:
+            self._config["directories"]["output"] = str(dev_base / "output")
+
+        # Check and override archive directory if it points to user home
+        current_archive = self._config.get("directories", {}).get("archive", "")
+        if current_archive and ("~" in current_archive or user_home in current_archive):
+            self._config["directories"]["archive"] = str(dev_base / "archive")
+
+        # FORCE OVERRIDE log file if it points to user home or .config
+        current_log = self._config.get("logging", {}).get("file", "")
+        if current_log and ("~" in current_log or user_home in current_log or ".config" in current_log):
+            self._config.setdefault("logging", {})["file"] = str(dev_base / "filesqueeze_dev.log")
 
     def _expand_paths(self) -> None:
         """Expand ~ and environment variables in all path config values.

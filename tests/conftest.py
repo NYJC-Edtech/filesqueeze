@@ -142,27 +142,33 @@ def cleanup_windows_mutex():
     import ctypes
     import time
 
-    mutex_name = "Global\\FileSqueeze_SingleInstanceMutex"
+    # Clean up BOTH production and dev mutexes
+    mutex_names = [
+        "Global\\FileSqueeze_SingleInstanceMutex",
+        "Global\\FileSqueeze_DevInstance_Mutex"
+    ]
 
     # Cleanup before test
-    try:
-        existing_mutex = ctypes.windll.kernel32.OpenMutexW(0x00100000, False, mutex_name)  # MUTEX_ALL_ACCESS
-        if existing_mutex:
-            ctypes.windll.kernel32.CloseHandle(existing_mutex)
-            # Wait for mutex to be fully released
-            time.sleep(0.15)
-    except:
-        pass
+    for mutex_name in mutex_names:
+        try:
+            existing_mutex = ctypes.windll.kernel32.OpenMutexW(0x00100000, False, mutex_name)  # MUTEX_ALL_ACCESS
+            if existing_mutex:
+                ctypes.windll.kernel32.CloseHandle(existing_mutex)
+                # Wait for mutex to be fully released
+                time.sleep(0.15)
+        except:
+            pass
 
     yield
 
     # Cleanup after test
-    try:
-        existing_mutex = ctypes.windll.kernel32.OpenMutexW(0x00100000, False, mutex_name)
-        if existing_mutex:
-            ctypes.windll.kernel32.CloseHandle(existing_mutex)
-    except:
-        pass
+    for mutex_name in mutex_names:
+        try:
+            existing_mutex = ctypes.windll.kernel32.OpenMutexW(0x00100000, False, mutex_name)
+            if existing_mutex:
+                ctypes.windll.kernel32.CloseHandle(existing_mutex)
+        except:
+            pass
 
 
 def pytest_configure(config):

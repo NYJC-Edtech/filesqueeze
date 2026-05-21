@@ -58,18 +58,33 @@ class TrayService:
         self._mutex = None  # Windows named mutex for single-instance enforcement
 
     def _ensure_single_instance(self):
-        """Ensure only one FileSqueeze instance is running.
+        """Ensure only one FileSqueeze instance is running per mode.
 
-        Uses Windows named mutex to prevent multiple instances.
+        Uses different mutexes for development/testing vs. production to allow
+        development on a machine where FileSqueeze runs in production.
+
+        Development modes: pytest session, FILEQUEEZE_DEV_MODE=1
+        Production mode: normal user launch
 
         Raises:
-            RuntimeError: If another instance is already running.
+            RuntimeError: If another instance of the same mode is already running.
         """
+        import os
         import ctypes
         from ctypes import wintypes
 
-        # Create a named mutex
-        mutex_name = "Global\\FileSqueeze_SingleInstanceMutex"
+        # Check if running in development/testing mode
+        is_development = (
+            os.getenv("PYTEST_CURRENT_TEST") is not None  # Running in pytest
+            or os.getenv("FILEQUEEZE_DEV_MODE") == "1"     # Explicit dev mode
+        )
+
+        # Use different mutexes for dev vs. production
+        if is_development:
+            mutex_name = "Global\\FileSqueeze_DevInstance_Mutex"
+        else:
+            mutex_name = "Global\\FileSqueeze_SingleInstanceMutex"
+
         self._mutex = ctypes.windll.kernel32.CreateMutexW(None, True, mutex_name)
 
         if self._mutex == 0:

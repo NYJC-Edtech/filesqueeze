@@ -274,12 +274,24 @@ def compress(input_path, output_path, config=None):
 
 ## Testing Strategy
 
+### Dev Mode Isolation
+
+**Automatic Safety**: Tests run in "dev mode" with complete production isolation:
+
+1. **Separate mutex**: Tests use `Global\\FileSqueeze_DevInstance_Mutex` (not production mutex)
+2. **Skip user config**: Tests do NOT load `~/.config/filesqueeze/config.toml`
+3. **Safe directories**: Tests use `./dev_test_data/` instead of user directories
+4. **Isolated logs**: Test logs go to `./dev_test_data/filesqueeze_dev.log`
+
+**This means you can run tests on a machine where FileSqueeze runs in production!**
+
 ### Test Safety Rules
 
 **CRITICAL**: Tests must NEVER modify production state:
-- Use `tmp_path` fixture for temporary files
-- Use mock configs instead of real user config
-- `conftest.py` has protection to prevent writes to `~/.config/filesqueeze/config.toml`
+- **Dev mode handles this automatically** - no user config or directories are accessed
+- Use `tmp_path` fixture for test-specific temporary files
+- `conftest.py` has additional protection against writes to user config
+- All test data is gitignored (`dev_test_data/`, `filesqueeze.dev.toml`)
 
 ### Test Structure
 

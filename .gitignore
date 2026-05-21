@@ -176,6 +176,8 @@ cython_debug/
 # FileSqueeze specific
 filesqueeze.toml
 filesqueeze.log
+filesqueeze.dev.toml
+dev_test_data/
 tests/fixtures/
 
 # Auto-generated files (created by service install)

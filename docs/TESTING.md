@@ -10,11 +10,48 @@ This includes:
 - System-wide settings
 - Any files outside the test temp directory
 
+## Dev Mode Isolation
+
+**Automatic Protection**: Tests automatically run in "dev mode" which provides complete isolation from production FileSqueeze installations.
+
+### Dev Mode Invariants
+
+When running tests (inside `pytest`), FileSqueeze automatically:
+
+1. **Uses separate mutex**: `Global\\FileSqueeze_DevInstance_Mutex` instead of production mutex
+2. **Skips user config**: Does NOT load `~/.config/filesqueeze/config.toml`
+3. **Uses safe directories**: All operations use `./dev_test_data/` instead of user directories
+4. **Isolates logs**: Logs to `./dev_test_data/filesqueeze_dev.log` instead of user logs
+5. **Gitignored data**: All test data is excluded from version control
+
+**This means you can safely run tests on a machine where FileSqueeze runs in production!**
+
+### Directory Layout
+
+```
+filesqueeze/
+├── dev_test_data/          # Auto-created for testing, gitignored
+│   ├── input/              # Test input files
+│   ├── output/             # Test compressed files
+│   ├── archive/            # Test archived originals
+│   └── filesqueeze_dev.log # Test logs
+├── filesqueeze.dev.toml    # Optional dev config (gitignored)
+└── filesqueeze.toml        # Production config (gitignored)
+```
+
+### Manual Dev Mode
+
+For testing outside pytest, set the environment variable:
+```bash
+export FILEQUEEZE_DEV_MODE=1
+python -m filesqueeze service
+```
+
 ## Test Safety Mechanisms
 
-### Automatic Protection
+### Additional Protection
 
-The `tests/conftest.py` file includes automatic protection that patches `Path.write_text()` and `Path.write_bytes()` to prevent tests from writing to protected paths:
+The `tests/conftest.py` file includes additional protection that patches `Path.write_text()` and `Path.write_bytes()` to prevent tests from writing to protected paths:
 
 **Protected Paths**:
 - `~/.config/filesqueeze/config.toml`
@@ -24,6 +61,8 @@ The `tests/conftest.py` file includes automatic protection that patches `Path.wr
 ```
 TEST SAFETY VIOLATION: Attempted to write to protected config file!
 ```
+
+**Note**: With dev mode, these protections are rarely needed since tests automatically use isolated paths.
 
 ## Using tmp_path Fixture
 
