@@ -69,14 +69,14 @@ class TrayService:
         Raises:
             RuntimeError: If another instance of the same mode is already running.
         """
-        import os
         import ctypes
+        import os
         from ctypes import wintypes
 
         # Check if running in development/testing mode
         is_development = (
             os.getenv("PYTEST_CURRENT_TEST") is not None  # Running in pytest
-            or os.getenv("FILEQUEEZE_DEV_MODE") == "1"     # Explicit dev mode
+            or os.getenv("FILEQUEEZE_DEV_MODE") == "1"  # Explicit dev mode
         )
 
         # Use different mutexes for dev vs. production

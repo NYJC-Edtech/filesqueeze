@@ -72,10 +72,7 @@ class Config:
         import os
 
         # Detect dev mode
-        is_dev_mode = (
-            os.getenv("PYTEST_CURRENT_TEST") is not None
-            or os.getenv("FILEQUEEZE_DEV_MODE") == "1"
-        )
+        is_dev_mode = os.getenv("PYTEST_CURRENT_TEST") is not None or os.getenv("FILEQUEEZE_DEV_MODE") == "1"
 
         # Load default.toml as base configuration
         self._config = self._load_default_config()
@@ -184,13 +181,13 @@ class Config:
             self._deep_merge(self._config, data)
         except FileNotFoundError:
             # File not found is OK - just skip it
-            raise ConfigFileNotFoundError(f"Config file not found: {path}")
+            raise ConfigFileNotFoundError(f"Config file not found: {path}") from None
         except tomllib.TOMLDecodeError as e:
             # Invalid TOML is a problem - raise for caller to handle
-            raise ConfigParseError(f"Invalid TOML in {path}: {e}")
+            raise ConfigParseError(f"Invalid TOML in {path}: {e}") from e
         except Exception as e:
             # Other errors (permissions, etc.) - treat as parse errors
-            raise ConfigParseError(f"Failed to load config from {path}: {e}")
+            raise ConfigParseError(f"Failed to load config from {path}: {e}") from e
 
     def _merge_dict(self, data: dict) -> None:
         """Merge dict directly into current config (for testing)."""
