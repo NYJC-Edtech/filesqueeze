@@ -420,21 +420,30 @@ def cmd_service_install(args: argparse.Namespace) -> None:
     input_dir = Path(args.input) if args.input else config.input_dir
     output_dir = Path(args.output) if args.output else config.output_dir
 
+    # Determine if system-wide or user-only
+    # --user-only takes precedence over --system-wide
+    system_wide = not args.user_only if hasattr(args, "user_only") and args.user_only else args.system_wide
+
     # Check if already installed
-    if check_autostart_installed() and not args.force:
-        print("Auto-start is already installed.")
+    if check_autostart_installed(system_wide=system_wide) and not args.force:
+        scope = "all users" if system_wide else "current user"
+        print(f"Auto-start is already installed for {scope}.")
         print("Use --force to reinstall.")
         sys.exit(1)
 
     # Install auto-start
-    install_autostart(input_dir, output_dir)
+    install_autostart(input_dir, output_dir, system_wide=system_wide)
 
 
 def cmd_service_uninstall(args: argparse.Namespace) -> None:
     """Uninstall FileSqueeze auto-start."""
     from filesqueeze.autostart import uninstall_autostart
 
-    uninstall_autostart()
+    # Determine if system-wide or user-only
+    # --user-only takes precedence over --system-wide
+    system_wide = not args.user_only if hasattr(args, "user_only") and args.user_only else args.system_wide
+
+    uninstall_autostart(system_wide=system_wide)
 
 
 def cmd_service_status(args: argparse.Namespace) -> None:
@@ -445,9 +454,14 @@ def cmd_service_status(args: argparse.Namespace) -> None:
         print("Auto-start is only supported on Windows")
         sys.exit(1)
 
-    if check_autostart_installed():
-        print("Auto-start is installed")
-        print("FileSqueeze will start automatically when you log in to Windows.")
+    # Check both system-wide and user-specific
+    system_wide_installed = check_autostart_installed(system_wide=True)
+    user_specific_installed = check_autostart_installed(system_wide=False)
+
+    if system_wide_installed:
+        print("Auto-start is installed (system-wide - for all users)")
+    elif user_specific_installed:
+        print("Auto-start is installed (user-specific - for current user only)")
     else:
         print("Auto-start is not installed")
         print("To install, run: python -m filesqueeze service-install")
@@ -528,9 +542,24 @@ Examples:
         "--output", "-o", help="Output directory for compressed files (default: from config or ./compressed)"
     )
     service_install_parser.add_argument("--force", "-f", action="store_true", help="Reinstall if already installed")
+    service_install_parser.add_argument(
+        "--system-wide",
+        action="store_true",
+        default=True,
+        help="Install for all users (default: True, requires admin privileges)",
+    )
+    service_install_parser.add_argument(
+        "--user-only", action="store_true", help="Install for current user only (alternative to --system-wide)"
+    )
 
     # service uninstall command
-    service_subparsers.add_parser("uninstall", help="Uninstall FileSqueeze auto-start")
+    service_uninstall_parser = service_subparsers.add_parser("uninstall", help="Uninstall FileSqueeze auto-start")
+    service_uninstall_parser.add_argument(
+        "--system-wide", action="store_true", default=True, help="Uninstall from system-wide startup folder (default: True)"
+    )
+    service_uninstall_parser.add_argument(
+        "--user-only", action="store_true", help="Uninstall from user-specific startup folder only"
+    )
 
     # service status command
     service_subparsers.add_parser("status", help="Show auto-start installation status")
@@ -556,9 +585,26 @@ Examples:
         "--output", "-o", help="Output directory for compressed files (default: from config or ./compressed)"
     )
     service_install_hyphen_parser.add_argument("--force", "-f", action="store_true", help="Reinstall if already installed")
+    service_install_hyphen_parser.add_argument(
+        "--system-wide",
+        action="store_true",
+        default=True,
+        help="Install for all users (default: True, requires admin privileges)",
+    )
+    service_install_hyphen_parser.add_argument(
+        "--user-only", action="store_true", help="Install for current user only (alternative to --system-wide)"
+    )
 
     # service-uninstall command
-    subparsers.add_parser("service-uninstall", help="Uninstall FileSqueeze auto-start (same as: service uninstall)")
+    service_uninstall_hyphen_parser = subparsers.add_parser(
+        "service-uninstall", help="Uninstall FileSqueeze auto-start (same as: service uninstall)"
+    )
+    service_uninstall_hyphen_parser.add_argument(
+        "--system-wide", action="store_true", default=True, help="Uninstall from system-wide startup folder (default: True)"
+    )
+    service_uninstall_hyphen_parser.add_argument(
+        "--user-only", action="store_true", help="Uninstall from user-specific startup folder only"
+    )
 
     # service-status command
     subparsers.add_parser("service-status", help="Show auto-start installation status (same as: service status)")
@@ -665,7 +711,7 @@ if __name__ == "__main__":
         main()
     except Exception as e:
         # Handle config errors specifically
-        from filesqueeze.config import DefaultConfigMissingError, ConfigParseError
+        from filesqueeze.config import ConfigParseError, DefaultConfigMissingError
 
         if isinstance(e, DefaultConfigMissingError):
             print(f"❌ {e}")

@@ -17,8 +17,30 @@ def is_windows() -> bool:
     return sys.platform == "win32"
 
 
-def get_startup_folder() -> Path:
+def is_admin() -> bool:
+    """Check if running with administrator privileges on Windows.
+
+    Returns:
+        True if running with admin privileges, False otherwise.
+    """
+    if not is_windows():
+        return False
+
+    try:
+        import ctypes
+
+        return ctypes.windll.shell32.IsUserAnAdmin()
+    except Exception:
+        # If we can't check, assume not admin
+        return False
+
+
+def get_startup_folder(system_wide: bool = True) -> Path:
     """Get the Windows startup folder path.
+
+    Args:
+        system_wide: If True, use system-wide startup folder (runs for all users).
+                    If False, use user-specific startup folder (runs for current user only).
 
     Returns:
         Path to startup folder.
@@ -29,8 +51,14 @@ def get_startup_folder() -> Path:
     if not is_windows():
         raise RuntimeError("Auto-start is only supported on Windows")
 
-    # Try to get startup folder from environment variables
-    startup_folder = os.path.expandvars(r"%APPDATA%\Microsoft\Windows\Start Menu\Programs\Startup")
+    # Choose startup folder based on system_wide parameter
+    # System-wide: %ProgramData% (runs for all users)
+    # User-specific: %APPDATA% (runs for current user only)
+    if system_wide:
+        startup_folder = os.path.expandvars(r"%ProgramData%\Microsoft\Windows\Start Menu\Programs\Startup")
+    else:
+        startup_folder = os.path.expandvars(r"%APPDATA%\Microsoft\Windows\Start Menu\Programs\Startup")
+
     startup_path = Path(startup_folder)
 
     if not startup_path.exists():
@@ -39,13 +67,14 @@ def get_startup_folder() -> Path:
     return startup_path
 
 
-def create_batch_file(input_dir: Path, output_dir: Path, startup_folder: Path) -> Path:
+def create_batch_file(input_dir: Path, output_dir: Path, startup_folder: Path, system_wide: bool = True) -> Path:
     """Create a PowerShell wrapper and shortcut to start FileSqueeze service without console.
 
     Args:
         input_dir: Input directory to watch.
         output_dir: Output directory for compressed files.
         startup_folder: Path to startup folder.
+        system_wide: Whether this is a system-wide installation (for logging purposes).
 
     Returns:
         Path to created shortcut (.lnk) file.
@@ -117,7 +146,17 @@ if ($SystemInstalled) {{
         )
 
         if result.returncode != 0:
-            raise RuntimeError(f"Failed to create shortcut: {result.stderr}")
+            error_msg = f"Failed to create shortcut. Return code: {result.returncode}"
+            if result.stderr:
+                error_msg += f"\nStderr: {result.stderr}"
+            if result.stdout:
+                error_msg += f"\nStdout: {result.stdout}"
+            raise RuntimeError(error_msg)
+
+        # Verify shortcut was actually created
+        if not shortcut_path.exists():
+            raise RuntimeError(f"Shortcut creation reported success but file not found at: {shortcut_path}")
+
     finally:
         # Clean up temp file
         try:
@@ -128,12 +167,14 @@ if ($SystemInstalled) {{
     return shortcut_path
 
 
-def install_autostart(input_dir: Path, output_dir: Path) -> Path:
+def install_autostart(input_dir: Path, output_dir: Path, system_wide: bool = True) -> Path:
     """Install FileSqueeze to start automatically on boot.
 
     Args:
         input_dir: Input directory to watch.
         output_dir: Output directory for compressed files.
+        system_wide: If True, install for all users (requires admin privileges).
+                    If False, install for current user only.
 
     Returns:
         Path to created batch file.
@@ -144,23 +185,63 @@ def install_autostart(input_dir: Path, output_dir: Path) -> Path:
     if not is_windows():
         raise RuntimeError("Auto-start is only supported on Windows")
 
-    startup_folder = get_startup_folder()
+    # Check admin privileges for system-wide installation
+    if system_wide and not is_admin():
+        print("! ADMINISTRATOR PRIVILEGES REQUIRED")
+        print("  System-wide installation requires administrator privileges.")
+        print("  Falling back to user-specific installation (current user only).")
+        print()
+        print("To install for all users:")
+        print("  1. Right-click on PowerShell or Command Prompt")
+        print("  2. Select 'Run as Administrator'")
+        print("  3. Run: filesqueeze service install --system-wide")
+        print()
+        system_wide = False
 
-    # Create shortcut
-    shortcut_path = create_batch_file(input_dir, output_dir, startup_folder)
+    startup_folder = get_startup_folder(system_wide=system_wide)
 
-    print("Auto-start installed successfully!")
-    print(f"Shortcut created at: {shortcut_path}")
-    print(f"Input directory: {input_dir}")
-    print(f"Output directory: {output_dir}")
-    print()
-    print("FileSqueeze will start automatically when you log in to Windows (no console window).")
-    print("To uninstall, simply delete the shortcut from the Startup folder.")
+    try:
+        # Create shortcut
+        shortcut_path = create_batch_file(input_dir, output_dir, startup_folder, system_wide)
 
-    return shortcut_path
+        scope = "all users" if system_wide else "current user"
+        print(f"[OK] Auto-start installed successfully for {scope}!")
+        print(f"  Shortcut location: {shortcut_path}")
+        print(f"  Input directory: {input_dir}")
+        print(f"  Output directory: {output_dir}")
+        print()
+        print("FileSqueeze will start automatically when you log in to Windows (no console window).")
+        print("To uninstall, simply delete the shortcut from the Startup folder.")
+
+        return shortcut_path
+
+    except RuntimeError as e:
+        if "Shortcut creation reported success but file not found" in str(e):
+            # This is likely a permissions issue
+            if system_wide:
+                print("[ERROR] SYSTEM-WIDE INSTALLATION FAILED")
+                print("  Reason: Insufficient permissions to write to system-wide startup folder")
+                print("  Required: Administrator privileges")
+                print()
+                print("=> Falling back to user-specific installation (current user only)")
+                print("=> To install system-wide: Run PowerShell/CMD as Administrator")
+                print()
+                return install_autostart(input_dir, output_dir, system_wide=False)
+            else:
+                print("[ERROR] USER-SPECIFIC INSTALLATION FAILED")
+                print(f"  Reason: {e}")
+                print()
+                print("Troubleshooting:")
+                print("  1. Make sure the startup folder exists")
+                print("  2. Check file permissions")
+                print("  3. Try running as Administrator")
+                raise
+        else:
+            print(f"[ERROR] INSTALLATION FAILED: {e}")
+            raise
 
 
-def uninstall_autostart() -> bool:
+def uninstall_autostart(system_wide: bool = True) -> bool:
     """Uninstall FileSqueeze auto-start.
 
     Removes all FileSqueeze-related files from the startup folder including:
@@ -169,6 +250,10 @@ def uninstall_autostart() -> bool:
     - filesqueeze-start.vbs (old VBScript wrapper, if exists)
 
     Also removes the PowerShell wrapper script (filesqueeze-autostart.ps1).
+
+    Args:
+        system_wide: If True, uninstall from system-wide startup folder.
+                    If False, uninstall from user-specific startup folder.
 
     Returns:
         True if uninstalled successfully, False otherwise.
@@ -179,7 +264,7 @@ def uninstall_autostart() -> bool:
     if not is_windows():
         raise RuntimeError("Auto-start is only supported on Windows")
 
-    startup_folder = get_startup_folder()
+    startup_folder = get_startup_folder(system_wide=system_wide)
     removed_files = []
 
     # Remove new shortcut
@@ -218,8 +303,12 @@ def uninstall_autostart() -> bool:
         return False
 
 
-def check_autostart_installed() -> bool:
+def check_autostart_installed(system_wide: bool = True) -> bool:
     """Check if FileSqueeze auto-start is installed.
+
+    Args:
+        system_wide: If True, check system-wide startup folder.
+                    If False, check user-specific startup folder.
 
     Returns:
         True if installed, False otherwise.
@@ -230,7 +319,7 @@ def check_autostart_installed() -> bool:
     if not is_windows():
         return False
 
-    startup_folder = get_startup_folder()
+    startup_folder = get_startup_folder(system_wide=system_wide)
     shortcut_path = startup_folder / "FileSqueeze.lnk"
 
     return shortcut_path.exists()
