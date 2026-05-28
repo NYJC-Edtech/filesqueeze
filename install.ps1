@@ -355,8 +355,9 @@ if ($autostart -eq "" -or $autostart -eq "Y" -or $autostart -eq "y") {
         }
 
         # Use filesqueeze service install command
-        # If input/output not found, command will use defaults from config module
-        $cmd = "filesqueeze service install"
+        # Default to system-wide installation (runs for all users)
+        # Use --system-wide which is the new default
+        $cmd = "filesqueeze service install --system-wide"
         if ($inputDir) { $cmd += " --input `"$inputDir`"" }
         if ($outputDir) { $cmd += " --output `"$outputDir`"" }
 

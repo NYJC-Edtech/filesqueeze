@@ -407,7 +407,12 @@ poetry run python -m filesqueeze watch --input ./upload --output ./compressed
 poetry run python -m filesqueeze service run
 
 # Install auto-start on boot (Windows)
+# Default: System-wide for all users (requires admin privileges)
+# Falls back to current user if admin privileges not available
 poetry run python -m filesqueeze service install
+
+# Install for current user only
+poetry run python -m filesqueeze service install --user-only
 
 # Check installation status
 poetry run python -m filesqueeze service status
@@ -415,6 +420,16 @@ poetry run python -m filesqueeze service status
 # Uninstall auto-start
 poetry run python -m filesqueeze service uninstall
 ```
+
+**Auto-Start Installation Notes:**
+- **System-wide** (default): Installs for all users. Requires running PowerShell/CMD as Administrator
+- **User-specific** (`--user-only`): Installs for current user only. No admin privileges required
+- If system-wide installation fails due to permissions, it automatically falls back to user-specific
+
+**To install system-wide:**
+1. Right-click on PowerShell or Command Prompt
+2. Select "Run as Administrator"
+3. Run the install command: `filesqueeze service install`
 
 **Note:** Hyphenated versions (`service-run`, `service-install`, etc.) are still supported for backward compatibility.
 

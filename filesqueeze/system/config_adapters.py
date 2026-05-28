@@ -42,7 +42,7 @@ class VideoConfig:
             ConfigValidationError: If any value is out of range
         """
         crf = self._config.get("ffmpeg.crf", 28)
-        if not isinstance(crf, (int, float)) or not (0 <= crf <= 51):
+        if not isinstance(crf, int | float) or not (0 <= crf <= 51):
             raise ConfigValidationError(f"Invalid ffmpeg.crf: {crf}. Must be 0-51.")
 
         preset = self._config.get("ffmpeg.preset", "veryfast")
@@ -114,7 +114,7 @@ class DocumentConfig:
             ConfigValidationError: If any value is out of range
         """
         quality = self._config.get("document.image_quality", 90)
-        if not isinstance(quality, (int, float)) or not (0 <= quality <= 100):
+        if not isinstance(quality, int | float) or not (0 <= quality <= 100):
             raise ConfigValidationError(f"Invalid document.image_quality: {quality}. Must be 0-100.")
 
     @property

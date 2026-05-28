@@ -75,11 +75,23 @@ try {
 # Remove auto-start if installed
 Write-Status "Removing auto-start..."
 try {
-    $AutostartScript = "$env:APPDATA\Microsoft\Windows\Start Menu\Programs\Startup\FileSqueeze.lnk"
-    if (Test-Path $AutostartScript) {
-        Remove-Item -Path $AutostartScript -Force -ErrorAction SilentlyContinue
-        Write-Host "  Auto-start removed" -ForegroundColor Gray
-    } else {
+    # Try both system-wide and user-specific startup folders
+    $SystemWideAutostart = "$env:ProgramData\Microsoft\Windows\Start Menu\Programs\Startup\FileSqueeze.lnk"
+    $UserSpecificAutostart = "$env:APPDATA\Microsoft\Windows\Start Menu\Programs\Startup\FileSqueeze.lnk"
+
+    $removed = $false
+    if (Test-Path $SystemWideAutostart) {
+        Remove-Item -Path $SystemWideAutostart -Force -ErrorAction SilentlyContinue
+        Write-Host "  System-wide auto-start removed" -ForegroundColor Gray
+        $removed = $true
+    }
+    if (Test-Path $UserSpecificAutostart) {
+        Remove-Item -Path $UserSpecificAutostart -Force -ErrorAction SilentlyContinue
+        Write-Host "  User-specific auto-start removed" -ForegroundColor Gray
+        $removed = $true
+    }
+
+    if (-not $removed) {
         Write-Host "  No auto-start found" -ForegroundColor Yellow
     }
 } catch {
