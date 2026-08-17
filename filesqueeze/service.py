@@ -285,12 +285,16 @@ class CompressionHandler(FileSystemEventHandler):
             # Determine file type
             ext = filepath.suffix.lstrip(".").lower()
 
-            # Generate output path with compressed_ prefix and correct extension
+            # Generate output path with compressed_ prefix
             # PowerPoint files produce MP4 output, other files keep their extension
             if ext == "pptx":
+                # PowerPoint files output as MP4
                 output_filename = f"compressed_{filepath.stem}.mp4"
             else:
-                output_filename = f"compressed_{filepath.name}"
+                # Other files preserve their original extension
+                stem = filepath.stem  # filename without extension
+                extension = filepath.suffix  # original extension
+                output_filename = f"compressed_{stem}{extension}"
             output_path = self.output_dir / output_filename
 
             # Ensure output directory exists
@@ -424,6 +428,7 @@ class CompressionHandler(FileSystemEventHandler):
                 # Keep original file in place (as per requirements)
                 # Add to processed files as failed
                 self._watcher._add_processed_file(filepath.name, success=False)
+                return  # Stop processing - don't continue to success path
 
         finally:
             # Remove from processing set

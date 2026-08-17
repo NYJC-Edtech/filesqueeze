@@ -45,11 +45,21 @@ def _make_file(
 
     Returns:
         Path to the final compressed file.
+
+    Raises:
+        RuntimeError: If the state machine completes with ERROR status.
     """
+    from .fsm.enums import Status
+
     sm = StateMachine(start=handlers.selectAnalyzer)
     if callback:
         sm.onupdate = callback
     final = sm.run(filepath, config=config, output_path=output_path)
+
+    # Check if state machine completed with ERROR status
+    if final.status == Status.ERROR:
+        raise RuntimeError(f"File processing failed: {filepath}")
+
     return final.target
 
 

@@ -15,7 +15,11 @@ def cleanupFiles(state: State) -> Handler | None:
     Removes origin file.
     """
     # state.origin.unlink()
-    state.status_complete()
+    # Only mark as complete if not already in ERROR state
+    from .fsm.enums import Status
+
+    if state.status != Status.ERROR:
+        state.status_complete()
     return None
 
 
@@ -201,18 +205,38 @@ def compressDocument(state: State) -> Handler:
 
 def pptxToVideo(state: State) -> Handler:
     """
-    Converts a pptx file into a video file.
+    Converts a pptx file into a video file, then compresses it.
     """
     state.status_convert()
-    outfile = (state.target.parent / (state.target.stem + ".mp4")).as_posix()
+
+    # Use output directory for intermediate and final files
+    output_dir = state.get_output_path()
+    if output_dir:
+        # Use the original PPTX stem (not the output_path stem) to avoid double "compressed_" prefix
+        original_stem = state.origin.stem  # Use state.origin instead of state.target
+        outfile = (output_dir / (original_stem + ".mp4")).as_posix()
+    else:
+        # Fallback to input directory if no output path configured
+        original_stem = state.origin.stem
+        outfile = (state.target.parent / (original_stem + ".mp4")).as_posix()
+
+    # Mark this as an intermediate file for cleanup purposes
+    state.metadata["intermediate_powerpoint_file"] = outfile
+
     try:
         pptx.to_mp4(str(state.target), outfile)
     except Exception:
         state.error("Error converting PPTX file")
-        # TODO: clean up outfile
+        # Clean up intermediate MP4 file on failure
+        try:
+            Path(outfile).unlink(missing_ok=True)
+        except Exception:
+            pass
+        return cleanupFiles
     else:
         state.set_target(outfile)
-        return selectAnalyzer
+        # Pass to video compression pipeline (analyzeVideo → compressVideo)
+        return analyzeVideo
     return cleanupFiles
 
 
@@ -237,10 +261,29 @@ def compressVideo(state: State) -> Handler:
             downscale=(True if state.metadata.get("height", 0) > 720 else False),
         )
     except Exception:
-        # TODO: clean up outfile
+        # Clean up output file on failure
+        try:
+            Path(outfile).unlink(missing_ok=True)
+        except Exception:
+            pass
+        # Clean up intermediate PowerPoint file if exists
+        intermediate_file = state.metadata.get("intermediate_powerpoint_file")
+        if intermediate_file:
+            try:
+                Path(intermediate_file).unlink(missing_ok=True)
+            except Exception:
+                pass
         state.error("Error compressing MP4 video")
+        return cleanupFiles  # Still go to cleanup, but status is ERROR
     else:
         state.set_target(outfile)
+        # Clean up intermediate PowerPoint file on successful compression
+        intermediate_file = state.metadata.get("intermediate_powerpoint_file")
+        if intermediate_file:
+            try:
+                Path(intermediate_file).unlink(missing_ok=True)
+            except Exception:
+                pass
 
     return cleanupFiles
 

@@ -282,11 +282,15 @@ def compress(
         )
 
         try:
-            run_subprocess(cmd, timeout=timeout, tool_name="FFmpeg", input_file=infile)
+            run_subprocess(cmd, timeout=timeout, tool_name="FFmpeg", input_file=infile, capture_output=True, text_mode=True, check=True)
         except SubprocessTimeout:
             raise RuntimeError(f"FFmpeg timeout compressing video: {infile}") from None
-        except SubprocessError:
-            raise RuntimeError(f"FFmpeg failed to compress video: {infile}") from None
+        except SubprocessError as e:
+            # Include stderr in error message for better debugging
+            error_msg = f"FFmpeg failed to compress video: {infile}"
+            if e.stderr:
+                error_msg += f"\nFFmpeg error: {e.stderr.strip()}"
+            raise RuntimeError(error_msg) from None
 
         # Verify output file exists and meets size requirements
         try:

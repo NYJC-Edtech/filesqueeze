@@ -13,7 +13,7 @@ from filesqueeze.config import Config
 from filesqueeze.system import get_binary_finder
 
 # Import subprocess utilities
-from filesqueeze.utils.subprocess_helper import SubprocessError, SubprocessTimeout, run_subprocess, verify_output_file
+from filesqueeze.utils.subprocess_helper import SubprocessError, SubprocessTimeout, run_subprocess, verify_mp4_file
 
 # Constants
 SCRIPTPATH = str(Path(__file__).parent.parent.joinpath("bin", "pptx2mp4.ps1"))
@@ -79,6 +79,8 @@ def to_mp4(infile: str, outfile: str = "", *, config: Config | None = None) -> N
         # Get PowerShell path with fallback to PATH detection
         powershell = get_powershell_path(powershell_path)
 
+        # Build PowerShell command using -File parameter instead of -Command
+        # This provides better COM compatibility and execution context
         cmd = [
             str(powershell),
             "-ExecutionPolicy", "Bypass",
@@ -88,15 +90,19 @@ def to_mp4(infile: str, outfile: str = "", *, config: Config | None = None) -> N
         ]
 
         try:
-            run_subprocess(cmd, timeout=timeout, tool_name="PowerShell", input_file=str(infile_path))
+            run_subprocess(cmd, timeout=timeout, tool_name="PowerShell", input_file=str(infile_path), check=True, capture_output=True, text_mode=True)
         except SubprocessTimeout:
             raise RuntimeError(f"PowerShell timeout converting presentation: {infile_path}") from None
         except SubprocessError as e:
-            raise RuntimeError(f"PowerShell failed to convert presentation: {infile_path}") from e
+            # Include stderr in error message for better debugging
+            error_msg = f"PowerShell failed to convert presentation: {infile_path}"
+            if e.stderr:
+                error_msg += f"\nPowerShell error: {e.stderr.strip()}"
+            raise RuntimeError(error_msg) from e
 
         # Verify output file exists and has reasonable size
         try:
-            verify_output_file(str(outfile), min_size=1000)
+            verify_mp4_file(str(outfile), min_size=1000)
         except FileNotFoundError:
             raise
 
