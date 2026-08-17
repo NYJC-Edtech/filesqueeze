@@ -1,6 +1,5 @@
 """Google Drive detection and safe file handling utilities."""
 
-import re
 import shutil
 import tempfile
 from pathlib import Path

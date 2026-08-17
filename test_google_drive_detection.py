@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """Test Google Drive detection functionality"""
 
-from pathlib import Path
 from filesqueeze.utils.google_drive import is_google_drive_path
 
 # Test cases for Google Drive detection
