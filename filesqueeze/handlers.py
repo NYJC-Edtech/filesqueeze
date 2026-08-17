@@ -253,9 +253,6 @@ def compressVideo(state: State) -> Handler:
     else:
         outfile = state.target.parent.joinpath("compressed_" + state.target.name)
 
-    # Store input file path for cleanup on failure
-    input_file = state.target
-
     try:
         video.compress(
             str(state.target),

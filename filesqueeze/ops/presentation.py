@@ -83,14 +83,26 @@ def to_mp4(infile: str, outfile: str = "", *, config: Config | None = None) -> N
         # This provides better COM compatibility and execution context
         cmd = [
             str(powershell),
-            "-ExecutionPolicy", "Bypass",
-            "-File", SCRIPTPATH,
-            "-Path", str(infile_path),
-            "-FilePath", str(outfile_path),
+            "-ExecutionPolicy",
+            "Bypass",
+            "-File",
+            SCRIPTPATH,
+            "-Path",
+            str(infile_path),
+            "-FilePath",
+            str(outfile_path),
         ]
 
         try:
-            result = run_subprocess(cmd, timeout=timeout, tool_name="PowerShell", input_file=str(infile_path), check=True, capture_output=True, text_mode=True)
+            run_subprocess(
+                cmd,
+                timeout=timeout,
+                tool_name="PowerShell",
+                input_file=str(infile_path),
+                check=True,
+                capture_output=True,
+                text_mode=True,
+            )
         except SubprocessTimeout:
             raise RuntimeError(f"PowerShell timeout converting presentation: {infile_path}") from None
         except SubprocessError as e:

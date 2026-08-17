@@ -167,7 +167,7 @@ def verify_mp4_file(output_path: str, min_size: int = 1000) -> Path:
     # Check for MP4 file signature (ftyp box at beginning)
     # MP4 files start with "ftyp" in ASCII followed by version/brand info
     try:
-        with open(output_path, 'rb') as f:
+        with open(output_path, "rb") as f:
             header = f.read(12)  # Read first 12 bytes for basic MP4 check
             if len(header) < 12:
                 raise RuntimeError(f"Output file is too small to be valid MP4: {output_path}")
@@ -175,7 +175,7 @@ def verify_mp4_file(output_path: str, min_size: int = 1000) -> Path:
             # Check for ftyp box (0x66747970 = "ftyp" in ASCII)
             # MP4 structure: [4 bytes size][4 bytes type][4 bytes brand]
             # Type should be "ftyp" (0x66747970)
-            if header[4:8] != b'ftyp':
+            if header[4:8] != b"ftyp":
                 logger.warning(f"Output file may not be valid MP4 (missing ftyp header): {output_path}")
                 # Don't fail here, just warn - some encoders may use different structure
     except Exception as e:
