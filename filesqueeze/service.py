@@ -285,8 +285,12 @@ class CompressionHandler(FileSystemEventHandler):
             # Determine file type
             ext = filepath.suffix.lstrip(".").lower()
 
-            # Generate output path with compressed_ prefix
-            output_filename = f"compressed_{filepath.name}"
+            # Generate output path with compressed_ prefix and correct extension
+            # PowerPoint files produce MP4 output, other files keep their extension
+            if ext == "pptx":
+                output_filename = f"compressed_{filepath.stem}.mp4"
+            else:
+                output_filename = f"compressed_{filepath.name}"
             output_path = self.output_dir / output_filename
 
             # Ensure output directory exists
@@ -330,9 +334,7 @@ class CompressionHandler(FileSystemEventHandler):
                         temp_output_path = temp_output_dir / Path(output_path).name
 
                         self.logger.info(f"Processing from temp location: {temp_input}")
-                        result_path = processor(
-                            str(temp_input), config=self.config, output_path=str(temp_output_path)
-                        )
+                        result_path = processor(str(temp_input), config=self.config, output_path=str(temp_output_path))
 
                         # Step 3: Move result back to Google Drive only if successful
                         if Path(result_path).exists():

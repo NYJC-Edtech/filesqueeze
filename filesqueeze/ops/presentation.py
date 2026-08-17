@@ -81,9 +81,10 @@ def to_mp4(infile: str, outfile: str = "", *, config: Config | None = None) -> N
 
         cmd = [
             str(powershell),
-            SCRIPTPATH,
-            str(infile_path),
-            str(outfile_path),
+            "-ExecutionPolicy", "Bypass",
+            "-File", SCRIPTPATH,
+            "-Path", str(infile_path),
+            "-FilePath", str(outfile_path),
         ]
 
         try:
