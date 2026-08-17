@@ -17,6 +17,12 @@ from watchdog.observers import Observer
 
 from .config import Config
 from .logger import setup_logging  # This is the actual Logger.setup, not a wrapper
+from .utils.google_drive import (
+    cleanup_temp_file,
+    create_temp_copy,
+    is_google_drive_path,
+    move_result_to_google_drive,
+)
 
 
 @dataclass(frozen=True)
@@ -305,13 +311,53 @@ class CompressionHandler(FileSystemEventHandler):
                     self.logger.warning(f"Unsupported file type: {ext}")
                     return
 
-                result_path = processor(str(filepath), config=self.config, output_path=str(output_path))
+                # Google Drive-safe workflow
+                temp_input = None
+                temp_output_path = None
+                final_result = None
+
+                try:
+                    if is_google_drive_path(filepath):
+                        self.logger.info(f"Google Drive detected - using safe workflow for {filepath.name}")
+
+                        # Step 1: Copy to temp directory
+                        temp_input = create_temp_copy(filepath)
+
+                        # Step 2: Process from temp directory
+                        # Create temp output path
+                        temp_output_dir = Path(temp_input).parent / "output"
+                        temp_output_dir.mkdir(parents=True, exist_ok=True)
+                        temp_output_path = temp_output_dir / Path(output_path).name
+
+                        self.logger.info(f"Processing from temp location: {temp_input}")
+                        result_path = processor(
+                            str(temp_input), config=self.config, output_path=str(temp_output_path)
+                        )
+
+                        # Step 3: Move result back to Google Drive only if successful
+                        if Path(result_path).exists():
+                            move_result_to_google_drive(result_path, output_path)
+                            final_result = output_path
+                        else:
+                            self.logger.error(f"Processing failed - no output file created: {result_path}")
+                            final_result = None
+                    else:
+                        # Standard processing for non-Google Drive files
+                        result_path = processor(str(filepath), config=self.config, output_path=str(output_path))
+                        final_result = result_path
+
+                finally:
+                    # Clean up temp files
+                    if temp_input:
+                        cleanup_temp_file(temp_input)
+                    if temp_output_path and temp_output_path != final_result:
+                        cleanup_temp_file(temp_output_path)
 
                 # Verify output file exists
-                if Path(result_path).exists():
+                if final_result and Path(final_result).exists():
                     # Calculate compression ratio
                     input_size = filepath.stat().st_size
-                    output_size = Path(result_path).stat().st_size
+                    output_size = Path(final_result).stat().st_size
                     reduction = (1 - output_size / input_size) * 100
 
                     self.logger.info(f"Compression complete: {filepath.name}")
@@ -367,7 +413,7 @@ class CompressionHandler(FileSystemEventHandler):
                     self._watcher._add_processed_file(filepath.name, success=True)
 
                 else:
-                    self.logger.error(f"Output file not created: {result_path}")
+                    self.logger.error(f"Output file not created: {final_result or output_path}")
                     # Add to processed files as failed
                     self._watcher._add_processed_file(filepath.name, success=False)
 
