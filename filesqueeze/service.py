@@ -279,8 +279,11 @@ class CompressionHandler(FileSystemEventHandler):
             # Determine file type
             ext = filepath.suffix.lstrip(".").lower()
 
-            # Generate output path with compressed_ prefix
-            output_filename = f"compressed_{filepath.name}"
+            # Generate output path with compressed_ prefix but preserve original extension
+            # This ensures proper file extension handling for all file types
+            stem = filepath.stem  # filename without extension
+            extension = filepath.suffix  # original extension
+            output_filename = f"compressed_{stem}{extension}"
             output_path = self.output_dir / output_filename
 
             # Ensure output directory exists
@@ -376,6 +379,7 @@ class CompressionHandler(FileSystemEventHandler):
                 # Keep original file in place (as per requirements)
                 # Add to processed files as failed
                 self._watcher._add_processed_file(filepath.name, success=False)
+                return  # Stop processing - don't continue to success path
 
         finally:
             # Remove from processing set
