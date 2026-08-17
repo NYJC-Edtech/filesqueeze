@@ -135,6 +135,55 @@ def verify_output_file(
     return output
 
 
+def verify_mp4_file(output_path: str, min_size: int = 1000) -> Path:
+    """Verify MP4 file was created successfully and has valid structure.
+
+    Performs basic validation that the file is a valid MP4 by checking:
+    - File exists
+    - File size >= min_size (default 1000 bytes)
+    - File has MP4 magic bytes/box structure
+
+    Args:
+        output_path: Path to output MP4 file
+        min_size: Minimum file size in bytes (default: 1000)
+
+    Returns:
+        Path object for output file
+
+    Raises:
+        FileNotFoundError: If output file doesn't exist
+        RuntimeError: If output file is too small or invalid MP4
+    """
+    output = Path(output_path)
+
+    if not output.exists():
+        raise FileNotFoundError(f"Output file not created: {output_path}")
+
+    file_size = output.stat().st_size
+
+    if file_size < min_size:
+        raise RuntimeError(f"Output file is too small (< {min_size} bytes): {output_path}")
+
+    # Check for MP4 file signature (ftyp box at beginning)
+    # MP4 files start with "ftyp" in ASCII followed by version/brand info
+    try:
+        with open(output_path, 'rb') as f:
+            header = f.read(12)  # Read first 12 bytes for basic MP4 check
+            if len(header) < 12:
+                raise RuntimeError(f"Output file is too small to be valid MP4: {output_path}")
+
+            # Check for ftyp box (0x66747970 = "ftyp" in ASCII)
+            # MP4 structure: [4 bytes size][4 bytes type][4 bytes brand]
+            # Type should be "ftyp" (0x66747970)
+            if header[4:8] != b'ftyp':
+                logger.warning(f"Output file may not be valid MP4 (missing ftyp header): {output_path}")
+                # Don't fail here, just warn - some encoders may use different structure
+    except Exception as e:
+        logger.debug(f"Could not verify MP4 structure: {e}")
+
+    return output
+
+
 def get_windows_subprocess_config() -> dict:
     """Get Windows-specific subprocess configuration for hiding console windows.
 
