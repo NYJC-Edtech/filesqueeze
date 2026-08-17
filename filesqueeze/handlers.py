@@ -17,6 +17,7 @@ def cleanupFiles(state: State) -> Handler | None:
     # state.origin.unlink()
     # Only mark as complete if not already in ERROR state
     from .fsm.enums import Status
+
     if state.status != Status.ERROR:
         state.status_complete()
     return None
