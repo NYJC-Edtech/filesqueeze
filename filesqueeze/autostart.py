@@ -213,6 +213,9 @@ def install_autostart(input_dir: Path, output_dir: Path, system_wide: bool = Tru
         print("FileSqueeze will start automatically when you log in to Windows (no console window).")
         print("To uninstall, simply delete the shortcut from the Startup folder.")
 
+        if not system_wide:
+            warn_stale_system_wide_shortcut()
+
         return shortcut_path
 
     except RuntimeError as e:
@@ -323,3 +326,99 @@ def check_autostart_installed(system_wide: bool = True) -> bool:
     shortcut_path = startup_folder / "FileSqueeze.lnk"
 
     return shortcut_path.exists()
+
+
+def extract_script_path_from_arguments(arguments: str) -> Path | None:
+    """Extract the script path from a shortcut's Arguments string.
+
+    Shortcut Arguments look like:
+        -ExecutionPolicy Bypass -WindowStyle Hidden -File "C:\\path\\to\\wrapper.ps1"
+
+    Args:
+        arguments: The shortcut's Arguments string.
+
+    Returns:
+        Path to the target script, or None if no -File argument is found.
+    """
+    import re
+
+    match = re.search(r'-File\s+"([^"]+)"', arguments)
+    if match:
+        return Path(match.group(1))
+    match = re.search(r"-File\s+(\S+)", arguments)
+    if match:
+        return Path(match.group(1))
+    return None
+
+
+def _read_shortcut_arguments(shortcut_path: Path) -> str | None:
+    """Read a shortcut's Arguments via WScript.Shell COM.
+
+    Args:
+        shortcut_path: Path to the .lnk file.
+
+    Returns:
+        The Arguments string, or None if it cannot be read.
+    """
+    import subprocess
+
+    ps_command = (
+        f"$sh = New-Object -ComObject WScript.Shell; $lnk = $sh.CreateShortcut('{shortcut_path}'); Write-Output $lnk.Arguments"
+    )
+    try:
+        result = subprocess.run(
+            ["powershell", "-ExecutionPolicy", "Bypass", "-Command", ps_command],
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+    except Exception:
+        return None
+    if result.returncode != 0:
+        return None
+    return result.stdout.strip()
+
+
+def get_stale_system_wide_shortcut() -> Path | None:
+    """Detect a system-wide auto-start shortcut pointing to a missing script.
+
+    Stale shortcuts fail silently at every boot, so FileSqueeze never starts
+    even though a shortcut exists. If the shortcut's target cannot be verified,
+    it is treated as stale (over-warning beats silent failure).
+
+    Returns:
+        Path to the stale shortcut, or None if absent or healthy.
+    """
+    if not is_windows():
+        return None
+
+    try:
+        shortcut_path = get_startup_folder(system_wide=True) / "FileSqueeze.lnk"
+    except RuntimeError:
+        return None
+
+    if not shortcut_path.exists():
+        return None
+
+    arguments = _read_shortcut_arguments(shortcut_path)
+    script_path = extract_script_path_from_arguments(arguments) if arguments else None
+    if script_path is None or not script_path.exists():
+        return shortcut_path
+    return None
+
+
+def warn_stale_system_wide_shortcut() -> None:
+    """Print a warning if a stale system-wide auto-start shortcut exists."""
+    stale = get_stale_system_wide_shortcut()
+    if not stale:
+        return
+
+    print()
+    print("! WARNING: Stale system-wide auto-start shortcut detected")
+    print(f"  Location: {stale}")
+    print("  It points to a script that no longer exists, so it fails")
+    print("  silently every time Windows starts.")
+    print()
+    print("  To fix, run from an elevated (Administrator) PowerShell:")
+    print("    filesqueeze service install --force --system-wide")
+    print()
