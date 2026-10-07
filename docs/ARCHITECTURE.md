@@ -104,7 +104,7 @@ Infrastructure services that support business logic. These are registered at sta
 - **Classes**:
   - `VideoConfig` - FFmpeg settings (CRF, preset, threads, max_height)
   - `DocumentConfig` - PDF settings (quality, compression, JPEG conversion)
-  - `ImageConfig` - Image settings (quality, max dimensions)
+  - `ImageConfig` - Image settings (quality, JPEG progressive/subsampling/flatten, max dimensions)
   - `PresentationConfig` - PPTX settings (CRF, preset)
 - **Features**:
   - Validation on construction
@@ -195,10 +195,13 @@ Business logic for file compression operations. These modules import from `syste
 
 #### `image.py` - Image Compression
 - **Functions**:
-  - `compress_image(input, output, config, quality)` - Compress image
-  - `get_image_size(filepath)` - Get image dimensions
-  - `get_ffmpeg_path()` - Get FFmpeg executable (for image ops)
-- **Uses**: `ImageConfig`, `BinaryFinder`, `@trace_function`
+  - `compress_image_to_jpg(input, output, quality, progressive, subsampling, ...)` - Convert/compress any accepted image to JPG via Pillow; returns the actual output path (the JPG, or a copy of the original when conversion didn't reduce size)
+  - `get_image_dimensions(filepath)` - Get image dimensions via Pillow (all formats incl. HEIC)
+  - `compress_image(input, output, config, quality)` - Legacy FFmpeg image compression (only used for PNG-preserving output when `convert_to_jpeg = false`)
+  - `get_image_size(filepath)` - Get image dimensions via ffprobe (legacy fallback)
+  - `get_ffmpeg_path()` - Get FFmpeg executable (legacy path only)
+- **Behaviour**: JPG output targets libjpeg quality 88, progressive (interlaced), 4:2:2 subsampling; transparency flattened onto white; EXIF orientation applied; WebP/HEIC always convert, other formats keep the original when the JPG is larger; animated inputs are rejected
+- **Uses**: `ImageConfig`, `pillow-heif` (lazy, HEIC opener), `BinaryFinder`, `@trace_function`
 
 #### `presentation.py` - PowerPoint Conversion
 - **Functions**:

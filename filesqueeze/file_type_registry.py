@@ -7,6 +7,8 @@ and making it easier to add new file types.
 
 from typing import Callable, ClassVar
 
+from .constants import FileExtensions
+
 
 class FileTypeRegistry:
     """Registry mapping file extensions to processing strategies.
@@ -20,7 +22,7 @@ class FileTypeRegistry:
     FILE_PROCESSORS: ClassVar[dict[str, list[str]]] = {
         "video": ["mp4", "wmv", "avi", "mkv", "mov", "flv"],
         "pdf": ["pdf"],
-        "image": ["jpg", "jpeg", "png"],
+        "image": list(FileExtensions.IMAGE),
         "presentation": ["ppt", "pptx"],
     }
 
@@ -121,5 +123,5 @@ def _initialize_registry(registry: FileTypeRegistry) -> None:
 
     registry.register_processor("video", make_video, ["mp4", "wmv", "avi", "mkv", "mov", "flv"])
     registry.register_processor("pdf", make_pdf, ["pdf"])
-    registry.register_processor("image", make_image, ["jpg", "jpeg", "png"])
+    registry.register_processor("image", make_image, list(FileExtensions.IMAGE))
     registry.register_processor("presentation", make_presentation, ["ppt", "pptx"])

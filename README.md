@@ -1,12 +1,12 @@
 # FileSqueeze
 
-Utility package for compressing videos, PDFs, and images using FFmpeg and Ghostscript.
+Utility package for compressing videos, PDFs, and images using FFmpeg, Ghostscript, and Pillow.
 
 ## Features
 
 - **Video Compression**: FFmpeg-based with configurable quality (CRF), presets, and scaling
 - **PDF Compression**: Ghostscript-based with quality settings (screen, ebook, printer, prepress)
-- **Image Compression**: FFmpeg-based compression with quality control
+- **Image Compression**: Pillow-based conversion to JPG (quality 88, interlaced/progressive, 4:2:2 chroma subsampling); supports JPG, PNG, BMP, TIFF, WebP, and HEIC input
 - **OCR Support**: Add searchable text layer to scanned PDFs using Tesseract
 - **Smart PDF Detection**: Automatically detects scanned vs generated PDFs
 - **Watch Mode**: Real-time directory monitoring with automatic file processing
@@ -57,7 +57,7 @@ FileSqueeze supports multiple installation methods. Our installation scripts fol
 
 #### Prerequisites
 - Python 3.11 or later
-- FFmpeg (for video/image compression)
+- FFmpeg (for video compression)
 - Ghostscript (for PDF compression)
 - Tesseract OCR (optional, for scanned PDFs)
 
@@ -181,7 +181,7 @@ pip uninstall filesqueeze
 - Python 3.11 or later
 - Git
 - Poetry (for dependency management)
-- FFmpeg (for video/image compression)
+- FFmpeg (for video compression; not needed for images)
 - Ghostscript (for PDF compression)
 - Tesseract OCR (optional, for scanned PDFs)
 
@@ -215,7 +215,7 @@ poetry run python -m filesqueeze detect
 ### Required
 
 #### FFmpeg
-**Purpose:** Video and image compression
+**Purpose:** Video compression (image compression uses Pillow, no external binary needed)
 
 **Windows:**
 ```bash
@@ -326,6 +326,13 @@ max_height = 720
 # PDF quality: "screen" (smallest), "ebook", "printer", "prepress" (largest)
 pdf_quality = "printer"
 
+# Image compression (output is JPG: quality 88, interlaced, 4:2:2)
+image_quality = 88
+convert_to_jpeg = true
+jpeg_progressive = true
+jpeg_subsampling = "4:2:2"
+jpeg_flatten_background = "#ffffff"
+
 [ocr]
 # Enable OCR for scanned PDFs
 enable_ocr = true
@@ -370,6 +377,34 @@ output_path = filesqueeze.make_video('input.mp4')
 output_path = filesqueeze.make_pdf('input.pdf')
 output_path = filesqueeze.make_image('input.jpg')
 ```
+
+### Image Compression
+
+Images are compressed with Pillow (no FFmpeg needed) and always target JPG
+output at quality 88, interlaced (progressive), with 4:2:2 chroma subsampling.
+
+**Accepted input formats:** `jpg`, `jpeg`, `png`, `bmp`, `tif`, `tiff`, `webp`, `heic`, `heif`
+
+| Input | Behavior |
+|-------|----------|
+| JPG / JPEG | Re-encoded at the target settings; the original is kept if the re-encode isn't smaller |
+| PNG / BMP / TIFF | Converted to JPG; the original is kept (with its extension) if the JPG would be larger |
+| WebP / HEIC | Always converted to JPG, even when the result is larger (chosen for compatibility) |
+
+Additional rules that apply to every image:
+
+- Transparency is flattened onto a white background (`jpeg_flatten_background`)
+- EXIF orientation is applied so rotated photos come out upright
+- Images larger than `max_image_width` × `max_image_height` (default 1920×1080) are downscaled
+- ICC colour profiles are preserved
+
+Converted files are named with a `.jpg` extension (e.g. `photo.png` →
+`compressed_photo.jpg`). When an original is kept instead, the output keeps
+the original extension.
+
+> HEIC support uses the bundled `pillow-heif` package — no extra install
+> needed. Set `convert_to_jpeg = false` to restore the legacy behaviour where
+> PNG files stay PNG (handled via FFmpeg).
 
 ### CLI Commands
 
@@ -469,7 +504,7 @@ Before processing, files must meet these criteria:
 
 | Requirement | Default | Description |
 |-------------|---------|-------------|
-| **File Extension** | `mp4, wmv, avi, mkv, mov, flv, pdf, jpg, jpeg, png, pptx` | Only these file types are processed |
+| **File Extension** | `mp4, wmv, avi, mkv, mov, flv, pdf, jpg, jpeg, png, bmp, tif, tiff, webp, heic, heif, pptx` | Only these file types are processed |
 | **Minimum Age** | 5 seconds | Files must be at least this old (prevents processing incomplete uploads) |
 | **Minimum Size** | 1 KB | Files smaller than this are skipped |
 | **File Stability** | 2 seconds unchanged | File size must remain stable for 2 seconds |
@@ -500,7 +535,7 @@ Edit your `filesqueeze.toml` to adjust detection behavior:
 ```toml
 [file_detection]
 # File extensions to process (add/remove as needed)
-extensions = ['mp4', 'wmv', 'avi', 'mkv', 'mov', 'flv', 'pdf', 'jpg', 'jpeg', 'png']
+extensions = ['mp4', 'wmv', 'avi', 'mkv', 'mov', 'flv', 'pdf', 'jpg', 'jpeg', 'png', 'bmp', 'tif', 'tiff', 'webp', 'heic', 'heif']
 
 # Minimum file age in seconds (prevents processing incomplete uploads)
 min_age_seconds = 5

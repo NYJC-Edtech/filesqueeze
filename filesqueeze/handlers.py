@@ -2,11 +2,16 @@ import tempfile
 from pathlib import Path
 
 from . import ocr
+from .constants import FileExtensions
 from .fsm import Handler, State
 from .fsm.enums import Document, Enum, EnumValue, Format, Slideshow, Video
 from .ops import document, image, video
 from .ops import presentation as pptx
 from .system import logger
+
+# Dotted image extensions (".jpg", ".png", ...) from the undotted constants list
+_IMAGE_EXTENSIONS = {f".{ext}" for ext in FileExtensions.IMAGE}
+_NATIVE_JPG_EXTENSIONS = {f".{ext}" for ext in FileExtensions.IMAGE_NATIVE_JPG}
 
 
 def cleanupFiles(state: State) -> Handler | None:
@@ -75,9 +80,13 @@ def analyzeDocument(state: State) -> Handler:
             # For PDFs, we could extract metadata here
             # For now, just mark as analyzed
             pass
-        elif ext in [".jpg", ".jpeg", ".png"]:
-            # Get image dimensions
-            width, height = image.get_image_size(str(state.target), ffmpeg_path=getattr(state.config, "ffmpeg_path", ""))
+        elif ext in _IMAGE_EXTENSIONS:
+            # Get image dimensions (Pillow first; ffprobe fallback for
+            # anything Pillow cannot decode)
+            try:
+                width, height = image.get_image_dimensions(str(state.target))
+            except Exception:
+                width, height = image.get_image_size(str(state.target), ffmpeg_path=getattr(state.config, "ffmpeg_path", ""))
             state.metadata["width"] = width
             state.metadata["height"] = height
     except OSError as e:
@@ -174,23 +183,50 @@ def compressDocument(state: State) -> Handler:
                     ghostscript_path=gs_path,
                 )
 
-        elif ext in [".jpg", ".jpeg", ".png"]:
-            # Compress image
-            img_quality = config.get("document.image_quality", 85) if config else 85
-            max_width = config.get("document.max_image_width", None) if config else None
-            max_height = config.get("document.max_image_height", None) if config else None
-            convert_to_jpeg = config.get("document.convert_to_jpeg", False) if config else False
-            ffmpeg_path = config.ffmpeg_path if config else ""
+        elif ext in _IMAGE_EXTENSIONS:
+            convert_to_jpeg = config.get("document.convert_to_jpeg", True) if config else True
 
-            image.compress_image(
-                str(state.target),
-                str(outpath),
-                quality=img_quality,
-                max_width=max_width,
-                max_height=max_height,
-                convert_to_jpeg=convert_to_jpeg,
-                ffmpeg_path=ffmpeg_path,
-            )
+            if ext == ".png" and not convert_to_jpeg:
+                # Legacy behaviour: keep PNG output via FFmpeg
+                img_quality = config.get("document.image_quality", 85) if config else 85
+                max_width = config.get("document.max_image_width", None) if config else None
+                max_height = config.get("document.max_image_height", None) if config else None
+                ffmpeg_path = config.ffmpeg_path if config else ""
+
+                image.compress_image(
+                    str(state.target),
+                    str(outpath),
+                    quality=img_quality,
+                    max_width=max_width,
+                    max_height=max_height,
+                    convert_to_jpeg=False,
+                    ffmpeg_path=ffmpeg_path,
+                )
+            else:
+                # Compress to JPG via Pillow. The planned output is .jpg;
+                # compress_image_to_jpg may rewrite the extension when it
+                # keeps the original instead of the converted JPG.
+                img_quality = config.get("document.image_quality", 88) if config else 88
+                max_width = config.get("document.max_image_width", None) if config else None
+                max_height = config.get("document.max_image_height", None) if config else None
+                progressive = config.get("document.jpeg_progressive", True) if config else True
+                subsampling = config.get("document.jpeg_subsampling", "4:2:2") if config else "4:2:2"
+                flatten_background = config.get("document.jpeg_flatten_background", "#ffffff") if config else "#ffffff"
+
+                outpath = Path(outpath)
+                if ext not in _NATIVE_JPG_EXTENSIONS:
+                    outpath = outpath.with_suffix(".jpg")
+
+                outpath = image.compress_image_to_jpg(
+                    str(state.target),
+                    str(outpath),
+                    quality=img_quality,
+                    progressive=progressive,
+                    subsampling=subsampling,
+                    max_width=max_width,
+                    max_height=max_height,
+                    flatten_background=flatten_background,
+                )
         else:
             state.error(f"Unsupported document format: {ext}")
             return cleanupFiles

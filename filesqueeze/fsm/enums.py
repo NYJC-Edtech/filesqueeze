@@ -87,6 +87,12 @@ class Document(Enum):
     JPEG = "jpeg"
     JPG = "jpg"
     PNG = "png"
+    BMP = "bmp"
+    TIF = "tif"
+    TIFF = "tiff"
+    WEBP = "webp"
+    HEIC = "heic"
+    HEIF = "heif"
 
 
 class Format(Enum):

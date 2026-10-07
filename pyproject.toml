@@ -12,6 +12,7 @@ dependencies = [
     "watchdog (>=6.0.0,<7.0.0)",
     "pystray (>=0.19.5,<0.20.0)",
     "Pillow>=10.0.0",
+    "pillow-heif (>=0.13.0)",
 ]
 
 [project.optional-dependencies]

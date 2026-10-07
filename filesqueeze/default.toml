@@ -14,7 +14,7 @@ archive = "archive"
 
 [file_detection]
 # File extensions to process (case-insensitive)
-extensions = ["mp4", "avi", "wmv", "pptx", "pdf", "jpg", "jpeg", "png"]
+extensions = ["mp4", "avi", "wmv", "mov", "mkv", "flv", "pptx", "pdf", "jpg", "jpeg", "png", "bmp", "tif", "tiff", "webp", "heic", "heif"]
 # Minimum file age in seconds before processing (prevents processing incomplete files)
 min_age_seconds = 60
 # Minimum file size in bytes (files smaller than this are skipped)
@@ -41,13 +41,19 @@ ghostscript_path = ""
 pdf_quality = "printer"
 # PDF compression level (0-4, higher = more compression)
 pdf_compression_level = 2
-# Image quality (1-100, higher = better quality, 90 recommended for lineart)
-image_quality = 90
+# Image quality 1-95 (libjpeg scale, higher = better quality)
+image_quality = 88
 # Maximum image dimensions (images larger than this will be resized)
 max_image_width = 1920
 max_image_height = 1080
-# Convert PNG images to JPEG (JPEG is smaller but lossy)
-convert_to_jpeg = false
+# Convert all images to JPEG output (PNG/BMP/TIFF/WebP/HEIC become .jpg)
+convert_to_jpeg = true
+# Write interlaced (progressive) JPEGs
+jpeg_progressive = true
+# Chroma subsampling: 4:2:0 (smallest), 4:2:2 (balanced), 4:4:4 (best colour)
+jpeg_subsampling = "4:2:2"
+# Colour used behind transparency when flattening to JPG
+jpeg_flatten_background = "#ffffff"
 
 [ocr]
 # Path to Tesseract OCR executable (leave empty to use system PATH)

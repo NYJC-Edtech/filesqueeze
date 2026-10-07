@@ -310,7 +310,11 @@ class Doctor:
 
         # Check optional Python modules
         self.check_module_optional("pdfminer", "PDFMiner (optional)")
-        self.check_module_optional("PIL", "Pillow (optional)")
+
+        # Pillow and pillow-heif are core dependencies (image compression,
+        # HEIC support)
+        self.check_module("PIL", "Pillow")
+        self.check_module("pillow_heif", "pillow-heif (HEIC support)")
 
         # Check external binaries
         self.check_binary("ffmpeg", "FFmpeg")
@@ -401,9 +405,9 @@ class Doctor:
             print()
 
             # Missing optional Python modules
-            if any("PDFMiner" in warning or "Pillow" in warning for warning in self.warnings):
+            if any("PDFMiner" in warning for warning in self.warnings):
                 print("• Install optional Python modules:")
-                print("  pip install pdfminer six pillow")
+                print("  pip install pdfminer six")
 
             # Missing Tesseract
             if any("Tesseract" in warning for warning in self.warnings):

@@ -55,8 +55,16 @@ class FileExtensions:
     # Document extensions
     DOCUMENT: ClassVar[list[str]] = ["pdf"]
 
-    # Image extensions
-    IMAGE: ClassVar[list[str]] = ["jpg", "jpeg", "png"]
+    # Image extensions (all accepted image inputs)
+    IMAGE: ClassVar[list[str]] = ["jpg", "jpeg", "png", "bmp", "tif", "tiff", "webp", "heic", "heif"]
+
+    # Image extensions that are already JPEG (re-encoded, kept only if smaller)
+    IMAGE_NATIVE_JPG: ClassVar[frozenset[str]] = frozenset({"jpg", "jpeg"})
+
+    # Image extensions always converted to JPG even when the result is larger
+    # (chosen for format compatibility, not size: WebP/HEIC usually compress
+    # better than JPG, so a size comparison would make them pass through)
+    IMAGE_ALWAYS_CONVERT: ClassVar[frozenset[str]] = frozenset({"webp", "heic", "heif"})
 
     # Presentation extensions
     PRESENTATION: ClassVar[list[str]] = ["ppt", "pptx"]

@@ -160,6 +160,7 @@ def cmd_compress(args: argparse.Namespace) -> None:
     """Compress a single file."""
     from filesqueeze import make_image, make_pdf, make_video
     from filesqueeze.config import Config
+    from filesqueeze.constants import FileExtensions
     from filesqueeze.logger import setup_logging
     from filesqueeze.system import register_binary_finder, register_logger
     from filesqueeze.system.binaries import BinaryFinder
@@ -182,15 +183,19 @@ def cmd_compress(args: argparse.Namespace) -> None:
         print(f"Error: Input is not a file: {input_file}")
         sys.exit(1)
 
+    # Determine file type
+    ext = input_file.suffix.lstrip(".").lower()
+
     # Determine output path
     if args.output:
         output_path = Path(args.output)
     else:
         # Generate output filename: input_compressed.ext
-        output_path = input_file.parent / f"{input_file.stem}_compressed{input_file.suffix}"
-
-    # Determine file type
-    ext = input_file.suffix.lstrip(".").lower()
+        # Images convert to JPG output (JPGs keep their own extension)
+        output_suffix = input_file.suffix
+        if ext in FileExtensions.IMAGE and ext not in FileExtensions.IMAGE_NATIVE_JPG:
+            output_suffix = ".jpg"
+        output_path = input_file.parent / f"{input_file.stem}_compressed{output_suffix}"
 
     print(f"Input: {input_file}")
     print(f"Output: {output_path}")
@@ -201,21 +206,21 @@ def cmd_compress(args: argparse.Namespace) -> None:
 
     try:
         # Process file based on type
-        if ext in ["mp4", "wmv", "avi", "mkv", "mov", "flv"]:
+        if ext in FileExtensions.VIDEO:
             print("Compressing video...")
             result_path = make_video(str(input_file), config=config, output_path=str(output_path))
         elif ext == "pdf":
             print("Compressing PDF...")
             result_path = make_pdf(str(input_file), config=config, output_path=str(output_path))
-        elif ext in ["jpg", "jpeg", "png"]:
+        elif ext in FileExtensions.IMAGE:
             print("Compressing image...")
             result_path = make_image(str(input_file), config=config, output_path=str(output_path))
-        elif ext in ["ppt", "pptx"]:
+        elif ext in FileExtensions.PRESENTATION:
             print("Error: PowerPoint files are not yet supported")
             sys.exit(1)
         else:
             print(f"Error: Unsupported file type: {ext}")
-            print("Supported types: mp4, wmv, avi, mkv, mov, flv, pdf, jpg, jpeg, png")
+            print(f"Supported types: {', '.join(FileExtensions.ALL_SUPPORTED)}")
             sys.exit(1)
 
         print("\n[OK] Success!")
@@ -244,6 +249,7 @@ def cmd_scan(args: argparse.Namespace) -> None:
     # Import here to avoid issues if modules have errors
     from filesqueeze import make_image, make_pdf, make_video
     from filesqueeze.config import Config
+    from filesqueeze.constants import FileExtensions
     from filesqueeze.logger import setup_logging
     from filesqueeze.output import (
         ensure_output_dir,
@@ -296,9 +302,18 @@ def cmd_scan(args: argparse.Namespace) -> None:
             # Determine file type
             ext = filepath.suffix.lstrip(".").lower()
 
+            # Image inputs convert to JPG output (JPGs keep their extension)
+            output_ext = None
+            if ext in FileExtensions.IMAGE and ext not in FileExtensions.IMAGE_NATIVE_JPG:
+                output_ext = ".jpg"
+
             # Generate output path
             output_path = generate_output_path(
-                filepath, output_dir, structure=config.get("output.structure", "flat"), config=config
+                filepath,
+                output_dir,
+                structure=config.get("output.structure", "flat"),
+                config=config,
+                output_ext=output_ext,
             )
 
             # Ensure output directory exists
@@ -308,18 +323,19 @@ def cmd_scan(args: argparse.Namespace) -> None:
             output_path = get_unique_output_path(output_path)
 
             # Process file based on type
-            if ext in ["mp4", "wmv", "avi"]:
+            result_path: str | None = None
+            if ext in FileExtensions.VIDEO:
                 print("  Type: Video")
                 print(f"  Output: {output_path}")
-                make_video(str(filepath), config=config, output_path=str(output_path))
+                result_path = make_video(str(filepath), config=config, output_path=str(output_path))
             elif ext == "pdf":
                 print("  Type: PDF")
                 print(f"  Output: {output_path}")
-                make_pdf(str(filepath), config=config, output_path=str(output_path))
-            elif ext in ["jpg", "jpeg", "png"]:
+                result_path = make_pdf(str(filepath), config=config, output_path=str(output_path))
+            elif ext in FileExtensions.IMAGE:
                 print("  Type: Image")
                 print(f"  Output: {output_path}")
-                make_image(str(filepath), config=config, output_path=str(output_path))
+                result_path = make_image(str(filepath), config=config, output_path=str(output_path))
             elif ext == "pptx":
                 print("  Type: PowerPoint (not yet supported)")
                 print("  Skipping...")
@@ -329,11 +345,16 @@ def cmd_scan(args: argparse.Namespace) -> None:
                 print("  Skipping...")
                 continue
 
+            # Metadata and timestamps target the actual result, which may
+            # carry a different extension than the planned output path
+            # (e.g. an image whose original was kept instead of the JPG).
+            final_output = Path(result_path) if result_path else output_path
+
             # Save metadata if enabled
             from datetime import datetime
 
             save_metadata(
-                output_path,
+                final_output,
                 {
                     "source": str(filepath),
                     "processed_at": str(datetime.now()),
@@ -342,7 +363,7 @@ def cmd_scan(args: argparse.Namespace) -> None:
             )
 
             # Preserve timestamps if enabled
-            preserve_timestamps(filepath, output_path, config=config)
+            preserve_timestamps(filepath, final_output, config=config)
 
             print("  [OK] Success")
             success_count += 1

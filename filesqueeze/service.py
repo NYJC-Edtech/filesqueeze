@@ -16,6 +16,7 @@ from watchdog.events import FileSystemEventHandler
 from watchdog.observers import Observer
 
 from .config import Config
+from .constants import FileExtensions
 from .logger import setup_logging  # This is the actual Logger.setup, not a wrapper
 from .utils.google_drive import (
     cleanup_temp_file,
@@ -286,10 +287,16 @@ class CompressionHandler(FileSystemEventHandler):
             ext = filepath.suffix.lstrip(".").lower()
 
             # Generate output path with compressed_ prefix
-            # PowerPoint files produce MP4 output, other files keep their extension
+            # PowerPoint files produce MP4 output, images produce JPG output
+            # (JPGs keep their extension), other files keep their extension.
+            # The processor returns the actual result path, which may differ
+            # from this planned name (e.g. an image whose original was kept).
             if ext == "pptx":
                 # PowerPoint files output as MP4
                 output_filename = f"compressed_{filepath.stem}.mp4"
+            elif ext in FileExtensions.IMAGE and ext not in FileExtensions.IMAGE_NATIVE_JPG:
+                # Image files output as JPG
+                output_filename = f"compressed_{filepath.stem}.jpg"
             else:
                 # Other files preserve their original extension
                 stem = filepath.stem  # filename without extension
@@ -342,8 +349,11 @@ class CompressionHandler(FileSystemEventHandler):
 
                         # Step 3: Move result back to Google Drive only if successful
                         if Path(result_path).exists():
-                            move_result_to_google_drive(result_path, output_path)
-                            final_result = output_path
+                            # The result may carry a different extension than
+                            # the planned output (e.g. an image whose original
+                            # was kept) — move it under its actual name.
+                            final_result = output_path.parent / Path(result_path).name
+                            move_result_to_google_drive(result_path, final_result)
                         else:
                             self.logger.error(f"Processing failed - no output file created: {result_path}")
                             final_result = None
