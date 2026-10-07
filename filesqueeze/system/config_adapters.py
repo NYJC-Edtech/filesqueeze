@@ -113,9 +113,9 @@ class DocumentConfig:
         Raises:
             ConfigValidationError: If any value is out of range
         """
-        quality = self._config.get("document.image_quality", 90)
-        if not isinstance(quality, int | float) or not (0 <= quality <= 100):
-            raise ConfigValidationError(f"Invalid document.image_quality: {quality}. Must be 0-100.")
+        quality = self._config.get("document.image_quality", 88)
+        if not isinstance(quality, int | float) or not (1 <= quality <= 95):
+            raise ConfigValidationError(f"Invalid document.image_quality: {quality}. Must be 1-95.")
 
     @property
     def pdf_quality(self) -> str:
@@ -129,8 +129,8 @@ class DocumentConfig:
 
     @property
     def quality(self) -> int:
-        """Get image quality (0-100)."""
-        return int(self._config.get("document.image_quality", 90))
+        """Get image quality (1-95, libjpeg scale)."""
+        return int(self._config.get("document.image_quality", 88))
 
     @property
     def max_image_width(self) -> int:
@@ -159,6 +159,8 @@ class ImageConfig:
     Provides validated access to image-related config values.
     """
 
+    _VALID_SUBSAMPLING = ("4:2:0", "4:2:2", "4:4:4")
+
     def __init__(self, config: "Config"):
         """Initialize image config adapter.
 
@@ -169,13 +171,48 @@ class ImageConfig:
             ConfigValidationError: If config values are invalid
         """
         self._config = config
-        # Note: Image config uses document.image_quality in current config
-        # This adapter will be used when we split image operations
+        self._validate()
+
+    def _validate(self) -> None:
+        """Validate all image config values.
+
+        Raises:
+            ConfigValidationError: If any value is out of range
+        """
+        quality = self._config.get("document.image_quality", 88)
+        if not isinstance(quality, int | float) or not (1 <= quality <= 95):
+            raise ConfigValidationError(f"Invalid document.image_quality: {quality}. Must be 1-95.")
+
+        subsampling = self._config.get("document.jpeg_subsampling", "4:2:2")
+        if subsampling not in self._VALID_SUBSAMPLING:
+            raise ConfigValidationError(
+                f"Invalid document.jpeg_subsampling: {subsampling}. Must be one of {list(self._VALID_SUBSAMPLING)}"
+            )
 
     @property
     def quality(self) -> int:
-        """Get JPEG quality (0-100)."""
-        return int(self._config.get("document.image_quality", 90))
+        """Get JPEG quality (1-95, libjpeg scale)."""
+        return int(self._config.get("document.image_quality", 88))
+
+    @property
+    def jpeg_progressive(self) -> bool:
+        """Get whether to write interlaced (progressive) JPEGs."""
+        return bool(self._config.get("document.jpeg_progressive", True))
+
+    @property
+    def jpeg_subsampling(self) -> str:
+        """Get chroma subsampling mode ("4:2:0", "4:2:2" or "4:4:4")."""
+        return str(self._config.get("document.jpeg_subsampling", "4:2:2"))
+
+    @property
+    def jpeg_flatten_background(self) -> str:
+        """Get the colour used behind transparency when flattening."""
+        return str(self._config.get("document.jpeg_flatten_background", "#ffffff"))
+
+    @property
+    def convert_to_jpeg(self) -> bool:
+        """Get whether images are converted to JPEG output."""
+        return bool(self._config.get("document.convert_to_jpeg", True))
 
     @property
     def max_width(self) -> int:

@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Generator
 
 from .config import Config
+from .constants import FileExtensions
 
 
 class FileScanner:
@@ -37,7 +38,7 @@ class FileScanner:
             extensions = self.config.get("file_detection.extensions", [])
         else:
             # Default extensions
-            extensions = ["mp4", "wmv", "avi", "mov", "mkv", "flv", "pptx", "pdf", "jpg", "jpeg", "png"]
+            extensions = FileExtensions.ALL_SUPPORTED
 
         ext = filepath.suffix.lstrip(".").lower()
         return ext in extensions

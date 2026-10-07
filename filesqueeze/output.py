@@ -9,9 +9,16 @@ from datetime import datetime
 from pathlib import Path
 
 from .config import Config
+from .constants import FileExtensions
 
 
-def generate_output_path(input_path: Path, output_dir: Path, structure: str = "flat", config: Config | None = None) -> Path:
+def generate_output_path(
+    input_path: Path,
+    output_dir: Path,
+    structure: str = "flat",
+    config: Config | None = None,
+    output_ext: str | None = None,
+) -> Path:
     """Generate output path based on structure setting.
 
     Args:
@@ -19,6 +26,8 @@ def generate_output_path(input_path: Path, output_dir: Path, structure: str = "f
         output_dir: Output directory.
         structure: Output structure (flat, by_type, by_date, mirror).
         config: Optional Config object.
+        output_ext: Optional output extension (e.g. ".jpg") overriding the
+            input extension, for formats that convert to another format.
 
     Returns:
         Path to the output file.
@@ -33,7 +42,8 @@ def generate_output_path(input_path: Path, output_dir: Path, structure: str = "f
         raise ValueError(f"Invalid structure: {structure}. Must be one of {valid_structures}")
 
     # Add compressed_ prefix to filename
-    compressed_filename = f"compressed_{input_path.name}"
+    output_suffix = output_ext if output_ext is not None else input_path.suffix
+    compressed_filename = f"compressed_{input_path.stem}{output_suffix}"
 
     # Generate output path based on structure
     if structure == "flat":
@@ -49,7 +59,7 @@ def generate_output_path(input_path: Path, output_dir: Path, structure: str = "f
             type_dir = "video"
         elif ext in ["pdf"]:
             type_dir = "document"
-        elif ext in ["jpg", "jpeg", "png"]:
+        elif ext in FileExtensions.IMAGE:
             type_dir = "image"
         elif ext in ["pptx"]:
             type_dir = "slideshow"
@@ -81,7 +91,7 @@ def generate_output_path(input_path: Path, output_dir: Path, structure: str = "f
             try:
                 rel_path = input_path.relative_to(input_root)
                 # Add compressed_ prefix to the final filename component
-                return output_dir / rel_path.parent / f"compressed_{rel_path.name}"
+                return output_dir / rel_path.parent / f"compressed_{rel_path.stem}{output_suffix}"
             except ValueError:
                 # input_path is not relative to input_root, fall back to flat
                 return output_dir / compressed_filename

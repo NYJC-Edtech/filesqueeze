@@ -90,40 +90,40 @@ class TestDocumentConfig:
     """Test DocumentConfig adapter."""
 
     def test_valid_quality_range(self):
-        """Quality must be 0-100."""
+        """Quality must be 1-95 (libjpeg scale)."""
         config = Config({"document": {"image_quality": 75}})
         doc_cfg = DocumentConfig(config)
         assert doc_cfg.quality == 75
 
     def test_quality_boundary_low(self):
-        """Quality=0 is valid (lower bound)."""
-        config = Config({"document": {"image_quality": 0}})
+        """Quality=1 is valid (lower bound)."""
+        config = Config({"document": {"image_quality": 1}})
         doc_cfg = DocumentConfig(config)
-        assert doc_cfg.quality == 0
+        assert doc_cfg.quality == 1
 
     def test_quality_boundary_high(self):
-        """Quality=100 is valid (upper bound)."""
-        config = Config({"document": {"image_quality": 100}})
+        """Quality=95 is valid (upper bound)."""
+        config = Config({"document": {"image_quality": 95}})
         doc_cfg = DocumentConfig(config)
-        assert doc_cfg.quality == 100
+        assert doc_cfg.quality == 95
 
     def test_invalid_quality_low(self):
-        """Quality < 0 should raise ValueError."""
-        config = Config({"document": {"image_quality": -10}})
-        with pytest.raises(ConfigValidationError, match="quality.*0-100"):
+        """Quality < 1 should raise ValueError."""
+        config = Config({"document": {"image_quality": 0}})
+        with pytest.raises(ConfigValidationError, match=r"quality.*1-95"):
             DocumentConfig(config)
 
     def test_invalid_quality_high(self):
-        """Quality > 100 should raise ValueError."""
-        config = Config({"document": {"image_quality": 150}})
-        with pytest.raises(ConfigValidationError, match="quality.*0-100"):
+        """Quality > 95 should raise ValueError."""
+        config = Config({"document": {"image_quality": 100}})
+        with pytest.raises(ConfigValidationError, match=r"quality.*1-95"):
             DocumentConfig(config)
 
     def test_default_quality(self):
-        """Default quality is 90 (from default.toml)."""
+        """Default quality is 88 (from default.toml)."""
         config = Config()
         doc_cfg = DocumentConfig(config)
-        assert doc_cfg.quality == 90
+        assert doc_cfg.quality == 88
 
     def test_default_timeout(self):
         """Default timeout is 300 seconds."""
@@ -142,42 +142,73 @@ class TestImageConfig:
     """Test ImageConfig adapter."""
 
     def test_valid_quality_range(self):
-        """Quality must be 0-100."""
+        """Quality must be 1-95 (libjpeg scale)."""
         config = Config({"document": {"image_quality": 85}})
         img_cfg = ImageConfig(config)
         assert img_cfg.quality == 85
 
     def test_quality_boundary_low(self):
-        """Quality=0 is valid (lower bound)."""
-        config = Config({"document": {"image_quality": 0}})
+        """Quality=1 is valid (lower bound)."""
+        config = Config({"document": {"image_quality": 1}})
         img_cfg = ImageConfig(config)
-        assert img_cfg.quality == 0
+        assert img_cfg.quality == 1
 
     def test_quality_boundary_high(self):
-        """Quality=100 is valid (upper bound)."""
-        config = Config({"document": {"image_quality": 100}})
+        """Quality=95 is valid (upper bound)."""
+        config = Config({"document": {"image_quality": 95}})
         img_cfg = ImageConfig(config)
-        assert img_cfg.quality == 100
+        assert img_cfg.quality == 95
 
     def test_invalid_quality_low(self):
-        """Quality < 0 should raise ValueError."""
-        config = Config({"document": {"image_quality": -5}})
-        # ImageConfig doesn't validate, so this doesn't raise
-        img_cfg = ImageConfig(config)
-        assert img_cfg.quality == -5
+        """Quality < 1 should raise ConfigValidationError."""
+        config = Config({"document": {"image_quality": 0}})
+        with pytest.raises(ConfigValidationError, match=r"quality.*1-95"):
+            ImageConfig(config)
 
     def test_invalid_quality_high(self):
-        """Quality > 100 should raise ValueError."""
-        config = Config({"document": {"image_quality": 150}})
-        # ImageConfig doesn't validate, so this doesn't raise
-        img_cfg = ImageConfig(config)
-        assert img_cfg.quality == 150
+        """Quality > 95 should raise ConfigValidationError."""
+        config = Config({"document": {"image_quality": 100}})
+        with pytest.raises(ConfigValidationError, match=r"quality.*1-95"):
+            ImageConfig(config)
 
     def test_default_quality(self):
-        """Default quality is 90 (from default.toml)."""
+        """Default quality is 88 (from default.toml)."""
         config = Config()
         img_cfg = ImageConfig(config)
-        assert img_cfg.quality == 90
+        assert img_cfg.quality == 88
+
+    def test_default_jpeg_settings(self):
+        """Default JPEG settings: progressive on, 4:2:2 subsampling, white flatten."""
+        config = Config()
+        img_cfg = ImageConfig(config)
+        assert img_cfg.jpeg_progressive is True
+        assert img_cfg.jpeg_subsampling == "4:2:2"
+        assert img_cfg.jpeg_flatten_background == "#ffffff"
+        assert img_cfg.convert_to_jpeg is True
+
+    def test_invalid_subsampling(self):
+        """Invalid subsampling mode should raise ConfigValidationError."""
+        config = Config({"document": {"jpeg_subsampling": "4:1:1"}})
+        with pytest.raises(ConfigValidationError, match="jpeg_subsampling"):
+            ImageConfig(config)
+
+    def test_custom_jpeg_settings(self):
+        """Custom JPEG settings can be set."""
+        config = Config(
+            {
+                "document": {
+                    "jpeg_progressive": False,
+                    "jpeg_subsampling": "4:4:4",
+                    "jpeg_flatten_background": "#000000",
+                    "convert_to_jpeg": False,
+                }
+            }
+        )
+        img_cfg = ImageConfig(config)
+        assert img_cfg.jpeg_progressive is False
+        assert img_cfg.jpeg_subsampling == "4:4:4"
+        assert img_cfg.jpeg_flatten_background == "#000000"
+        assert img_cfg.convert_to_jpeg is False
 
     def test_default_timeout(self):
         """Default timeout is 60 seconds."""
@@ -257,10 +288,10 @@ class TestConfigAdaptersIntegration:
         assert video_cfg.threads == 8  # From default.toml
 
         doc_cfg = DocumentConfig(config)
-        assert doc_cfg.quality == 90  # From default.toml
+        assert doc_cfg.quality == 88  # From default.toml
 
         img_cfg = ImageConfig(config)
-        assert img_cfg.quality == 90  # From default.toml
+        assert img_cfg.quality == 88  # From default.toml
 
         pres_cfg = PresentationConfig(config)
         assert pres_cfg.crf == 28  # From default.toml (uses video config)
@@ -320,14 +351,12 @@ class TestConfigAdapterValidation:
         with pytest.raises(ConfigValidationError, match="quality"):
             DocumentConfig(config)
 
-    def test_image_config_does_not_validate(self):
-        """ImageConfig doesn't validate on creation (uses document config)."""
-        # ImageConfig doesn't have validation, it uses document.image_quality
-        config = Config({"document": {"image_quality": -10}})
+    def test_image_config_validates_all_properties(self):
+        """ImageConfig validates quality and subsampling on creation."""
+        config = Config({"document": {"image_quality": 0}})  # Invalid
 
-        # Should not raise (no validation in ImageConfig)
-        img_cfg = ImageConfig(config)
-        assert img_cfg.quality == -10
+        with pytest.raises(ConfigValidationError, match="quality"):
+            ImageConfig(config)
 
     def test_presentation_config_does_not_validate(self):
         """PresentationConfig doesn't validate on creation (uses ffmpeg config)."""
