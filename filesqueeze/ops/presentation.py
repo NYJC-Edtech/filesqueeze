@@ -53,9 +53,17 @@ def to_mp4(infile: str, outfile: str = "", *, config: Config | None = None) -> N
         config: Optional Config object with settings.
 
     Raises:
+        FeatureDisabledError: If the pptx_to_video feature is disabled or
+            the platform cannot run it.
         FileNotFoundError: If input file doesn't exist or output file is not created.
         RuntimeError: If PowerShell script fails or times out.
     """
+    from filesqueeze.constants import Features
+    from filesqueeze.features import FeatureDisabledError, disabled_reason, is_enabled
+
+    if not is_enabled(Features.PPTX_TO_VIDEO, config=config):
+        raise FeatureDisabledError(f"Cannot convert {infile}: {disabled_reason(Features.PPTX_TO_VIDEO, config=config)}")
+
     from filesqueeze.system.config_adapters import PresentationConfig
     from filesqueeze.system.decorators import trace_function
 

@@ -205,6 +205,33 @@ class Doctor:
                 self.issues.append(f"[FAIL] {binary_name} not found ({msg})")
             return False
 
+    def check_features(self, config: Config | None = None) -> bool:
+        """Check availability of optional features.
+
+        Reports each registered feature flag and why it is unavailable,
+        if it is.
+
+        Args:
+            config: Optional Config object (None uses platform checks only).
+
+        Returns:
+            True if all features are enabled, False otherwise.
+        """
+        from .constants import Features
+        from .features import disabled_reason
+
+        all_enabled = True
+
+        for feature in sorted(Features.ALL):
+            reason = disabled_reason(feature, config=config)
+            if reason is None:
+                self.passed.append(f"[OK] Feature enabled: {feature}")
+            else:
+                self.warnings.append(f"[WARN] Feature disabled: {reason}")
+                all_enabled = False
+
+        return all_enabled
+
     def check_config_file(self) -> bool:
         """Check if configuration file exists.
 
@@ -323,6 +350,7 @@ class Doctor:
 
         # Check configuration
         has_config = self.check_config_file()
+        config: Config | None = None
 
         if has_config:
             try:
@@ -330,6 +358,9 @@ class Doctor:
                 self.check_directories(config)
             except Exception as e:
                 self.issues.append(f"[FAIL] Configuration error: {e}")
+
+        # Check feature availability (platform + config)
+        self.check_features(config if has_config else None)
 
         # Check permissions
         self.check_permissions()

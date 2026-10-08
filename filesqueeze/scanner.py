@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Generator
 
 from .config import Config
-from .constants import FileExtensions
+from .constants import Features, FileExtensions
 
 
 class FileScanner:
@@ -27,6 +27,9 @@ class FileScanner:
     def is_valid_extension(self, filepath: Path) -> bool:
         """Check if file extension is valid.
 
+        Files whose type belongs to a disabled feature (e.g. PPTX when the
+        pptx_to_video feature is off or unsupported) are not valid.
+
         Args:
             filepath: Path to the file.
 
@@ -41,7 +44,17 @@ class FileScanner:
             extensions = FileExtensions.ALL_SUPPORTED
 
         ext = filepath.suffix.lstrip(".").lower()
-        return ext in extensions
+        if ext not in extensions:
+            return False
+
+        # Presentation files require the pptx_to_video feature
+        if ext in FileExtensions.PRESENTATION:
+            from .features import is_enabled
+
+            if not is_enabled(Features.PPTX_TO_VIDEO, config=self.config):
+                return False
+
+        return True
 
     def meets_age_requirement(self, filepath: Path) -> bool:
         """Check if file meets minimum age requirement.

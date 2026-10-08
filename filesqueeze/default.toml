@@ -12,6 +12,14 @@ output = "~/FileSqueeze/compressed"
 # Set to empty string to delete original files (old behavior)
 archive = "archive"
 
+[features]
+# Feature flags for optional capabilities. Platform-restricted features are
+# automatically disabled when the current OS cannot run them, regardless
+# of the setting here.
+# Convert PPTX slideshows to MP4 video. Requires Windows with Microsoft
+# PowerPoint installed (drives PowerPoint via COM automation).
+pptx_to_video = true
+
 [file_detection]
 # File extensions to process (case-insensitive)
 extensions = ["mp4", "avi", "wmv", "mov", "mkv", "flv", "pptx", "pdf", "jpg", "jpeg", "png", "bmp", "tif", "tiff", "webp", "heic", "heif"]
