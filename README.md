@@ -339,6 +339,14 @@ enable_ocr = true
 # OCR language (eng=English, chi_sim=Simplified Chinese)
 language = "eng"
 
+[features]
+# Feature flags for optional capabilities. Platform-restricted features are
+# disabled automatically when the OS cannot run them (e.g. on Linux),
+# regardless of the setting here. Run `python -m filesqueeze doctor` to
+# see why a feature is unavailable.
+# Convert PPTX slideshows to MP4 video (requires Windows + PowerPoint)
+pptx_to_video = true
+
 [logging]
 # Log file location (tilde will be expanded)
 file = "~/.config/filesqueeze/filesqueeze.log"

@@ -36,6 +36,9 @@ class ConfigKeys:
     # Presentation configuration
     PRESENTATION_POWERSHELL_PATH = "presentation.powershell_path"
 
+    # Feature flags
+    FEATURES_PPTX_TO_VIDEO = "features.pptx_to_video"
+
     # Processing configuration
     PROCESSING_TIMEOUT_SECONDS = "processing.timeout_seconds"
     PROCESSING_PRESENTATION_TIMEOUT_SECONDS = "processing.presentation_timeout_seconds"
@@ -71,6 +74,20 @@ class FileExtensions:
 
     # All supported extensions
     ALL_SUPPORTED: ClassVar[list[str]] = VIDEO + DOCUMENT + IMAGE + PRESENTATION
+
+
+class Features:
+    """Feature flag names (config section: ``[features]``).
+
+    A feature flag controls whether an optional capability is active.
+    Some features are platform-restricted; see ``filesqueeze.features``
+    for the resolution rules.
+    """
+
+    # PPTX slideshow -> MP4 conversion (needs Windows + PowerPoint COM automation)
+    PPTX_TO_VIDEO = "pptx_to_video"
+
+    ALL: ClassVar[frozenset[str]] = frozenset({PPTX_TO_VIDEO})
 
 
 class ErrorMessages:

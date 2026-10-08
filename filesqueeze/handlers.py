@@ -2,7 +2,7 @@ import tempfile
 from pathlib import Path
 
 from . import ocr
-from .constants import FileExtensions
+from .constants import Features, FileExtensions
 from .fsm import Handler, State
 from .fsm.enums import Document, Enum, EnumValue, Format, Slideshow, Video
 from .ops import document, image, video
@@ -50,10 +50,22 @@ def analyzeVideo(state: State) -> Handler:
 
 def analyzeSlideshow(state: State) -> Handler:
     """
-    TODO: Detect PPTX files that contain a single video.
-    For now, does nothing and returns a converter handler.
+    Detects slideshow files and routes them to the PPTX-to-video converter.
+
+    Skips files cleanly when the pptx_to_video feature is disabled
+    (unsupported platform or turned off in config).
     """
+    from .features import disabled_reason, is_enabled
+
     state.status_analyze()
+
+    config = getattr(state, "config", None)
+    if not is_enabled(Features.PPTX_TO_VIDEO, config=config):
+        reason = disabled_reason(Features.PPTX_TO_VIDEO, config=config)
+        logger.warning(f"Skipping slideshow {state.target.name}: {reason}")
+        state.error(f"PPTX to video is not available: {reason}")
+        return cleanupFiles
+
     state.set_target(state.origin)
     return pptxToVideo
 
