@@ -18,15 +18,27 @@ $ErrorActionPreference = "Stop"
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 $OutputEncoding = [System.Text.Encoding]::UTF8
 
-# Detect if FileSqueeze service is currently running (before uninstall)
-# This allows us to restart it after reinstallation
+# Detect and stop a running FileSqueeze service (before reinstall).
+# A still-running old instance holds the single-instance mutex and keeps
+# serving old code, so the restart at the end of this script would silently
+# fail. Stopping here lets that restart bring the new install back up.
 $script:ServiceWasRunning = $false
 try {
+    # Match only Python processes running the FileSqueeze service - never
+    # shells whose command text merely contains these words.
     $processes = Get-WmiObject Win32_Process -ErrorAction Stop | Where-Object {
-        $_.CommandLine -like "*filesqueeze*service*"
+        $_.Name -like "python*" -and $_.CommandLine -like "*filesqueeze*service*"
     }
     if ($processes) {
         $script:ServiceWasRunning = $true
+        Write-Status "Stopping running FileSqueeze service..."
+        foreach ($process in $processes) {
+            Write-Host "  Stopping process PID $($process.ProcessId) ($($process.Name))..." -ForegroundColor Gray
+            Stop-Process -Id $process.ProcessId -Force
+        }
+        # Give the OS a moment to release the single-instance mutex
+        Start-Sleep -Seconds 2
+        Write-Host "  Service stopped. It will be restarted after installation." -ForegroundColor Gray
     }
 } catch {
     # Ignore detection errors

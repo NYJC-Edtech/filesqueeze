@@ -15,8 +15,9 @@
 Write-Host "Stopping FileSqueeze service..." -ForegroundColor Yellow
 
 # Find Python processes running FileSqueeze service
+# (name filter so shells whose command text merely mentions these words are never killed)
 $processes = Get-WmiObject Win32_Process | Where-Object {
-    $_.CommandLine -like "*filesqueeze service*"
+    $_.Name -like "python*" -and $_.CommandLine -like "*filesqueeze*service*"
 }
 
 if ($processes) {
