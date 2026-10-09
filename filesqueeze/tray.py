@@ -55,6 +55,7 @@ class TrayService:
         self._last_click_time = 0
         self._click_count = 0
         self._status_window = None  # Track the status window instance
+        self._compress_dialog = None  # Track the standalone compress dialog instance
         self._mutex = None  # Windows named mutex for single-instance enforcement
 
     def _ensure_single_instance(self):
@@ -273,6 +274,50 @@ class TrayService:
             # Clear the reference on error so user can try again
             self._status_window = None
 
+    def _on_compress_file(self, icon: object = None, item: object = None):
+        """Handle 'Compress a File' action - opens the standalone compress dialog.
+
+        Enforces the same singleton pattern as the status window: only one
+        compress dialog can exist; clicking again brings it to the foreground.
+
+        Args:
+            icon: Tray icon instance.
+            item: Menu item instance.
+        """
+        if self._compress_dialog is not None:
+            self.logger.debug("Compress dialog already open, bringing to foreground")
+            try:
+                self._compress_dialog.root.after(0, self._bring_to_foreground, self._compress_dialog.root)
+            except Exception as e:
+                self.logger.error(f"Failed to bring compress dialog to foreground: {e}", exc_info=True)
+            return
+
+        self.logger.info("Opening compress dialog")
+
+        # Launch the dialog in a separate thread so the tray icon stays responsive
+        dialog_thread = threading.Thread(target=self._show_compress_dialog, daemon=True)
+        dialog_thread.start()
+
+    def _show_compress_dialog(self):
+        """Show the standalone compress dialog.
+
+        This runs in a separate thread to avoid blocking the tray icon.
+        """
+        try:
+            from .gui_compress import CompressDialog
+
+            # Store the dialog BEFORE show() blocks on mainloop(), so the
+            # singleton check works while the dialog is open
+            self._compress_dialog = CompressDialog(config=self.config)
+            self._compress_dialog.show()
+
+            # After the dialog closes, allow a new one to be opened
+            self._compress_dialog = None
+
+        except Exception as e:
+            self.logger.error(f"Failed to show compress dialog: {e}", exc_info=True)
+            self._compress_dialog = None
+
     def start(self) -> None:
         """Start the tray service."""
         self.logger.info("Starting FileSqueeze tray service")
@@ -310,6 +355,7 @@ class TrayService:
         # Create menu with default action (double-click activates first item)
         menu = pystray.Menu(
             pystray.MenuItem("Show Status", self._on_show_status, default=True),
+            pystray.MenuItem("Compress a File…", self._on_compress_file),
             pystray.MenuItem("Open Input Folder", self._on_open_input),
             pystray.MenuItem("Open Output Folder", self._on_open_output),
             pystray.Menu.SEPARATOR,

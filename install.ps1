@@ -291,6 +291,27 @@ $Shortcut.WorkingDirectory = $env:USERPROFILE
 $Shortcut.Save()
 Write-Host "  Created: FileSqueeze" -ForegroundColor Gray
 
+# Shortcut: FileSqueeze Compress (standalone single-file mode)
+$Shortcut = $WshShell.CreateShortcut("$StartMenuFolder\\FileSqueeze Compress.lnk")
+$Shortcut.TargetPath = $PythonwPath
+$Shortcut.Arguments = "-m filesqueeze compress --gui"
+$Shortcut.Description = "Compress a single file with FileSqueeze"
+$Shortcut.WorkingDirectory = $env:USERPROFILE
+$Shortcut.Save()
+Write-Host "  Created: FileSqueeze Compress" -ForegroundColor Gray
+
+# Shortcut: SendTo -> FileSqueeze (right-click any file to compress it)
+# Windows passes the right-clicked file path as an argument, which the
+# compress dialog pre-fills.
+$SendToShortcut = "$env:APPDATA\\Microsoft\\Windows\\SendTo\\FileSqueeze.lnk"
+$Shortcut = $WshShell.CreateShortcut($SendToShortcut)
+$Shortcut.TargetPath = $PythonwPath
+$Shortcut.Arguments = "-m filesqueeze compress --gui"
+$Shortcut.Description = "Compress this file with FileSqueeze"
+$Shortcut.WorkingDirectory = $env:USERPROFILE
+$Shortcut.Save()
+Write-Host "  Created: SendTo\FileSqueeze (right-click menu)" -ForegroundColor Gray
+
 # Shortcut: Uninstall FileSqueeze
 $Shortcut = $WshShell.CreateShortcut("$StartMenuFolder\\Uninstall FileSqueeze.lnk")
 $Shortcut.TargetPath = "powershell.exe"
@@ -442,7 +463,10 @@ Write-Host "FileSqueeze has been installed system-wide." -ForegroundColor Cyan
 Write-Host ""
 Write-Host "Start Menu shortcuts created:" -ForegroundColor Yellow
 Write-Host "  • FileSqueeze           - Start the service with tray icon"
+Write-Host "  • FileSqueeze Compress  - Compress a single file via dialog"
 Write-Host "  • Uninstall FileSqueeze - Remove the application"
+Write-Host ""
+Write-Host "Also added: right-click any file → Send To → FileSqueeze to compress it." -ForegroundColor Yellow
 Write-Host ""
 Write-Host "Quick Start:" -ForegroundColor Yellow
 Write-Host "  1. Press Windows key and type: FileSqueeze"

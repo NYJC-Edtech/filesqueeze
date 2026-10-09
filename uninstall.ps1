@@ -107,6 +107,13 @@ if (Test-Path $StartMenuFolder) {
     Write-Host "  No shortcuts found" -ForegroundColor Yellow
 }
 
+# Remove Send To shortcut (right-click -> Send To -> FileSqueeze)
+$SendToShortcut = "$env:APPDATA\Microsoft\Windows\SendTo\FileSqueeze.lnk"
+if (Test-Path $SendToShortcut) {
+    Remove-Item -Path $SendToShortcut -Force
+    Write-Host "  Send To shortcut removed" -ForegroundColor Gray
+}
+
 # Uninstall FileSqueeze package
 Write-Status "Uninstalling FileSqueeze package..."
 try {

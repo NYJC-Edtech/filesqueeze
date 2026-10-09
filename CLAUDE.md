@@ -28,6 +28,8 @@ filesqueeze/
 ├── scanner.py           # File scanner for batch processing
 ├── ocr.py               # OCR processing for PDFs
 ├── gui.py               # GUI status window
+├── gui_compress.py      # Standalone "Compress a File" dialog (tkinter)
+├── standalone.py        # Single-file compression logic (tkinter-free)
 ├── tray.py              # System tray service
 └── autostart.py         # Auto-startup configuration
 ```
@@ -74,6 +76,9 @@ poetry run python -m filesqueeze init-config
 # Compress single files
 poetry run python -m filesqueeze compress video.mp4
 poetry run python -m filesqueeze compress document.pdf
+
+# Compress a single file via GUI dialog (standalone mode)
+poetry run python -m filesqueeze compress --gui [file]
 
 # Batch processing
 poetry run python -m filesqueeze scan
