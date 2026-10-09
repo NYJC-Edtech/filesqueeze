@@ -55,8 +55,9 @@ Write-Host ""
 Write-Status "Stopping FileSqueeze service..."
 try {
     # Stop any Python processes running FileSqueeze
+    # (name filter so shells whose command text merely mentions these words are never killed)
     $processes = Get-WmiObject Win32_Process | Where-Object {
-        $_.CommandLine -like "*filesqueeze*service*"
+        $_.Name -like "python*" -and $_.CommandLine -like "*filesqueeze*service*"
     }
 
     if ($processes) {
@@ -105,6 +106,13 @@ if (Test-Path $StartMenuFolder) {
     Write-Host "  Shortcuts removed" -ForegroundColor Gray
 } else {
     Write-Host "  No shortcuts found" -ForegroundColor Yellow
+}
+
+# Remove Send To shortcut (right-click -> Send To -> FileSqueeze)
+$SendToShortcut = "$env:APPDATA\Microsoft\Windows\SendTo\FileSqueeze.lnk"
+if (Test-Path $SendToShortcut) {
+    Remove-Item -Path $SendToShortcut -Force
+    Write-Host "  Send To shortcut removed" -ForegroundColor Gray
 }
 
 # Uninstall FileSqueeze package

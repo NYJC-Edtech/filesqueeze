@@ -84,7 +84,7 @@ def process_file(filepath: Union[str, Path]) -> None:
     suffix = path.suffix          # File extension
 
     # Path joining is platform-aware
-    output = path.parent / f"{stem}_compressed{suffix}"
+    output = path.parent / f"compressed_{path.stem}{suffix}"
 ```
 
 **Benefits:**

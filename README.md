@@ -11,6 +11,7 @@ Utility package for compressing videos, PDFs, and images using FFmpeg, Ghostscri
 - **OCR Support**: Add searchable text layer to scanned PDFs using Tesseract
 - **Smart PDF Detection**: Automatically detects scanned vs generated PDFs
 - **Watch Mode**: Real-time directory monitoring with automatic file processing
+- **Standalone Mode**: Compress a single file to a chosen destination via a dialog (`compress --gui`, tray menu, or right-click → Send To)
 - **Service Mode**: Background service with system tray icon (Windows)
 - **Auto-Start**: Start automatically at login (no admin required)
 - **Batch Processing**: Process entire directories at once
@@ -394,6 +395,34 @@ the original extension.
 poetry run python -m filesqueeze compress video.mp4
 poetry run python -m filesqueeze compress document.pdf -o compressed.pdf
 ```
+
+Default output is `compressed_<name>.<ext>` next to the input (images convert
+to JPG output, e.g. `photo.png` → `compressed_photo.jpg`), matching the watch
+mode naming convention. A collision never overwrites — the new file is
+renamed with a `_1`, `_2`, ... suffix.
+
+#### Standalone Mode (Compress a File dialog)
+
+```bash
+poetry run python -m filesqueeze compress --gui                # empty dialog
+poetry run python -m filesqueeze compress --gui video.mp4     # pre-selected
+```
+
+Pick a file, pick a destination ("Same folder as the original" by default),
+and FileSqueeze compresses it with your configured quality settings — the
+same pipeline and naming as watch mode. The dialog:
+
+- previews the output name before you start, and warns when a name
+  collision will trigger an auto-rename
+- rejects unsupported types up front (`.pptx` is not supported in
+  standalone mode yet)
+- shows an honest progress state (no fake percentages) plus a size
+  comparison when done
+
+The system installer also creates a **FileSqueeze Compress** Start Menu
+shortcut and a **Send To → FileSqueeze** entry (right-click any file) that
+open this dialog with the file pre-selected. The dialog can be used while
+the monitoring service runs — the two do not interfere.
 
 #### Batch Processing
 

@@ -156,14 +156,40 @@ def cmd_init_config(args: argparse.Namespace) -> None:
     print("\nFor more information, see the README.md file")
 
 
+def cmd_compress_gui(args: argparse.Namespace) -> None:
+    """Open the standalone "Compress a File" dialog (optionally pre-filled)."""
+    from filesqueeze.config import Config
+    from filesqueeze.gui_compress import run_compress_dialog
+    from filesqueeze.logger import setup_logging
+    from filesqueeze.system import register_binary_finder, register_logger
+    from filesqueeze.system.binaries import BinaryFinder
+
+    # Load config and register runtime services (same as cmd_compress) so the
+    # dialog compresses with the user's settings and detected binaries.
+    config = Config()
+    logger = setup_logging(config)
+    register_logger(logger)
+    register_binary_finder(BinaryFinder(config))
+
+    initial_file = Path(args.input) if args.input else None
+    # No prints from here on: this path also runs under pythonw.exe (Start
+    # Menu / Send To shortcuts), where stdout is not attached.
+    run_compress_dialog(config=config, initial_file=initial_file)
+
+
 def cmd_compress(args: argparse.Namespace) -> None:
     """Compress a single file."""
     from filesqueeze import make_image, make_pdf, make_video
     from filesqueeze.config import Config
     from filesqueeze.constants import FileExtensions
     from filesqueeze.logger import setup_logging
+    from filesqueeze.output import generate_output_path
+    from filesqueeze.standalone import output_extension_for
     from filesqueeze.system import register_binary_finder, register_logger
     from filesqueeze.system.binaries import BinaryFinder
+
+    if getattr(args, "gui", False):
+        return cmd_compress_gui(args)
 
     # Load config
     config = Config()
@@ -174,6 +200,10 @@ def cmd_compress(args: argparse.Namespace) -> None:
     register_binary_finder(BinaryFinder(config))
 
     # Get input file
+    if not args.input:
+        print("Error: Input file is required (or use --gui to open the dialog)")
+        sys.exit(1)
+
     input_file = Path(args.input)
     if not input_file.exists():
         print(f"Error: Input file does not exist: {input_file}")
@@ -190,12 +220,11 @@ def cmd_compress(args: argparse.Namespace) -> None:
     if args.output:
         output_path = Path(args.output)
     else:
-        # Generate output filename: input_compressed.ext
-        # Images convert to JPG output (JPGs keep their own extension)
-        output_suffix = input_file.suffix
-        if ext in FileExtensions.IMAGE and ext not in FileExtensions.IMAGE_NATIVE_JPG:
-            output_suffix = ".jpg"
-        output_path = input_file.parent / f"{input_file.stem}_compressed{output_suffix}"
+        # Default output: compressed_<stem>.<ext> next to the input, matching
+        # monitoring-mode naming (images convert to JPG output)
+        output_path = generate_output_path(
+            input_file, input_file.parent, structure="flat", output_ext=output_extension_for(input_file)
+        )
 
     print(f"Input: {input_file}")
     print(f"Output: {output_path}")
@@ -504,6 +533,8 @@ def main() -> None:
 Examples:
   python -m filesqueeze init-config             Create example config file
   python -m filesqueeze detect                  Detect FFmpeg and Ghostscript binaries
+  python -m filesqueeze compress video.mp4      Compress one file (terminal output)
+  python -m filesqueeze compress --gui          Open the 'Compress a File' dialog
   python -m filesqueeze scan                    Process all files
   python -m filesqueeze scan --input . --output ./compressed
   python -m filesqueeze watch                   Monitor directory for new files
@@ -516,8 +547,13 @@ Examples:
 
     # compress command
     compress_parser = subparsers.add_parser("compress", help="Compress a single file")
-    compress_parser.add_argument("input", help="Input file to compress")
-    compress_parser.add_argument("--output", "-o", help="Output file path (default: <input>_compressed.<ext>)")
+    compress_parser.add_argument("input", nargs="?", help="Input file to compress (optional with --gui)")
+    compress_parser.add_argument(
+        "--gui", action="store_true", help="Open the 'Compress a File' dialog instead of running in the terminal"
+    )
+    compress_parser.add_argument(
+        "--output", "-o", help="Output file path (default: compressed_<input>.<ext> next to the input)"
+    )
 
     # init-config command
     init_parser = subparsers.add_parser("init-config", help="Generate an example configuration file")

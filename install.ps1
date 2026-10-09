@@ -18,15 +18,27 @@ $ErrorActionPreference = "Stop"
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 $OutputEncoding = [System.Text.Encoding]::UTF8
 
-# Detect if FileSqueeze service is currently running (before uninstall)
-# This allows us to restart it after reinstallation
+# Detect and stop a running FileSqueeze service (before reinstall).
+# A still-running old instance holds the single-instance mutex and keeps
+# serving old code, so the restart at the end of this script would silently
+# fail. Stopping here lets that restart bring the new install back up.
 $script:ServiceWasRunning = $false
 try {
+    # Match only Python processes running the FileSqueeze service - never
+    # shells whose command text merely contains these words.
     $processes = Get-WmiObject Win32_Process -ErrorAction Stop | Where-Object {
-        $_.CommandLine -like "*filesqueeze*service*"
+        $_.Name -like "python*" -and $_.CommandLine -like "*filesqueeze*service*"
     }
     if ($processes) {
         $script:ServiceWasRunning = $true
+        Write-Status "Stopping running FileSqueeze service..."
+        foreach ($process in $processes) {
+            Write-Host "  Stopping process PID $($process.ProcessId) ($($process.Name))..." -ForegroundColor Gray
+            Stop-Process -Id $process.ProcessId -Force
+        }
+        # Give the OS a moment to release the single-instance mutex
+        Start-Sleep -Seconds 2
+        Write-Host "  Service stopped. It will be restarted after installation." -ForegroundColor Gray
     }
 } catch {
     # Ignore detection errors
@@ -291,6 +303,27 @@ $Shortcut.WorkingDirectory = $env:USERPROFILE
 $Shortcut.Save()
 Write-Host "  Created: FileSqueeze" -ForegroundColor Gray
 
+# Shortcut: FileSqueeze Compress (standalone single-file mode)
+$Shortcut = $WshShell.CreateShortcut("$StartMenuFolder\\FileSqueeze Compress.lnk")
+$Shortcut.TargetPath = $PythonwPath
+$Shortcut.Arguments = "-m filesqueeze compress --gui"
+$Shortcut.Description = "Compress a single file with FileSqueeze"
+$Shortcut.WorkingDirectory = $env:USERPROFILE
+$Shortcut.Save()
+Write-Host "  Created: FileSqueeze Compress" -ForegroundColor Gray
+
+# Shortcut: SendTo -> FileSqueeze (right-click any file to compress it)
+# Windows passes the right-clicked file path as an argument, which the
+# compress dialog pre-fills.
+$SendToShortcut = "$env:APPDATA\\Microsoft\\Windows\\SendTo\\FileSqueeze.lnk"
+$Shortcut = $WshShell.CreateShortcut($SendToShortcut)
+$Shortcut.TargetPath = $PythonwPath
+$Shortcut.Arguments = "-m filesqueeze compress --gui"
+$Shortcut.Description = "Compress this file with FileSqueeze"
+$Shortcut.WorkingDirectory = $env:USERPROFILE
+$Shortcut.Save()
+Write-Host "  Created: SendTo\FileSqueeze (right-click menu)" -ForegroundColor Gray
+
 # Shortcut: Uninstall FileSqueeze
 $Shortcut = $WshShell.CreateShortcut("$StartMenuFolder\\Uninstall FileSqueeze.lnk")
 $Shortcut.TargetPath = "powershell.exe"
@@ -442,7 +475,10 @@ Write-Host "FileSqueeze has been installed system-wide." -ForegroundColor Cyan
 Write-Host ""
 Write-Host "Start Menu shortcuts created:" -ForegroundColor Yellow
 Write-Host "  • FileSqueeze           - Start the service with tray icon"
+Write-Host "  • FileSqueeze Compress  - Compress a single file via dialog"
 Write-Host "  • Uninstall FileSqueeze - Remove the application"
+Write-Host ""
+Write-Host "Also added: right-click any file → Send To → FileSqueeze to compress it." -ForegroundColor Yellow
 Write-Host ""
 Write-Host "Quick Start:" -ForegroundColor Yellow
 Write-Host "  1. Press Windows key and type: FileSqueeze"
