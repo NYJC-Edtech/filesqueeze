@@ -36,9 +36,10 @@ poetry run python -m filesqueeze service run  # Development install
 ## Table of Contents
 
 - [Installation](#installation)
-  - [Method 1: One-Click Installer](#method-1-one-click-installer-recommended)
+  - [Method 1: System-Wide Installer](#method-1-system-wide-installer-recommended-for-end-users)
   - [Method 2: PyPI Package](#method-2-pypi-package-recommended-for-python-users)
-  - [Method 3: Manual Installation](#method-3-manual-installation-for-developers)
+  - [Method 3: Development Installation](#method-3-development-installation-poetry)
+  - [Locked-Down Machines](#locked-down-machines-no-installers-no-admin-rights)
 - [External Dependencies](#external-dependencies)
 - [Configuration](#configuration)
 - [Usage](#usage)
@@ -49,7 +50,7 @@ poetry run python -m filesqueeze service run  # Development install
 
 ## Installation
 
-FileSqueeze supports multiple installation methods. Our installation scripts follow [Installation Principles](docs/INSTALLATION_PRINCIPLES.md) that ensure robust error handling, PATH refresh, and graceful fallbacks.
+FileSqueeze supports multiple installation methods. The scripts follow [Installation Principles](docs/INSTALLATION_PRINCIPLES.md): robust error handling, PATH refresh, and graceful fallbacks.
 
 ### Method 1: System-Wide Installer (Recommended for End Users)
 
@@ -94,119 +95,77 @@ filesqueeze service install
 filesqueeze doctor
 ```
 
-### Method 2: Development Installer (For Developers)
+### Method 2: PyPI Package (Recommended for Python Users)
 
-**Best for:** Developers working on FileSqueeze code, need editable installation
+**Best for:** Python users who just want `pip install`
 
-#### Prerequisites
-- Python 3.11 or later
-- Poetry (dependency manager)
-- FFmpeg, Ghostscript, Tesseract
+```bash
+pip install filesqueeze
+filesqueeze-init          # Generate configuration, then edit filesqueeze.toml
+filesqueeze-service       # Start the service
+```
 
-#### Installation
+**All commands:** `filesqueeze` (main CLI), `filesqueeze-compress`, `filesqueeze-scan`, `filesqueeze-watch`, `filesqueeze-service`, `filesqueeze-init`, `filesqueeze-detect`
+
+```bash
+pip install --upgrade filesqueeze   # Update
+pip uninstall filesqueeze           # Uninstall
+```
+
+### Method 3: Development Installation (Poetry)
+
+**Best for:** developing FileSqueeze (editable install)
+
+Quick way — the dev installer checks Python, installs Poetry if needed, installs dependencies in editable mode, and generates configuration:
 
 ```powershell
-# Navigate to FileSqueeze directory
-cd filesqueeze
-
-# Run development installer
 .\install-dev.ps1
 ```
 
-**What the installer does:**
-- ✅ Checks Python 3.11+ installation
-- ✅ Installs Poetry if needed
-- ✅ Installs dependencies in editable mode
-- ✅ Detects FFmpeg, Ghostscript, Tesseract
-- ✅ Generates configuration file
-- ✅ Creates desktop shortcut
-
-**After installation:**
-```bash
-# Must use poetry run prefix
-poetry run python -m filesqueeze --help
-
-# Start service
-poetry run python -m filesqueeze service run
-
-# Install auto-start
-poetry run python -m filesqueeze service install
-```
-
-### Method 2: PyPI Package (Recommended for Python Users)
-
-**Best for:** Python developers and users familiar with pip
+Or manually:
 
 ```bash
-# Install FileSqueeze
-pip install filesqueeze
-
-# Generate configuration
-filesqueeze-init
-
-# Edit configuration
-nano filesqueeze.toml
-
-# Start service
-filesqueeze-service
-```
-
-**Commands available:**
-```bash
-filesqueeze              # Main CLI
-filesqueeze-compress     # Compress files
-filesqueeze-scan         # Batch processing
-filesqueeze-watch        # Monitor directory
-filesqueeze-service      # Run with tray icon
-filesqueeze-init         # Generate config
-filesqueeze-detect       # Detect binaries
-```
-
-**Update:**
-```bash
-pip install --upgrade filesqueeze
-```
-
-**Uninstall:**
-```bash
-pip uninstall filesqueeze
-```
-
-### Method 3: Manual Installation (For Developers)
-
-**Best for:** Developers who want full control
-
-#### Prerequisites
-
-- Python 3.11 or later
-- Git
-- Poetry (for dependency management)
-- FFmpeg (for video compression; not needed for images)
-- Ghostscript (for PDF compression)
-- Tesseract OCR (optional, for scanned PDFs)
-
-#### Installation Steps
-
-```bash
-# 1. Clone repository
-git clone https://github.com/yourusername/filesqueeze.git
+git clone https://github.com/NYJC-Edtech/filesqueeze.git
 cd filesqueeze
-
-# 2. Install Poetry (if not installed)
-curl -sSL https://install.python-poetry.org | python3 -
-
-# 3. Install dependencies
+curl -sSL https://install.python-poetry.org | python3 -   # if Poetry is missing
 poetry install
-
-# 4. Generate configuration
 poetry run python -m filesqueeze init-config
-
-# 5. Edit configuration
-nano filesqueeze.toml
-
-# 6. Test installation
-poetry run python -m filesqueeze detect
+poetry run python -m filesqueeze detect                   # verify binaries
 ```
+
+With a development install, prefix every command with `poetry run`, e.g. `poetry run python -m filesqueeze service run`.
+
+### Locked-Down Machines (No Installers, No Admin Rights)
+
+FileSqueeze itself is pure Python — installing it never requires running an .exe installer. The only installer-based pieces are the [external binaries](#external-dependencies), and each has an installer-free route:
+
+- **FFmpeg** ships as a portable archive, not an installer: download the `.7z` (gyan.dev) or `.zip` (BtbN) build, extract anywhere, and point the config at it (below). No PATH changes needed.
+- **Ghostscript**'s official installer can be opened like an archive with [7-Zip](https://www.7-zip.org/) (*Open archive*), and the extracted folder works standalone.
+- **Tesseract** is optional — skip it unless you need OCR for scanned PDFs.
+
+To install FileSqueeze and wire up the extracted binaries:
+
+```powershell
+# A .ps1 script, not an installer — per-invocation bypass, no admin needed
+powershell -ExecutionPolicy Bypass -File .\install.ps1
+
+# Auto-start without admin
+python -m filesqueeze service install --user-only
+```
+
+Configured binary paths take priority over auto-detection, so the binaries don't need to be on PATH or in a standard location — set them in `~/.config/filesqueeze/config.toml`:
+
+```toml
+[ffmpeg]
+path = "C:/Users/you/FileSqueeze/bin/ffmpeg/bin/ffmpeg.exe"  # keep ffprobe.exe alongside
+
+[document]
+ghostscript_path = "C:/Users/you/FileSqueeze/bin/gs/bin/gswin64c.exe"
+```
+
+Verify with `python -m filesqueeze detect` (where each binary was found) and `python -m filesqueeze doctor` (full diagnostic, including feature availability).
+
+> If policy blocks *running* any .exe from user-writable folders (AppLocker default rules do), portable binaries won't start either — ask IT to install or whitelist `python.exe`, `ffmpeg.exe`, and `gswin64c.exe` rather than working around it.
 
 ---
 
@@ -231,6 +190,9 @@ choco install ffmpeg
 winget install ffmpeg
 ```
 
+> Keep `ffprobe.exe` alongside `ffmpeg.exe` — both ship in every archive, and
+> FileSqueeze uses ffprobe for video analysis.
+
 **Linux:**
 ```bash
 # Ubuntu/Debian
@@ -253,6 +215,10 @@ sudo pacman -S ffmpeg
 # Or use chocolatey:
 choco install ghostscript
 ```
+
+No installer handy? The .exe installer can be opened as an archive with
+7-Zip (*Open archive*) — the extracted folder works standalone.
+[Locked-down machines](#locked-down-machines-no-installers-no-admin-rights) covers this in context.
 
 **Linux:**
 ```bash
@@ -465,14 +431,9 @@ poetry run python -m filesqueeze service uninstall
 ```
 
 **Auto-Start Installation Notes:**
-- **System-wide** (default): Installs for all users. Requires running PowerShell/CMD as Administrator
-- **User-specific** (`--user-only`): Installs for current user only. No admin privileges required
+- **System-wide** (default): installs for all users; run from an elevated ("Run as Administrator") prompt
+- **User-specific** (`--user-only`): no admin privileges required
 - If system-wide installation fails due to permissions, it automatically falls back to user-specific
-
-**To install system-wide:**
-1. Right-click on PowerShell or Command Prompt
-2. Select "Run as Administrator"
-3. Run the install command: `filesqueeze service install`
 
 **Note:** Hyphenated versions (`service-run`, `service-install`, etc.) are still supported for backward compatibility.
 
@@ -572,42 +533,24 @@ For file detection troubleshooting, see [TROUBLESHOOTING.md](docs/TROUBLESHOOTIN
 
 ## System Invariants
 
-FileSqueeze guarantees these non-negotiable behaviors:
+FileSqueeze guarantees these behaviors:
 
 ### Service Launch Behavior
 
-**When launched from Start Menu or command line:**
-- ✅ System tray icon appears immediately
-- ✅ Status window opens automatically to show service status
-
-**Rationale:** Users launching FileSqueeze expect immediate visual feedback that the service is running. The status window shows:
-- Service state (running/stopped)
-- Input/output directories
-- Processing statistics
-- Currently processing files
-
-**Implementation:** The `filesqueeze service run` command starts the tray icon AND automatically opens the status window. This ensures:
-- Users can immediately see the service is working
-- Clear visual confirmation of launch
-- Easy access to service status and directories
+When launched from the Start Menu or command line, the tray icon appears immediately and the status window opens automatically — showing service state, input/output directories, processing statistics, and currently processing files — so users get immediate visual confirmation that the service is running.
 
 ### Single Instance Enforcement
 
-- Only one FileSqueeze service instance can run at a time
-- Attempting to start a second instance displays a helpful error message
-- Ensures no conflicts from multiple services watching the same directories
+Only one service instance can run at a time; starting a second shows a helpful error. This prevents conflicts from multiple services watching the same directories.
 
 ### Singleton Status Window
 
-- Clicking the tray icon repeatedly opens only ONE status window
-- If the status window is already open, subsequent clicks bring it to the foreground (TODO: not yet implemented)
-- Prevents window clutter from multiple status windows
+Clicking the tray icon repeatedly opens only one status window, preventing window clutter.
 
 ### Configuration Management
 
-- User configuration file (`~/.config/filesqueeze/config.toml`) is the single source of truth
-- Configuration paths (especially `~` home directory) are expanded once at initialization
-- Runtime uses absolute paths, no re-expansion on every access
+- The user configuration file (`~/.config/filesqueeze/config.toml`) is the single source of truth
+- Configuration paths (especially `~` home directory) are expanded once at initialization; runtime uses absolute paths
 
 ---
 
@@ -635,7 +578,7 @@ poetry run python -m filesqueeze doctor
 
 ## Uninstallation
 
-### Windows (One-Click Installer)
+### Windows (System Installer)
 
 ```powershell
 # Uninstall auto-start
@@ -648,7 +591,7 @@ Remove-Item -Recurse -Force "$env:USERPROFILE\FileSqueeze"
 Remove-Item "$env:USERPROFILE\Desktop\FileSqueeze.lnk"
 ```
 
-### Linux (One-Click Installer)
+### Linux (System Installer)
 
 ```bash
 # Stop and disable systemd service
