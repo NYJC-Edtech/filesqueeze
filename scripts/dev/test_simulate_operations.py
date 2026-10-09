@@ -20,6 +20,7 @@ try:
     try:
         # Try to copy file like PowerPoint would read it
         import shutil
+
         temp_copy = test_output.replace(".mp4", "_temp.pptx")
         shutil.copy2(pptx_file, temp_copy)
         elapsed = time.time() - start
@@ -33,8 +34,8 @@ try:
     start = time.time()
 
     try:
-        with open(test_output, 'wb') as f:
-            f.write(b'Test content')
+        with open(test_output, "wb") as f:
+            f.write(b"Test content")
         elapsed = time.time() - start
         print(f"[OK] File created successfully ({elapsed:.2f}s)")
         size = Path(test_output).stat().st_size
@@ -50,7 +51,7 @@ try:
         if result.strip():
             print("[INFO] Google Drive sync process is running")
             # Try to get more details
-            processes = os.popen('wmic process where "name like \'%GoogleDrive%\'" get ProcessId,CommandLine 2>NUL').read()
+            processes = os.popen("wmic process where \"name like '%GoogleDrive%'\" get ProcessId,CommandLine 2>NUL").read()
             print("  Running Google Drive processes found")
         else:
             print("[OK] No Google Drive sync process detected")

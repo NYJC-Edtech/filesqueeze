@@ -32,7 +32,7 @@ try:
 
     # Try to open file normally
     try:
-        with open(pptx_file, 'rb') as f:
+        with open(pptx_file, "rb") as f:
             header = f.read(8)
             print(f"[OK] File can be opened normally (header: {header.hex()})")
     except Exception as e:
