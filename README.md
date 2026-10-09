@@ -7,11 +7,12 @@ Utility package for compressing videos, PDFs, and images using FFmpeg, Ghostscri
 - **Video Compression**: FFmpeg-based with configurable quality (CRF), presets, and scaling
 - **PDF Compression**: Ghostscript-based with quality settings (screen, ebook, printer, prepress)
 - **Image Compression**: Pillow-based conversion to JPG (quality 88, interlaced/progressive, 4:2:2 chroma subsampling); supports JPG, PNG, BMP, TIFF, WebP, and HEIC input
+- **PPTX to Video**: Convert PowerPoint slideshows to MP4 (Windows + PowerPoint; feature-flagged, disables itself where unavailable)
 - **OCR Support**: Add searchable text layer to scanned PDFs using Tesseract
 - **Smart PDF Detection**: Automatically detects scanned vs generated PDFs
 - **Watch Mode**: Real-time directory monitoring with automatic file processing
 - **Service Mode**: Background service with system tray icon (Windows)
-- **Auto-Start**: Install as Windows service for automatic startup on boot
+- **Auto-Start**: Start automatically at login (no admin required)
 - **Batch Processing**: Process entire directories at once
 - **Binary Auto-Detection**: Automatically finds FFmpeg, Ghostscript, and Tesseract
 
@@ -256,6 +257,11 @@ sudo dnf install tesseract
 # Arch
 sudo pacman -S tesseract-ocr
 ```
+
+#### Microsoft PowerPoint (Windows only)
+**Purpose:** Convert PPTX slideshows to MP4 video (drives PowerPoint via COM automation)
+
+Only needed for PowerPoint files — no download here; PowerPoint must already be installed on the machine (e.g. via Microsoft 365). Where PowerPoint isn't available, the `pptx_to_video` feature disables itself automatically (see `[features]` under [Configuration](#configuration)), slideshow files are skipped, and `filesqueeze doctor` reports it.
 
 ---
 

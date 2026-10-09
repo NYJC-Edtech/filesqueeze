@@ -185,3 +185,12 @@ filesqueeze-autostart.ps1
 
 # Claude Code configuration (may contain env vars)
 .claude/settings.local.json
+
+# ZCode local settings
+.zcode/
+
+# Coverage report (JSON variant)
+coverage.json
+
+# Regression-test baselines (generated locally)
+test_baselines/
