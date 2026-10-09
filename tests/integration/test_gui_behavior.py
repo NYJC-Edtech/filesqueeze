@@ -42,14 +42,14 @@ class TestSingletonStatusWindow:
         # The singleton check MUST happen before creating a new window
         assert "_status_window" in on_show_status_source, "_on_show_status must check _status_window for singleton enforcement"
 
-        assert "is not None" in on_show_status_source or "_status_window" in on_show_status_source, (
-            "_on_show_status must check if _status_window already exists"
-        )
+        assert (
+            "is not None" in on_show_status_source or "_status_window" in on_show_status_source
+        ), "_on_show_status must check if _status_window already exists"
 
         # CRITICAL CHECK 2: Must return early if window exists
-        assert "return" in on_show_status_source, (
-            "_on_show_status must return early if window already exists (singleton enforcement)"
-        )
+        assert (
+            "return" in on_show_status_source
+        ), "_on_show_status must return early if window already exists (singleton enforcement)"
 
         # Verify the check happens at the BEGINNING (before thread creation)
         lines = on_show_status_source.split("\n")
@@ -194,9 +194,47 @@ class TestStatusWindowContent:
             assert hasattr(StatusWindow, section), f"StatusWindow should have {section} method for updating display"
 
         # Verify update_display exists (this is what refreshes all sections)
-        assert hasattr(StatusWindow, "update_display"), (
-            "StatusWindow must have update_display() method to refresh all sections"
-        )
+        assert hasattr(
+            StatusWindow, "update_display"
+        ), "StatusWindow must have update_display() method to refresh all sections"
+
+
+class TestTrayCompressMenuItem:
+    """Tests for the tray "Compress a File…" menu item (standalone mode entry).
+
+    CODE-LEVEL tests following the file's convention: verify the menu item
+    exists and is wired to the dialog-opening handler without instantiating
+    the tray (see issue #33 for the widget-level upgrade plan).
+    """
+
+    def test_tray_menu_contains_compress_item_wired_to_handler(self):
+        """The pystray menu must include "Compress a File…" bound to _on_compress_file."""
+        import inspect
+
+        from filesqueeze.tray import TrayService
+
+        start_source = inspect.getsource(TrayService.start)
+
+        assert "Compress a File…" in start_source, 'Tray menu must contain a "Compress a File…" item'
+        assert "_on_compress_file" in start_source, "Compress menu item must be wired to _on_compress_file"
+
+    def test_compress_handler_opens_dialog_with_singleton_pattern(self):
+        """The handler must open a CompressDialog with the status-window singleton pattern."""
+        import inspect
+
+        from filesqueeze.tray import TrayService
+
+        handler_source = inspect.getsource(TrayService._on_compress_file)
+        show_source = inspect.getsource(TrayService._show_compress_dialog)
+
+        # Singleton check before creating a new dialog
+        assert (
+            "_compress_dialog is not None" in handler_source
+        ), "_on_compress_file must check for an existing dialog (singleton enforcement)"
+        # Dialog opens off the tray thread
+        assert "threading.Thread" in handler_source, "_on_compress_file must not block the tray thread"
+        # The dialog actually created is the standalone CompressDialog
+        assert "CompressDialog" in show_source, "_show_compress_dialog must create a CompressDialog"
 
 
 if __name__ == "__main__":
