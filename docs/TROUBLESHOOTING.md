@@ -42,12 +42,14 @@ curl -sSL https://install.python-poetry.org | python3 -
 **Error:** `FFmpeg not found`
 
 **Solution:**
-1. Install FFmpeg (see [External Dependencies](README.md#external-dependencies))
+1. Install FFmpeg (see [External Dependencies](README.md#external-dependencies)) — a portable archive works; no installer needed
 2. Or set path in `filesqueeze.toml`:
 ```toml
 [ffmpeg]
 path = "C:/path/to/ffmpeg.exe"
 ```
+
+Keep `ffprobe.exe` in the same folder as `ffmpeg.exe` (it ships in every FFmpeg archive) — FileSqueeze uses it for video analysis.
 
 ### Ghostscript Not Found
 
