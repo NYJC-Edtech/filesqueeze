@@ -41,6 +41,7 @@ from .standalone import (
     predict_output_path,
     resolve_final_output_path,
 )
+from .update_check import RELEASES_PAGE_URL, UpdateInfo, check_for_updates
 
 STATE_SECTION = "gui"
 STATE_KEY = "last_compress_dir"
@@ -118,12 +119,23 @@ class CompressDialog:
 
     POLL_INTERVAL_MS = 200
 
-    def __init__(self, config: Config | None = None, initial_file: Path | str | None = None):
+    def __init__(
+        self,
+        config: Config | None = None,
+        initial_file: Path | str | None = None,
+        update_info: UpdateInfo | None = None,
+        check_updates: bool = False,
+    ):
         """Initialize the dialog.
 
         Args:
             config: Configuration providing quality settings and binary paths.
             initial_file: Optional file path to pre-select (e.g. from Send To).
+            update_info: Newer release already found by an update check (e.g. the
+                tray service's startup check); shows a banner with a download link.
+            check_updates: When True and no update_info is given, check GitHub in
+                the background and show the banner if a newer release exists.
+                Only enable in dialog-only launches — the tray checks on its own.
         """
         self.config = config or Config()
         self.logger = logging.getLogger(__name__)
@@ -133,6 +145,8 @@ class CompressDialog:
         self._started_at: float | None = None
         self._after_id: str | None = None
         self._last_result_dir: Path | None = None
+        self._update_info = update_info
+        self._update_check_done = not check_updates or update_info is not None
 
         # Create the window first so widgets can be attached
         self.root = tk.Tk()
@@ -147,6 +161,9 @@ class CompressDialog:
             self._file_var.set(str(initial_file))
             self._update_preview()
 
+        if check_updates and update_info is None:
+            self._start_update_check()
+
     # ------------------------------------------------------------------ UI
 
     def _create_widgets(self) -> None:
@@ -156,7 +173,13 @@ class CompressDialog:
         self.root.columnconfigure(0, weight=1)
         self.root.rowconfigure(0, weight=1)
         main.columnconfigure(0, weight=1)
-        main.rowconfigure(0, weight=1)
+        main.rowconfigure(1, weight=1)
+
+        # Update banner: not gridded until an update check reports a newer
+        # release; the stacked frames always occupy row 1 so a late banner
+        # never re-grids anything
+        self._update_banner = ttk.LabelFrame(main, text="Update available", padding="5")
+        self._update_banner.columnconfigure(0, weight=1)
 
         # Stacked state frames occupy the same grid cell; tkraise selects
         self._setup_frame = ttk.Frame(main)
@@ -164,7 +187,7 @@ class CompressDialog:
         self._result_frame = ttk.Frame(main)
         for frame in (self._setup_frame, self._progress_frame, self._result_frame):
             frame.columnconfigure(0, weight=1)
-            frame.grid(row=0, column=0, sticky="nsew")
+            frame.grid(row=1, column=0, sticky="nsew")
 
         self._build_setup_frame()
         self._build_progress_frame()
@@ -280,6 +303,62 @@ class CompressDialog:
     def _show_frame(self, frame: ttk.Frame) -> None:
         """Raise one of the stacked state frames."""
         frame.tkraise()
+
+    # ------------------------------------------------------- update notices
+
+    def _start_update_check(self) -> None:
+        """Check GitHub for a newer release on a background thread.
+
+        Dialog-only launches have no tray to check for them; the network call
+        happens off the Tk thread and the banner is shown from a poller that
+        runs on the Tk thread.
+        """
+
+        def _check() -> None:
+            try:
+                info = check_for_updates(self.config)
+            except Exception:
+                logger.debug("Update check failed", exc_info=True)
+                info = None
+            self._update_info = info
+            self._update_check_done = True
+
+        threading.Thread(target=_check, name="update-check", daemon=True).start()
+        self.root.after(500, self._poll_update_check)
+
+    def _poll_update_check(self) -> None:
+        """Show the update banner once the background check finishes (Tk thread)."""
+        if not self.root.winfo_exists():
+            return
+        if not self._update_check_done:
+            self.root.after(500, self._poll_update_check)
+            return
+        if self._update_info is not None:
+            self._show_update_banner()
+
+    def _show_update_banner(self) -> None:
+        """Populate and reveal the 'update available' banner."""
+        info = self._update_info
+        if info is None:
+            return
+
+        for child in self._update_banner.winfo_children():
+            child.destroy()
+        message = f"FileSqueeze v{info.latest_version} is available (installed: v{info.current_version})."
+        ttk.Label(self._update_banner, text=message, font=("Helvetica", 9, "bold"), foreground="#B8860B").grid(
+            row=0, column=0, sticky="w"
+        )
+        ttk.Button(self._update_banner, text="Download from GitHub", command=self._open_download_page).grid(
+            row=0, column=1, padx=(10, 0)
+        )
+        self._update_banner.grid(row=0, column=0, sticky="ew", pady=(0, 10))
+
+    def _open_download_page(self) -> None:
+        """Open the GitHub releases page in the default browser."""
+        import webbrowser
+
+        url = self._update_info.download_url if self._update_info else RELEASES_PAGE_URL
+        webbrowser.open(url)
 
     # ------------------------------------------------------------- actions
 
@@ -513,12 +592,17 @@ class CompressDialog:
         self._on_close()
 
 
-def run_compress_dialog(config: Config | None = None, initial_file: Path | str | None = None) -> None:
+def run_compress_dialog(
+    config: Config | None = None,
+    initial_file: Path | str | None = None,
+    check_updates: bool = True,
+) -> None:
     """Create and show a CompressDialog (blocks until the dialog closes).
 
     Args:
         config: Configuration providing quality settings and binary paths.
         initial_file: Optional file path to pre-select (e.g. from Send To).
+        check_updates: Check GitHub for a newer release while the dialog is open.
     """
-    dialog = CompressDialog(config=config, initial_file=initial_file)
+    dialog = CompressDialog(config=config, initial_file=initial_file, check_updates=check_updates)
     dialog.show()

@@ -48,6 +48,9 @@ class ConfigKeys:
     ARCHIVE_RETENTION_DAYS = "archive.retention_days"
     ARCHIVE_PATH = "archive.path"
 
+    # Update checks
+    UPDATES_CHECK_ON_STARTUP = "updates.check_on_startup"
+
 
 class FileExtensions:
     """File extension constants for type checking and validation."""
