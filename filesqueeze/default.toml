@@ -127,6 +127,11 @@ save_metadata = false
 # Status window refresh interval in milliseconds
 refresh_interval_ms = 2000
 
+[updates]
+# Check GitHub at startup for a newer release and notify in the tray/GUI.
+# FileSqueeze never downloads or installs anything on its own.
+check_on_startup = true
+
 [retention]
 # Enable automatic cleanup of old files
 enable_cleanup = true

@@ -14,6 +14,7 @@ Utility package for compressing videos, PDFs, and images using FFmpeg, Ghostscri
 - **Standalone Mode**: Compress a single file to a chosen destination via a dialog (`compress --gui`, tray menu, or right-click → Send To)
 - **Service Mode**: Background service with system tray icon (Windows)
 - **Auto-Start**: Start automatically at login (no admin required)
+- **Update Notifications**: Checks GitHub at startup for newer releases and notifies in the tray/GUI with a link to the download page (never downloads or installs anything on its own)
 - **Batch Processing**: Process entire directories at once
 - **Binary Auto-Detection**: Automatically finds FFmpeg, Ghostscript, and Tesseract
 
@@ -319,6 +320,10 @@ language = "eng"
 # see why a feature is unavailable.
 # Convert PPTX slideshows to MP4 video (requires Windows + PowerPoint)
 pptx_to_video = true
+
+[updates]
+# Check GitHub at startup for a newer release and notify in the tray/GUI
+check_on_startup = true
 
 [logging]
 # Log file location (tilde will be expanded)

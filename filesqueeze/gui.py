@@ -9,6 +9,7 @@ from pathlib import Path
 from tkinter import scrolledtext, ttk
 
 from .service import ServiceState, StateProvider
+from .update_check import RELEASES_PAGE_URL, UpdateInfo
 
 
 class StatusWindow:
@@ -27,18 +28,26 @@ class StatusWindow:
     ensuring loose coupling with the service implementation.
     """
 
-    def __init__(self, state_provider: StateProvider, refresh_interval: int | None = 2000):
+    def __init__(
+        self,
+        state_provider: StateProvider,
+        refresh_interval: int | None = 2000,
+        update_info: UpdateInfo | None = None,
+    ):
         """Initialize the status window.
 
         Args:
             state_provider: StateProvider instance for querying service state.
             refresh_interval: Auto-refresh interval in milliseconds (None for manual refresh only).
                              Default: 2000ms (2 seconds).
+            update_info: Newer release found by the startup update check, if any
+                        (shows a banner with a link to the download page).
         """
         self.state_provider = state_provider
         self.refresh_interval = refresh_interval
         self._auto_refresh_job = None
         self._logs_first_load = True  # Track first log load for auto-scroll
+        self._update_info = update_info
 
         # Cache config and log file path (avoid creating new Config every refresh)
         from .config import Config
@@ -68,21 +77,52 @@ class StatusWindow:
         self.root.columnconfigure(0, weight=1)
         self.root.rowconfigure(0, weight=1)
         main_frame.columnconfigure(0, weight=1)
-        main_frame.rowconfigure(1, weight=1)  # Tab control expands
+        main_frame.rowconfigure(2, weight=1)  # Tab control expands
 
         # Title
         title_label = ttk.Label(main_frame, text="FileSqueeze Service Status", font=("Helvetica", 14, "bold"))
         title_label.grid(row=0, column=0, pady=(0, 10))
 
+        # Update banner (only when the startup check found a newer release)
+        if self._update_info is not None:
+            banner = self._create_update_banner(main_frame, self._update_info)
+            banner.grid(row=1, column=0, sticky=(tk.W, tk.E), pady=(0, 10))  # type: ignore[arg-type]
+
         # Create notebook (tabs)
         self.notebook = ttk.Notebook(main_frame)
-        self.notebook.grid(row=1, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))  # type: ignore[arg-type]  # type: ignore[arg-type]
+        self.notebook.grid(row=2, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))  # type: ignore[arg-type]  # type: ignore[arg-type]
 
         # Create Status tab
         self._create_status_tab()
 
         # Create Logs tab
         self._create_logs_tab()
+
+    def _create_update_banner(self, parent: ttk.Frame, update_info: UpdateInfo):
+        """Build the 'new release available' banner shown under the title.
+
+        Args:
+            parent: Parent widget for the banner.
+            update_info: The newer release found by the update check.
+
+        Returns:
+            The banner frame (not yet gridded).
+        """
+        frame = ttk.LabelFrame(parent, text="Update available", padding="5")
+        frame.columnconfigure(0, weight=1)
+
+        message = f"FileSqueeze v{update_info.latest_version} is available (installed: v{update_info.current_version})."
+        ttk.Label(frame, text=message, font=("Helvetica", 9, "bold"), foreground="#B8860B").grid(row=0, column=0, sticky=tk.W)
+
+        ttk.Button(frame, text="Download from GitHub", command=self._open_download_page).grid(row=0, column=1, padx=(10, 0))
+        return frame
+
+    def _open_download_page(self) -> None:
+        """Open the GitHub releases page in the default browser."""
+        import webbrowser
+
+        url = self._update_info.download_url if self._update_info else RELEASES_PAGE_URL
+        webbrowser.open(url)
 
     def _create_status_tab(self):
         """Create the Status tab with service information."""

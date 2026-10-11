@@ -31,7 +31,8 @@ filesqueeze/
 ├── gui_compress.py      # Standalone "Compress a File" dialog (tkinter)
 ├── standalone.py        # Single-file compression logic (tkinter-free)
 ├── tray.py              # System tray service
-└── autostart.py         # Auto-startup configuration
+├── autostart.py         # Auto-startup configuration
+└── update_check.py      # GitHub release check for update notifications
 ```
 
 **Critical Rule**: `system/` must NEVER import from `ops/` (prevents circular dependencies).

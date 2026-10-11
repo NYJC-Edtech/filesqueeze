@@ -13,6 +13,7 @@ from PIL import Image, ImageDraw
 from .config import Config
 from .logger import setup_logging
 from .service import DirectoryWatcher
+from .update_check import RELEASES_PAGE_URL, UpdateInfo, check_for_updates
 
 # App User Model ID for Windows to recognize this app consistently
 APP_USER_MODEL_ID = "com.filesqueeze.app"
@@ -57,6 +58,7 @@ class TrayService:
         self._status_window = None  # Track the status window instance
         self._compress_dialog = None  # Track the standalone compress dialog instance
         self._mutex = None  # Windows named mutex for single-instance enforcement
+        self._update_info: UpdateInfo | None = None  # Newer release found at startup, if any
 
     def _ensure_single_instance(self):
         """Ensure only one FileSqueeze instance is running per mode.
@@ -263,7 +265,7 @@ class TrayService:
             # CRITICAL: Create and store the window BEFORE showing it
             # This ensures _status_window is set immediately for singleton enforcement
             # even though window.show() will block on mainloop()
-            self._status_window = StatusWindow(self.watcher, refresh_interval=refresh_interval)
+            self._status_window = StatusWindow(self.watcher, refresh_interval=refresh_interval, update_info=self._update_info)
             self._status_window.show()
 
             # After window closes, clear the reference so a new window can be opened
@@ -308,7 +310,7 @@ class TrayService:
 
             # Store the dialog BEFORE show() blocks on mainloop(), so the
             # singleton check works while the dialog is open
-            self._compress_dialog = CompressDialog(config=self.config)
+            self._compress_dialog = CompressDialog(config=self.config, update_info=self._update_info)
             self._compress_dialog.show()
 
             # After the dialog closes, allow a new one to be opened
@@ -317,6 +319,48 @@ class TrayService:
         except Exception as e:
             self.logger.error(f"Failed to show compress dialog: {e}", exc_info=True)
             self._compress_dialog = None
+
+    def _on_open_releases_page(self, icon: object = None, item: object = None):
+        """Handle 'update available' menu action - open the GitHub releases page.
+
+        Args:
+            icon: Tray icon instance.
+            item: Menu item instance.
+        """
+        import webbrowser
+
+        self.logger.info(f"Opening releases page: {RELEASES_PAGE_URL}")
+        webbrowser.open(RELEASES_PAGE_URL)
+
+    def _check_for_updates(self):
+        """Check GitHub for a newer release; runs on a background thread.
+
+        Never raises: on any failure the service simply runs without an
+        update notification. When a newer release is found, the result is
+        stored (surfacing the dynamic tray menu item and GUI banners) and a
+        tray notification is shown.
+        """
+        try:
+            info = check_for_updates(self.config)
+        except Exception as e:
+            self.logger.warning(f"Update check failed: {e}", exc_info=True)
+            return
+
+        if info is None:
+            self.logger.debug("No newer FileSqueeze release found (or update check disabled)")
+            return
+
+        self._update_info = info
+        self.logger.info(f"Update available: v{info.latest_version} (installed: v{info.current_version})")
+
+        try:
+            self.icon.notify(
+                f"FileSqueeze v{info.latest_version} is available (installed: v{info.current_version}). "
+                "Right-click the tray icon and choose the update entry to get it.",
+                title="FileSqueeze update available",
+            )
+        except Exception as e:
+            self.logger.warning(f"Could not show update notification: {e}", exc_info=True)
 
     def start(self) -> None:
         """Start the tray service."""
@@ -358,6 +402,14 @@ class TrayService:
             pystray.MenuItem("Compress a File…", self._on_compress_file),
             pystray.MenuItem("Open Input Folder", self._on_open_input),
             pystray.MenuItem("Open Output Folder", self._on_open_output),
+            # Hidden until the startup update check finds a newer release;
+            # pystray re-evaluates the dynamic text/visibility each time the
+            # menu is opened.
+            pystray.MenuItem(
+                lambda item: f"Update available: v{self._update_info.latest_version} — open download page",
+                self._on_open_releases_page,
+                visible=lambda item: self._update_info is not None,
+            ),
             pystray.Menu.SEPARATOR,
             pystray.MenuItem("Quit", self._on_quit),
         )
@@ -370,6 +422,11 @@ class TrayService:
 
         # Show a notification that the service has started
         self.icon.notify("FileSqueeze is running in the background. Look for the green 'FS' icon in your system tray.")
+
+        # Check GitHub for a newer release in the background; on success this
+        # stores _update_info (enabling the tray menu item) and notifies the user
+        update_thread = threading.Thread(target=self._check_for_updates, name="update-check", daemon=True)
+        update_thread.start()
 
         # Automatically open status window on startup
         # This provides immediate visual feedback to users that the service is running

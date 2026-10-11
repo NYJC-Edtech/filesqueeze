@@ -45,6 +45,7 @@ filesqueeze/
 ├── gui.py                     # GUI window
 ├── tray.py                    # System tray service
 ├── autostart.py               # Auto-startup configuration
+├── update_check.py            # GitHub release check (update notifications)
 ├── doctor.py                  # Diagnostic tool
 └── output.py                  # Output file organization
 ```

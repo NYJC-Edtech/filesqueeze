@@ -42,22 +42,14 @@ class TestSingletonStatusWindow:
         # The singleton check MUST happen before creating a new window
         assert "_status_window" in on_show_status_source, "_on_show_status must check _status_window for singleton enforcement"
 
-        assert (
-            "is not None" in on_show_status_source or "_status_window" in on_show_status_source
-        ), "_on_show_status must check if _status_window already exists"
+        assert "is not None" in on_show_status_source or "_status_window" in on_show_status_source, (
+            "_on_show_status must check if _status_window already exists"
+        )
 
         # CRITICAL CHECK 2: Must return early if window exists
-        assert (
-            "return" in on_show_status_source
-        ), "_on_show_status must return early if window already exists (singleton enforcement)"
-
-        # Verify the check happens at the BEGINNING (before thread creation)
-        lines = on_show_status_source.split("\n")
-        check_line = None
-        for i, line in enumerate(lines):
-            if "_status_window" in line and ("is not None" in line or "if" in line):
-                check_line = i
-                break
+        assert "return" in on_show_status_source, (
+            "_on_show_status must return early if window already exists (singleton enforcement)"
+        )
 
         # CRITICAL CHECK 3: _show_status_window MUST store the window in self._status_window
         # This is essential for the singleton check to work on subsequent calls
@@ -173,16 +165,7 @@ class TestStatusWindowContent:
 
         Required sections: State, Uptime, Statistics, Directories, Processing
         """
-        import inspect
-
         from filesqueeze.gui import StatusWindow
-
-        # Get all methods that update display
-        update_methods = [
-            name
-            for name, method in inspect.getmembers(StatusWindow, predicate=inspect.ismethod)
-            if "update" in name.lower() or name.startswith("_")
-        ]
 
         # Verify key update methods exist
         # The PRD specifies these sections should be displayed
@@ -194,9 +177,9 @@ class TestStatusWindowContent:
             assert hasattr(StatusWindow, section), f"StatusWindow should have {section} method for updating display"
 
         # Verify update_display exists (this is what refreshes all sections)
-        assert hasattr(
-            StatusWindow, "update_display"
-        ), "StatusWindow must have update_display() method to refresh all sections"
+        assert hasattr(StatusWindow, "update_display"), (
+            "StatusWindow must have update_display() method to refresh all sections"
+        )
 
 
 class TestTrayCompressMenuItem:
@@ -228,13 +211,105 @@ class TestTrayCompressMenuItem:
         show_source = inspect.getsource(TrayService._show_compress_dialog)
 
         # Singleton check before creating a new dialog
-        assert (
-            "_compress_dialog is not None" in handler_source
-        ), "_on_compress_file must check for an existing dialog (singleton enforcement)"
+        assert "_compress_dialog is not None" in handler_source, (
+            "_on_compress_file must check for an existing dialog (singleton enforcement)"
+        )
         # Dialog opens off the tray thread
         assert "threading.Thread" in handler_source, "_on_compress_file must not block the tray thread"
         # The dialog actually created is the standalone CompressDialog
         assert "CompressDialog" in show_source, "_show_compress_dialog must create a CompressDialog"
+
+
+class TestTrayUpdateMenuItem:
+    """Tests for the update-available tray flow (version check, v0.9.2).
+
+    CODE-LEVEL tests following the file's convention: the startup check must
+    run off the tray thread, surface a menu item only when a newer release was
+    found, and hand the result to both windows so their banners can render.
+    """
+
+    def test_tray_menu_contains_update_item_wired_to_releases_page(self):
+        """The pystray menu must include an update entry bound to _on_open_releases_page."""
+        import inspect
+
+        from filesqueeze.tray import TrayService
+
+        start_source = inspect.getsource(TrayService.start)
+
+        assert "Update available" in start_source, "Tray menu must contain an update-available item"
+        assert "_on_open_releases_page" in start_source, "Update menu item must be wired to _on_open_releases_page"
+        assert "visible=" in start_source, "Update menu item must be hidden until an update is found"
+
+    def test_startup_check_runs_on_background_thread_and_notifies(self):
+        """The version check must not block tray startup and must notify on a find."""
+        import inspect
+
+        from filesqueeze.tray import TrayService
+
+        start_source = inspect.getsource(TrayService.start)
+        check_source = inspect.getsource(TrayService._check_for_updates)
+
+        assert "threading.Thread" in start_source, "Update check must run on a background thread"
+        assert "check_for_updates" in check_source, "_check_for_updates must call the update checker"
+        assert "self._update_info" in check_source, "_check_for_updates must store the result for menu/banners"
+        assert "notify" in check_source, "_check_for_updates must show a tray notification when an update exists"
+
+    def test_releases_handler_opens_browser_to_download_page(self):
+        """The handler must open the GitHub releases page in a browser."""
+        import inspect
+
+        from filesqueeze.tray import TrayService
+
+        source = inspect.getsource(TrayService._on_open_releases_page)
+        assert "webbrowser.open" in source, "_on_open_releases_page must open a browser"
+        assert "RELEASES_PAGE_URL" in source, "_on_open_releases_page must use the GitHub releases page URL"
+
+    def test_windows_created_by_tray_receive_update_info(self):
+        """StatusWindow and CompressDialog opened from the tray get the check result."""
+        import inspect
+
+        from filesqueeze.tray import TrayService
+
+        assert "update_info=self._update_info" in inspect.getsource(TrayService._show_status_window), (
+            "StatusWindow must receive the update check result"
+        )
+        assert "update_info=self._update_info" in inspect.getsource(TrayService._show_compress_dialog), (
+            "CompressDialog must receive the update check result"
+        )
+
+
+class TestUpdateBanner:
+    """Tests for the in-window update banners (v0.9.2).
+
+    CODE-LEVEL tests: both windows must render a banner with a download-page
+    link when given an UpdateInfo; the dialog must also support self-checking.
+    """
+
+    def test_status_window_renders_banner_with_download_link(self):
+        import inspect
+
+        from filesqueeze.gui import StatusWindow
+
+        widgets_source = inspect.getsource(StatusWindow._create_widgets)
+        banner_source = inspect.getsource(StatusWindow._create_update_banner)
+
+        assert "_create_update_banner" in widgets_source, "StatusWindow must integrate the update banner"
+        assert "UpdateInfo" in inspect.getsource(StatusWindow.__init__), "StatusWindow must accept an UpdateInfo"
+        assert "Download from GitHub" in banner_source, "Banner must offer a download link"
+        assert "_open_download_page" in banner_source, "Download link must be wired to _open_download_page"
+
+    def test_compress_dialog_can_self_check_and_show_banner(self):
+        import inspect
+
+        from filesqueeze.gui_compress import CompressDialog
+
+        init_source = inspect.getsource(CompressDialog.__init__)
+        banner_source = inspect.getsource(CompressDialog._show_update_banner)
+
+        assert "check_updates" in init_source, "CompressDialog must support self-checking for dialog-only launches"
+        assert "_start_update_check" in init_source, "Self-check must be started from __init__"
+        assert "Download from GitHub" in banner_source, "Banner must offer a download link"
+        assert "_open_download_page" in banner_source, "Download link must be wired to _open_download_page"
 
 
 if __name__ == "__main__":
