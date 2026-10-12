@@ -112,7 +112,10 @@ class UpdateBanner(ttk.LabelFrame):
         for child in self.winfo_children():
             child.destroy()
 
-        message = f"FileSqueeze v{update_info.latest_version} is available (installed: v{update_info.current_version})."
+        message = (
+            f"FileSqueeze v{normalize_version(update_info.latest_version)} "
+            f"is available (installed: v{update_info.current_version})."
+        )
         ttk.Label(self, text=message, font=("Helvetica", 9, "bold"), foreground=_COLOR_AVAILABLE).grid(
             row=0, column=0, sticky="w"
         )
@@ -443,7 +446,9 @@ class AboutTab(ttk.Frame):
 
         status, info = result
         if status == MANUAL_CHECK_UPDATE_AVAILABLE and info is not None:
-            self._check_result_label.config(text=f"Update found: v{info.latest_version}", foreground=_COLOR_AVAILABLE)
+            self._check_result_label.config(
+                text=f"Update found: v{normalize_version(info.latest_version)}", foreground=_COLOR_AVAILABLE
+            )
             self.set_update_info(info)
             if self._on_update_found is not None:
                 try:

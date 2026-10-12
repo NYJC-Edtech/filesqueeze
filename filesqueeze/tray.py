@@ -22,7 +22,7 @@ from .update_check import (
     get_current_version,
     run_manual_check,
 )
-from .updater import UpdateController, consume_update_status
+from .updater import UpdateController, consume_update_status, normalize_version
 
 # App User Model ID for Windows to recognize this app consistently
 APP_USER_MODEL_ID = "com.filesqueeze.app"
@@ -357,7 +357,9 @@ class TrayService:
         """Dynamic tray menu label for the update item (re-evaluated on menu open)."""
         if self._update_info is None:
             return "Update"
-        version = self._update_info.latest_version
+        # latest_version carries the raw GitHub tag ("v0.9.3") — normalize so
+        # the literal "v" below doesn't render "vv0.9.3" (issue #42)
+        version = normalize_version(self._update_info.latest_version)
         if self._update_controller.running:
             percent = self._update_controller.snapshot().percent
             if percent is not None:
@@ -379,7 +381,7 @@ class TrayService:
             self.icon.notify(self._update_controller.snapshot().message or "Update in progress…", title="FileSqueeze update")
             return
 
-        version = self._update_info.latest_version
+        version = normalize_version(self._update_info.latest_version)
         started = self._update_controller.start(self._update_info, restart=True, on_applied=self._quit_for_update)
         if started:
             self.logger.info(f"Update to v{version} requested from tray menu")
@@ -446,7 +448,7 @@ class TrayService:
         Safe to call from any thread: it only assigns an attribute and logs.
         """
         self._update_info = info
-        self.logger.info(f"Update available: v{info.latest_version} (installed: v{info.current_version})")
+        self.logger.info(f"Update available: v{normalize_version(info.latest_version)} (installed: v{info.current_version})")
 
     def _on_check_for_updates_now(self, icon: object = None, item: object = None):
         """Handle 'Check for updates' - run a fresh (uncached) check off the menu thread.
@@ -472,9 +474,10 @@ class TrayService:
             status, info = run_manual_check(self.config)
             if status == MANUAL_CHECK_UPDATE_AVAILABLE and info is not None:
                 self._on_update_found(info)
+                latest = normalize_version(info.latest_version)
                 message = (
-                    f"FileSqueeze v{info.latest_version} is available (installed: v{info.current_version}). "
-                    f"Choose 'Update to v{info.latest_version} now' to install it."
+                    f"FileSqueeze v{latest} is available (installed: v{info.current_version}). "
+                    f"Choose 'Update to v{latest} now' to install it."
                 )
             elif status == MANUAL_CHECK_UP_TO_DATE:
                 current = get_current_version()
@@ -558,7 +561,7 @@ class TrayService:
 
         try:
             self.icon.notify(
-                f"FileSqueeze v{info.latest_version} is available (installed: v{info.current_version}). "
+                f"FileSqueeze v{normalize_version(info.latest_version)} is available (installed: v{info.current_version}). "
                 "Right-click the tray icon and choose 'Update now' to install it.",
                 title="FileSqueeze update available",
             )

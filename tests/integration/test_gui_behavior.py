@@ -412,6 +412,141 @@ class TestTrayUpdateMenuItem:
         assert "on_update_applied=self._quit_for_update" in dialog_source, "CompressDialog updates must quit so pip can run"
 
 
+def _bare_tray_service(update_info, controller=None):
+    """A TrayService with only the update state set, skipping TrayService.__init__.
+
+    __init__ starts watchers and grabs the Windows single-instance mutex —
+    none of that is needed to exercise the update display paths. The icon is
+    a Mock so tray notifications can be captured.
+    """
+    import logging
+    from unittest.mock import Mock
+
+    from filesqueeze.tray import TrayService
+
+    service = TrayService.__new__(TrayService)
+    service._update_info = update_info
+    service._update_controller = controller
+    service._manual_check_running = False
+    service._update_waiting_dialog = None
+    service.config = None  # update checks are monkeypatched; None never touches the network
+    service.logger = logging.getLogger("filesqueeze.tray")
+    service.icon = Mock()
+    return service
+
+
+class TestUpdateStringFormatting:
+    """Regression tests for issue #42: update strings must never render "vv0.9.x".
+
+    UpdateInfo.latest_version carries the raw GitHub tag ("v0.9.3"); every
+    user-visible string that prefixes a literal "v" must normalize the tag
+    first. Unlike the source-inspection tests elsewhere in this file, these
+    run the real formatting code against a "v"-tagged UpdateInfo and assert
+    on the produced strings.
+    """
+
+    @staticmethod
+    def _found_update():
+        from filesqueeze.update_check import UpdateInfo
+
+        return UpdateInfo(
+            current_version="0.9.2",
+            latest_version="v0.9.3",
+            download_url="https://example.com/releases",
+            wheel_url="https://example.com/filesqueeze-0.9.3-py3-none-any.whl",
+        )
+
+    def test_tray_menu_text_names_the_update_with_a_single_v(self):
+        """'Update to vv0.9.3 now' must be 'Update to v0.9.3 now'."""
+        from filesqueeze.updater import UpdateController
+
+        service = _bare_tray_service(self._found_update(), UpdateController())
+        text = service._update_menu_text()
+        assert text == "Update to v0.9.3 now"
+        assert "vv" not in text
+
+    def test_tray_menu_text_while_running_shows_progress_with_a_single_v(self):
+        """'Updating to vv0.9.3… 42%' must be 'Updating to v0.9.3… 42%'."""
+        from unittest.mock import Mock
+
+        from filesqueeze.updater import PHASE_DOWNLOADING, UpdateProgress
+
+        controller = Mock()
+        controller.running = True
+        controller.snapshot.return_value = UpdateProgress(phase=PHASE_DOWNLOADING, downloaded=42, total=100)
+        service = _bare_tray_service(self._found_update(), controller)
+        text = service._update_menu_text()
+        assert text == "Updating to v0.9.3… 42%"
+        assert "vv" not in text
+
+    def test_update_found_log_has_a_single_v(self, caplog):
+        """The startup check's log line must read 'v0.9.3', not 'vv0.9.3'."""
+        import logging
+
+        service = _bare_tray_service(None)
+        with caplog.at_level(logging.INFO, logger="filesqueeze.tray"):
+            service._on_update_found(self._found_update())
+        assert "Update available: v0.9.3 (installed: v0.9.2)" in caplog.text
+        assert "vv" not in caplog.text
+
+    def test_startup_check_notification_has_a_single_v(self, monkeypatch):
+        """The 'update available' balloon must read 'v0.9.3', not 'vv0.9.3'."""
+        import filesqueeze.tray as tray_module
+
+        monkeypatch.setattr(tray_module, "check_for_updates", lambda config: self._found_update())
+        service = _bare_tray_service(None)
+        service._check_for_updates()
+        message = service.icon.notify.call_args[0][0]
+        assert "FileSqueeze v0.9.3 is available (installed: v0.9.2)" in message
+        assert "vv" not in message
+
+    def test_manual_check_notification_has_a_single_v(self, monkeypatch):
+        """The manual check's balloon must read 'v0.9.3', not 'vv0.9.3'."""
+        import filesqueeze.tray as tray_module
+        from filesqueeze.update_check import MANUAL_CHECK_UPDATE_AVAILABLE
+
+        monkeypatch.setattr(
+            tray_module, "run_manual_check", lambda config: (MANUAL_CHECK_UPDATE_AVAILABLE, self._found_update())
+        )
+        service = _bare_tray_service(None)
+        service._run_manual_check()
+        message = service.icon.notify.call_args[0][0]
+        assert "FileSqueeze v0.9.3 is available" in message
+        assert "Update to v0.9.3 now" in message
+        assert "vv" not in message
+
+    def test_update_now_download_notice_has_a_single_v(self):
+        """'Updating FileSqueeze' balloon must read 'Downloading FileSqueeze v0.9.3…'."""
+        from unittest.mock import Mock
+
+        controller = Mock()
+        controller.running = False
+        controller.start.return_value = True
+        service = _bare_tray_service(self._found_update(), controller)
+        service._on_update_now()
+        message = service.icon.notify.call_args[0][0]
+        assert "Downloading FileSqueeze v0.9.3…" in message
+        assert "vv" not in message
+
+    def test_no_ui_module_interpolates_the_raw_tag_after_a_literal_v(self):
+        """Source guard: a literal 'v' may only be followed by a normalized tag.
+
+        Catches the banner/About label paths that need a real display to run
+        (widget tests are deferred, issue #33): any f-string interpolating
+        latest_version right after a literal 'v' must wrap it in
+        normalize_version().
+        """
+        import inspect
+        import re
+
+        from filesqueeze import gui, gui_compress, tray, update_banner
+
+        pattern = re.compile(r"v\{(?![^}]*normalize_version)[^}]*latest_version")
+        for module in (tray, update_banner, gui, gui_compress):
+            matches = pattern.findall(inspect.getsource(module))
+            assert not matches, f"{module.__name__} renders the raw tag after a literal 'v' (issue #42): {matches}"
+
+
 class TestUpdateBanner:
     """Tests for the update UI widgets.
 
