@@ -263,14 +263,53 @@ class TestTrayUpdateMenuItem:
         assert "restart=True" in source, "Service-mode update must relaunch FileSqueeze"
         assert "_quit_for_update" in source, "The quit hook must be passed as on_applied"
 
-    def test_update_now_defers_while_a_compression_runs(self):
-        """Quitting mid-compression would drop the user's file; the tray must refuse."""
+    def test_update_controller_is_wired_to_the_task_gate(self):
+        """The handoff must be gated on running tasks and pop the waiting notice."""
+        import inspect
+
+        from filesqueeze.tray import TrayService
+
+        source = inspect.getsource(TrayService.__init__)
+        assert "wait_for_tasks=self._has_running_tasks" in source, "Controller must gate on the tray's task check"
+        assert "on_waiting=self._on_update_waiting" in source, "Entering the wait must trigger the buttonless notice"
+
+    def test_task_gate_covers_dialog_compressions_and_watched_files(self):
+        """Both task sources block the update: dialog worker and watcher processing."""
+        import inspect
+
+        from filesqueeze.tray import TrayService
+
+        source = inspect.getsource(TrayService._has_running_tasks)
+        assert "is_compressing" in source, "A running dialog compression is a task"
+        assert "processing_files" in source, "A watched file mid-processing is a task"
+
+    def test_update_now_does_not_refuse_when_tasks_are_running(self):
+        """Deferral replaced the old refusal: no task check in the click handler itself.
+
+        With the task gate in the controller, "Update now" is always accepted;
+        the checklist's buttonless notice informs the user of the deferred quit
+        instead of a refusal notification.
+        """
         import inspect
 
         from filesqueeze.tray import TrayService
 
         source = inspect.getsource(TrayService._on_update_now)
-        assert "is_compressing" in source, "Tray update must check the compress dialog's in-flight state"
+        assert "is_compressing" not in source, "Refusal moved to the controller task gate"
+
+    def test_startup_reports_the_previous_update_outcome(self):
+        """A failed/aborted update must reach the user, not just the log file."""
+        import inspect
+
+        from filesqueeze.tray import TrayService
+
+        check_source = inspect.getsource(TrayService._check_for_updates)
+        assert "_notify_last_update_outcome" in check_source, "Startup must consume the updater's status marker"
+
+        outcome_source = inspect.getsource(TrayService._notify_last_update_outcome)
+        assert "consume_update_status" in outcome_source, "Outcome must come from the updater's marker file"
+        assert "update failed" in outcome_source, "A failed install must be surfaced as a failure"
+        assert "notify" in outcome_source, "The outcome must be surfaced as a tray notification"
 
     def test_quit_for_update_stops_the_service(self):
         """The quit hook must stop the service so the detached updater can act."""
@@ -374,57 +413,84 @@ class TestTrayUpdateMenuItem:
 
 
 class TestUpdateBanner:
-    """Tests for the in-window update banners.
+    """Tests for the update UI widgets.
 
-    CODE-LEVEL tests: both windows must render the shared UpdateBanner, the
-    banner must offer a one-click update plus a releases-page fallback, and
-    the dialog-only path must install without quitting the app.
+    CODE-LEVEL tests: the Status window's About tab carries versions, the
+    manual check and the greyed-until-found Update Now button; the Compress
+    dialog keeps the shared UpdateBanner; both drive the shared controller.
     """
 
-    def test_status_window_renders_shared_update_banner(self):
+    def test_status_window_has_about_tab_with_the_update_ui(self):
+        """The Status window must have an About tab wired to the shared update machinery."""
         import inspect
 
         from filesqueeze.gui import StatusWindow
 
         widgets_source = inspect.getsource(StatusWindow._create_widgets)
-        banner_source = inspect.getsource(StatusWindow._show_update_banner)
+        about_source = inspect.getsource(StatusWindow._create_about_tab)
 
-        assert "_show_update_banner" in widgets_source, "StatusWindow must integrate the update banner"
-        assert "UpdateBanner(" in banner_source, "StatusWindow must render the shared UpdateBanner"
-        assert "UpdateInfo" in inspect.getsource(StatusWindow.__init__), "StatusWindow must accept an UpdateInfo"
+        assert "_create_about_tab" in widgets_source, "StatusWindow must build the About tab"
+        assert "About" in about_source, "The third notebook tab must be titled 'About'"
+        assert "AboutTab(" in about_source, "The About tab must render the shared AboutTab widget"
+        assert "update_info=self._update_info" in about_source, "Startup-found updates must reach the About tab"
+        assert "self._update_controller" in about_source, "About tab must share the update controller"
+        assert "on_update_applied=self._on_update_applied" in about_source, "About-tab updates must quit so pip can run"
+        assert "restart=self._on_update_applied is not None" in about_source, (
+            "Restart must be decided exactly like the pre-About banner did"
+        )
 
-    def test_status_window_has_manual_check_button(self):
-        """The Status window must offer a 'Check for updates' button on the Tk thread."""
+    def test_about_tab_owns_the_manual_check(self):
+        """The 'Check for updates' button moved to the About tab (out of the header)."""
         import inspect
 
         from filesqueeze.gui import StatusWindow
+        from filesqueeze.update_banner import AboutTab
 
         widgets_source = inspect.getsource(StatusWindow._create_widgets)
-        handler_source = inspect.getsource(StatusWindow._on_check_updates)
-        poll_source = inspect.getsource(StatusWindow._poll_manual_check)
+        check_source = inspect.getsource(AboutTab._on_check_updates)
+        poll_source = inspect.getsource(AboutTab._poll_manual_check)
 
-        assert "Check for updates" in widgets_source, "StatusWindow must have a 'Check for updates' button"
-        assert "_on_check_updates" in widgets_source, "Check button must be wired to its handler"
-        assert "threading.Thread" in handler_source, "The check must run off the Tk thread"
-        assert "run_manual_check" in handler_source, "The check must use the fresh-check helper"
-        assert "_show_update_banner" in poll_source, "A found update must render the banner from the poll"
+        assert "Check for updates" not in widgets_source, "The check button must NOT sit in the window header anymore"
+        assert "Check for updates" in inspect.getsource(AboutTab._build_widgets), "The button lives on the About tab"
+        assert "_on_check_updates" in inspect.getsource(AboutTab._build_widgets), "Check button must be wired to its handler"
+        assert "threading.Thread" in check_source, "The check must run off the Tk thread"
+        assert "run_manual_check" in check_source, "The check must use the fresh-check helper"
+        assert "set_update_info" in poll_source, "A found update must fill the About tab from the poll"
+        assert "_on_update_found" in poll_source, "A found update must arm the tray's menu item"
         assert "winfo_exists" in poll_source, "The poll must stop once the window is gone"
 
-    def test_status_window_late_banner_renders_after_manual_check(self):
-        """A manual check finding an update must show the banner in the already-built window."""
+    def test_about_tab_shows_versions_link_and_greyed_update_now(self):
+        """About tab: current version, latest version + link when found, Update Now greyed until then."""
+        import inspect
+
+        from filesqueeze.update_banner import AboutTab
+
+        build_source = inspect.getsource(AboutTab._build_widgets)
+        render_source = inspect.getsource(AboutTab._render_update_state)
+
+        assert "Current version: v" in build_source, "The tab must display the running version"
+        assert "Latest version: v" in render_source, "A found update must show the latest version"
+        assert "Release notes on GitHub" in build_source, "The GitHub releases-page link must be present"
+        assert "Update Now" in build_source, "The tab must offer the one-click update"
+        assert '"disabled"' in render_source, "Update Now must start disabled/greyed out"
+        assert '"!disabled"' in render_source, "Update Now must enable once a newer release is found"
+        assert "can_self_update" in render_source, "Update Now must stay greyed when the install can't self-update"
+        assert "Progressbar" in build_source, "Download progress must render on the tab"
+
+    def test_manual_check_fills_the_about_tab_and_arms_the_tray(self):
+        """A manual check finding an update must fill the already-built About tab."""
         import inspect
 
         from filesqueeze.gui import StatusWindow
+        from filesqueeze.update_banner import AboutTab
 
-        banner_source = inspect.getsource(StatusWindow._show_update_banner)
-
-        assert "UpdateBanner(" in banner_source, "_show_update_banner must create the shared banner"
-        assert "on_update_applied=self._on_update_applied" in banner_source, (
-            "Late banners must quit on update, same as startup banners"
+        about_source = inspect.getsource(StatusWindow._create_about_tab)
+        assert "on_update_found=self._on_update_found" in about_source, (
+            "Manual-check finds must be reported to the tray (menu item arming)"
         )
-        assert "restart=self._on_update_applied is not None" in banner_source, (
-            "Late banners must decide restart the same way as startup banners"
-        )
+        assert "set_update_info" in inspect.getsource(AboutTab.set_update_info) or "set_update_info" in (
+            inspect.getsource(AboutTab._poll_manual_check)
+        ), "The tab must update in place via set_update_info"
 
     def test_compress_dialog_can_self_check_and_show_banner(self):
         import inspect
@@ -454,24 +520,24 @@ class TestUpdateBanner:
         assert "Cancel" in build_source, "Download must be cancellable"
         assert "PHASE_DOWNLOADING" in render_source, "Banner must react to update phases"
 
-    def test_dialog_defers_restart_while_compressing(self):
-        """The dialog's restart decision must be made at click time, not construction.
+    def test_dialog_updates_are_gated_by_the_controller_not_refused(self):
+        """Deferral lives in the controller's task gate, not a dialog-side decider.
 
-        A compression may start after the banner is built; quitting then would
-        drop the user's file, so the banner consults a decider on each click.
+        The dialog banner always offers "Update now"; while a compression
+        runs, the tray's gate holds the quit (with the buttonless notice)
+        instead of the dialog refusing the click.
         """
         import inspect
 
         from filesqueeze.gui_compress import CompressDialog
 
         widgets_source = inspect.getsource(CompressDialog._create_widgets)
-        refusal_source = inspect.getsource(CompressDialog._update_restart_refusal)
 
-        assert "restart_decider=" in widgets_source, "Dialog must gate restart via the banner's click-time decider"
-        assert "is_compressing" in refusal_source, "The decider must refuse while a compression is running"
+        assert "restart_decider" not in widgets_source, "The click-time decider was replaced by the controller task gate"
+        assert "on_update_applied=self._on_update_applied" in widgets_source, "Dialog updates must quit via the tray hook"
 
-        # And the tray/other surfaces can consult the same state directly
-        assert isinstance(CompressDialog.is_compressing, property), "Dialog must expose is_compressing for the tray guard"
+        # The tray's task gate still reads the dialog's in-flight state
+        assert isinstance(CompressDialog.is_compressing, property), "Dialog must expose is_compressing for the task gate"
 
     def test_banner_polls_controller_on_the_tk_thread(self):
         """State must be polled via after(); the controller thread never touches widgets."""
@@ -483,15 +549,31 @@ class TestUpdateBanner:
         assert ".after(" in poll_source, "Banner updates must be scheduled on the Tk thread"
         assert "snapshot()" in poll_source, "Banner must read the controller's pollable state"
 
-    def test_banner_restart_decision_goes_through_the_decider(self):
-        """The decider runs on click; a refusal shows its reason instead of starting."""
+    def test_banner_shows_the_waiting_phase_as_cancellable(self):
+        """While tasks hold the handoff, the banner shows the wait and lets the user cancel."""
         import inspect
 
         from filesqueeze.update_banner import UpdateBanner
 
-        source = inspect.getsource(UpdateBanner._on_update_now)
-        assert "_restart_decider" in source, "Update now must honor the click-time restart decision"
-        assert "refusal" in source, "A refusal reason must be surfaced in the banner"
+        render_source = inspect.getsource(UpdateBanner._render)
+        assert "PHASE_WAITING" in render_source, "Banner must render the waiting-for-tasks phase"
+        waiting_block = render_source.split("PHASE_WAITING")[1].split("elif")[0]
+        assert "Cancel" in waiting_block or "cancel" in waiting_block, "Waiting must stay cancellable"
+
+    def test_waiting_notice_is_buttonless_and_self_closing(self):
+        """The checklist's buttonless dialog: information only, closes itself."""
+        import inspect
+
+        from filesqueeze.update_banner import UpdateWaitingDialog
+
+        class_source = inspect.getsource(UpdateWaitingDialog)
+        assert "ttk.Button" not in class_source, "The waiting notice must be buttonless"
+        assert "after all tasks complete" in class_source, "Notice must say the app will close and update"
+        assert "-topmost" in class_source, "Notice must be visible while other windows are in use"
+
+        poll_source = inspect.getsource(UpdateWaitingDialog._poll)
+        assert "snapshot()" in poll_source, "Notice must watch the shared controller"
+        assert "destroy" in poll_source, "Notice must close itself once the update leaves waiting"
 
 
 if __name__ == "__main__":

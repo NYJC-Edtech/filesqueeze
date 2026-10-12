@@ -33,6 +33,7 @@ import subprocess
 import sys
 import tempfile
 import threading
+import time
 import urllib.error
 import urllib.request
 import zipfile
@@ -54,11 +55,15 @@ _DOWNLOAD_TIMEOUT_SECONDS = 30.0
 # launches) installs whenever the user closes the dialog, so leave a
 # generous window before giving up and leaving the install untouched.
 _UPDATER_PARENT_TIMEOUT_SECONDS = 600
+# How often the controller re-checks "are tasks still running" while waiting
+# for a safe moment to hand off the update
+_TASK_POLL_SECONDS = 1.0
 
 # Update flow phases, surfaced through UpdateController.snapshot()
 PHASE_IDLE = "idle"
 PHASE_DOWNLOADING = "downloading"
 PHASE_VERIFYING = "verifying"
+PHASE_WAITING = "waiting"
 PHASE_INSTALLING = "installing"
 PHASE_DONE = "done"
 PHASE_FAILED = "failed"
@@ -228,13 +233,25 @@ def download_wheel(
 # @PARENT_TIMEOUT@ is replaced with the timeout constant at import time
 # (.format() is not usable here — the script is full of literal braces).
 _UPDATER_SCRIPT_TEMPLATE = """\
-import json, os, subprocess, sys, time
+import json, os, shutil, subprocess, sys, sysconfig, tempfile, time
 
 DETACHED_FLAGS = 0x00000008 | 0x00000200 if os.name == "nt" else 0  # DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP
 
 
 def log(message):
     print(f"[filesqueeze-updater] {message}", flush=True)
+
+
+def write_status(status_file, payload):
+    # Record the apply outcome so the next FileSqueeze start can inform the user.
+    if not status_file:
+        return
+    try:
+        with open(status_file, "w", encoding="utf-8") as handle:
+            json.dump(payload, handle)
+        log(f"recorded update outcome: {payload.get('status')}")
+    except OSError as error:
+        log(f"could not write update status: {error}")
 
 
 def parent_has_exited(pid, timeout_seconds):
@@ -265,14 +282,91 @@ def parent_has_exited(pid, timeout_seconds):
     return False
 
 
+def installed_version():
+    probe = subprocess.run(
+        [sys.executable, "-c", "from importlib.metadata import version; print(version('filesqueeze'))"],
+        capture_output=True,
+        text=True,
+    )
+    if probe.returncode != 0:
+        return None
+    return probe.stdout.strip().lower().removeprefix("v") or None
+
+
+def backup_installation():
+    # Copy the installed package aside so a failed pip can be rolled back.
+    # FileSqueeze is pure Python (no compiled extensions), so the package dir,
+    # its dist-info and the Scripts/ launchers are all plain files.
+    backup = os.path.join(tempfile.gettempdir(), "filesqueeze-update-backup")
+    shutil.rmtree(backup, ignore_errors=True)
+    os.makedirs(backup, exist_ok=True)
+    purelib = sysconfig.get_path("purelib")
+    scripts = sysconfig.get_path("scripts")
+    package = os.path.join(purelib, "filesqueeze")
+    if os.path.isdir(package):
+        shutil.copytree(package, os.path.join(backup, "filesqueeze"))
+    for name in os.listdir(purelib):
+        if name.startswith("filesqueeze-") and name.endswith(".dist-info"):
+            shutil.copytree(os.path.join(purelib, name), os.path.join(backup, name))
+    if os.path.isdir(scripts):
+        for name in os.listdir(scripts):
+            source = os.path.join(scripts, name)
+            if name.lower().startswith("filesqueeze") and os.path.isfile(source):
+                shutil.copy2(source, os.path.join(backup, name))
+    log(f"backed up current installation to {backup}")
+    return backup
+
+
+def restore_installation(backup):
+    # Best-effort rollback: clear the broken install, put the backup back.
+    if not os.path.isdir(backup):
+        log("no backup available; cannot restore the previous version")
+        return False
+    purelib = sysconfig.get_path("purelib")
+    scripts = sysconfig.get_path("scripts")
+    subprocess.run([sys.executable, "-m", "pip", "uninstall", "-y", "filesqueeze"], capture_output=True, text=True)
+    shutil.rmtree(os.path.join(purelib, "filesqueeze"), ignore_errors=True)
+    for name in os.listdir(purelib):
+        if name.startswith("filesqueeze-") and name.endswith(".dist-info"):
+            shutil.rmtree(os.path.join(purelib, name), ignore_errors=True)
+    if os.path.isdir(scripts):
+        for name in os.listdir(scripts):
+            if name.lower().startswith("filesqueeze"):
+                try:
+                    os.remove(os.path.join(scripts, name))
+                except OSError:
+                    pass
+    for name in os.listdir(backup):
+        source = os.path.join(backup, name)
+        is_package = name == "filesqueeze" or (name.startswith("filesqueeze-") and name.endswith(".dist-info"))
+        destination = os.path.join(purelib if is_package else scripts, name)
+        try:
+            if os.path.isdir(source):
+                shutil.copytree(source, destination)
+            else:
+                shutil.copy2(source, destination)
+        except OSError as error:
+            log(f"could not restore {name}: {error}")
+            return False
+    shutil.rmtree(backup, ignore_errors=True)
+    log("restored the previous installation from backup")
+    return True
+
+
 def main():
     payload = json.loads(sys.argv[1])
     pid, wheel, relaunch = int(payload["parent_pid"]), payload["wheel"], payload.get("relaunch")
+    previous, target = payload.get("previous_version"), payload.get("target_version")
+    status_file = payload.get("status_file")
     log(f"waiting for pid {pid} to exit")
     try:
         if not parent_has_exited(pid, @PARENT_TIMEOUT@):
             log("parent still running after timeout; aborting update (app left untouched)")
+            write_status(status_file, {"status": "aborted", "version": target, "previous": previous})
             return 2
+
+        log(f"previous version: {previous or 'unknown'}; backing up before installing")
+        backup = backup_installation()
 
         log(f"installing {wheel}")
         command = [sys.executable, "-m", "pip", "install", "--force-reinstall", "--no-deps", "--disable-pip-version-check", wheel]
@@ -283,11 +377,36 @@ def main():
         if result.stderr.strip():
             log(result.stderr.strip())
 
+        installed = installed_version()
+        if result.returncode == 0 and installed == target:
+            log(f"verified filesqueeze {installed} is installed")
+            write_status(status_file, {"status": "success", "version": target, "previous": previous})
+            outcome = result.returncode
+        else:
+            log(f"update failed (pip rc={result.returncode}, installed={installed or 'broken'}); checking rollback")
+            if previous and installed == previous:
+                # pip failed before touching the old version - leave it alone
+                log("previous version still installed and intact; no rollback needed")
+            else:
+                restored_ok = restore_installation(backup)
+                log(f"rollback performed: {restored_ok}")
+            working = installed_version()
+            write_status(
+                status_file,
+                {
+                    "status": "failed",
+                    "version": target,
+                    "previous": previous,
+                    "restored": bool(working),
+                },
+            )
+            outcome = result.returncode if result.returncode != 0 else 1
+
         if relaunch:
             kwargs = {"creationflags": DETACHED_FLAGS} if os.name == "nt" else {"start_new_session": True}
             subprocess.Popen(relaunch, **kwargs)
             log(f"relaunched: {' '.join(relaunch)}")
-        return result.returncode
+        return outcome
     finally:
         try:
             os.remove(wheel)
@@ -308,9 +427,30 @@ def updater_log_path() -> Path:
     return Path(tempfile.gettempdir()) / "filesqueeze-update.log"
 
 
-def spawn_updater(wheel: Path, relaunch: list[str] | None) -> None:
-    """Start the detached updater; it acts once this process has exited."""
-    payload = json.dumps({"parent_pid": os.getpid(), "wheel": str(wheel), "relaunch": relaunch})
+def spawn_updater(
+    wheel: Path,
+    relaunch: list[str] | None,
+    *,
+    previous_version: str | None = None,
+    target_version: str | None = None,
+    status_file: Path | None = None,
+) -> None:
+    """Start the detached updater; it acts once this process has exited.
+
+    ``status_file`` is where the updater records the apply outcome so the
+    next FileSqueeze start can tell the user what happened (a bad install
+    must not strand the user silently). None (dev/test runs) skips the marker.
+    """
+    payload = json.dumps(
+        {
+            "parent_pid": os.getpid(),
+            "wheel": str(wheel),
+            "relaunch": relaunch,
+            "previous_version": previous_version,
+            "target_version": target_version,
+            "status_file": str(status_file) if status_file is not None else None,
+        }
+    )
     popen_kwargs: dict = {"stdin": subprocess.DEVNULL, "close_fds": True}
     if os.name == "nt":
         popen_kwargs["creationflags"] = 0x00000008 | 0x00000200  # DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP
@@ -325,6 +465,45 @@ def spawn_updater(wheel: Path, relaunch: list[str] | None) -> None:
     logger.info("Update handoff started (wheel: %s, relaunch: %s)", wheel, relaunch)
 
 
+def update_status_path() -> Path | None:
+    """Where the detached updater records the apply outcome for the next start.
+
+    Returns None in dev/test runs (never touch user state from tests);
+    ``FILEQUEEZE_UPDATE_STATUS`` overrides the location and wins over the
+    dev guard, so dev runs can point the marker at a sandbox.
+    """
+    override = os.getenv("FILEQUEEZE_UPDATE_STATUS")
+    if override:
+        return Path(override)
+    if os.getenv("PYTEST_CURRENT_TEST") is not None or os.getenv("FILEQUEEZE_DEV_MODE") == "1":
+        return None
+    return Path.home() / ".config" / "filesqueeze" / "update_status.json"
+
+
+def consume_update_status(path: Path | None = None) -> dict | None:
+    """Read and clear the last update's outcome marker; None when absent.
+
+    Called once per start: the caller surfaces "updated to vX" or "the update
+    failed, FileSqueeze is still on vY" and the marker is removed so the
+    message shows exactly once. Expected marker fields: ``status``
+    (success/failed/aborted), ``version`` (attempted), ``previous``, and for
+    failures ``restored`` (whether the previous version was verified working).
+    """
+    if path is None:
+        path = update_status_path()
+    if path is None:
+        return None
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    try:
+        path.unlink()
+    except OSError:
+        logger.debug("Could not remove update status marker %s", path, exc_info=True)
+    return payload if isinstance(payload, dict) else None
+
+
 class UpdateController:
     """Runs one download/apply flow in a background thread, with pollable state.
 
@@ -334,8 +513,28 @@ class UpdateController:
     thread never touches widgets.
     """
 
-    def __init__(self, config: Config | None = None):
+    def __init__(
+        self,
+        config: Config | None = None,
+        wait_for_tasks: Callable[[], bool] | None = None,
+        on_waiting: Callable[[], None] | None = None,
+    ):
+        """Wire the controller to this process's task lifecycle.
+
+        Args:
+            config: Config (reserved for per-update settings).
+            wait_for_tasks: Returns True while app tasks (a running
+                compression, a watched file mid-processing) are active. The
+                controller never hands the wheel to the detached updater
+                while it returns True — quitting mid-task would drop work.
+                None disables the gate.
+            on_waiting: Called on the controller thread when the update enters
+                the waiting state; the tray shows its buttonless
+                "will close and update after tasks complete" notice here.
+        """
         self.config = config
+        self._wait_for_tasks = wait_for_tasks
+        self._on_waiting = on_waiting
         self._lock = threading.Lock()
         self._cancel_event = threading.Event()
         self._thread: threading.Thread | None = None
@@ -390,6 +589,30 @@ class UpdateController:
         with self._lock:
             self._progress = replace(self._progress, **fields)
 
+    def _wait_for_running_tasks(self) -> None:
+        """Hold the handoff until app tasks finish (never quit mid-task).
+
+        Polls the tray's task gate; cancellable while waiting. Tasks started
+        after the wait began are covered too — the gate is re-evaluated every
+        poll, so the handoff only happens on a genuinely idle app.
+        """
+        if self._wait_for_tasks is None or not self._wait_for_tasks():
+            return
+
+        logger.info("Update ready but tasks are running — waiting for them to finish")
+        self._set_progress(phase=PHASE_WAITING, downloaded=None, total=None, message="Waiting for running tasks to finish…")
+        if self._on_waiting is not None:
+            try:
+                self._on_waiting()
+            except Exception:
+                logger.error("Update waiting-notification callback failed", exc_info=True)
+
+        while self._wait_for_tasks():
+            if self._cancel_event.is_set():
+                raise UpdateCancelled()
+            time.sleep(_TASK_POLL_SECONDS)
+        logger.info("Tasks finished — proceeding with the update handoff")
+
     def _run(self) -> None:
         assert self._update_info is not None
         info = self._update_info
@@ -407,11 +630,19 @@ class UpdateController:
             self._set_progress(phase=PHASE_VERIFYING, downloaded=None, total=None, message="Verifying download…")
             verify_wheel(wheel, version)
 
+            self._wait_for_running_tasks()
+
             if self._restart:
                 self._set_progress(phase=PHASE_INSTALLING, message="Closing FileSqueeze to install the update…")
             else:
                 self._set_progress(phase=PHASE_INSTALLING, message="Update prepared — installing when FileSqueeze exits.")
-            spawn_updater(wheel, build_relaunch_command() if self._restart else None)
+            spawn_updater(
+                wheel,
+                build_relaunch_command() if self._restart else None,
+                previous_version=normalize_version(info.current_version),
+                target_version=version,
+                status_file=update_status_path(),
+            )
 
             # Honest wording: at handoff pip has not run yet — the detached
             # updater installs after this process exits. The restart path

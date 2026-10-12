@@ -22,7 +22,7 @@ from .update_check import (
     get_current_version,
     run_manual_check,
 )
-from .updater import UpdateController
+from .updater import UpdateController, consume_update_status
 
 # App User Model ID for Windows to recognize this app consistently
 APP_USER_MODEL_ID = "com.filesqueeze.app"
@@ -69,9 +69,17 @@ class TrayService:
         self._mutex = None  # Windows named mutex for single-instance enforcement
         self._update_info: UpdateInfo | None = None  # Newer release found at startup, if any
         self._manual_check_running = False  # A user-requested check is in flight
+        self._update_waiting_dialog = None  # Buttonless "will update after tasks" notice
         # Shared download/apply controller: the tray menu, status window and
-        # compress dialog all show the same in-flight update through it
-        self._update_controller = UpdateController(config=self.config)
+        # compress dialog all show the same in-flight update through it. The
+        # task gate holds the handoff while any task is running — the app must
+        # not quit mid-compression or mid-file — and on_waiting pops the
+        # buttonless notice so the deferred quit isn't a surprise.
+        self._update_controller = UpdateController(
+            config=self.config,
+            wait_for_tasks=self._has_running_tasks,
+            on_waiting=self._on_update_waiting,
+        )
 
     def _ensure_single_instance(self):
         """Ensure only one FileSqueeze instance is running per mode.
@@ -371,12 +379,6 @@ class TrayService:
             self.icon.notify(self._update_controller.snapshot().message or "Update in progress…", title="FileSqueeze update")
             return
 
-        if self._compress_dialog is not None and self._compress_dialog.is_compressing:
-            # Quitting mid-compression would drop the user's file; the update
-            # stays available once the compression finishes
-            self.icon.notify("A compression is running — wait for it to finish before updating.", title="FileSqueeze update")
-            return
-
         version = self._update_info.latest_version
         started = self._update_controller.start(self._update_info, restart=True, on_applied=self._quit_for_update)
         if started:
@@ -395,10 +397,48 @@ class TrayService:
 
         Runs on the updater thread once the handoff is in place. Quitting
         releases the single-instance mutex and closes the package files the
-        detached updater needs to replace.
+        detached updater needs to replace. Safe to call while tasks run: the
+        controller already waited for them (its task gate) before handing off.
         """
         self.logger.info("Update applied — stopping FileSqueeze; it will restart into the new version")
         self.stop()
+
+    def _has_running_tasks(self) -> bool:
+        """Whether any task is mid-flight and must not be interrupted by quitting.
+
+        Two task sources: a compress dialog's worker, and the watcher's file
+        currently being processed. Polled by the update controller's task gate
+        once per second while it holds the handoff.
+        """
+        if self._compress_dialog is not None and self._compress_dialog.is_compressing:
+            return True
+        try:
+            return bool(self.watcher.get_state().processing_files)
+        except Exception:
+            self.logger.debug("Could not read watcher state for the update task gate", exc_info=True)
+            return False
+
+    def _on_update_waiting(self):
+        """Update verified but tasks are running — show the buttonless notice.
+
+        Called on the controller thread when the handoff starts waiting; the
+        dialog itself runs on its own thread like the other windows.
+        """
+        if self._update_waiting_dialog is not None:
+            return
+        threading.Thread(target=self._show_update_waiting_dialog, name="update-waiting-dialog", daemon=True).start()
+
+    def _show_update_waiting_dialog(self):
+        """Show the buttonless 'will close and update after tasks complete' window."""
+        try:
+            from .update_banner import UpdateWaitingDialog
+
+            self._update_waiting_dialog = UpdateWaitingDialog(self._update_controller)
+            self._update_waiting_dialog.show()
+            self._update_waiting_dialog = None
+        except Exception as e:
+            self.logger.error(f"Failed to show update waiting dialog: {e}", exc_info=True)
+            self._update_waiting_dialog = None
 
     def _on_update_found(self, info: UpdateInfo):
         """Store a freshly found update so the menu item and windows surface it.
@@ -453,6 +493,42 @@ class TrayService:
         finally:
             self._manual_check_running = False
 
+    def _notify_last_update_outcome(self):
+        """Tell the user how the previous run's update attempt ended.
+
+        The detached updater writes a status marker (success, failed, or
+        aborted) that survives the restart; consuming it here is the
+        "update failed" feedback loop — without it a failed install would
+        look identical to no update happening at all.
+        """
+        status = consume_update_status()
+        if not status:
+            return
+
+        version = status.get("version") or "the new version"
+        previous = status.get("previous")
+        outcome = status.get("status")
+        self.logger.info(f"Last update outcome: {outcome} (attempted v{version}, previous v{previous})")
+
+        try:
+            if outcome == "success":
+                self.icon.notify(f"FileSqueeze was updated to v{version}.", title="FileSqueeze updated")
+            elif outcome == "aborted":
+                self.icon.notify(
+                    f"The update to v{version} did not run because FileSqueeze was still busy. "
+                    f"It is still on v{previous} — you can retry from the tray menu.",
+                    title="FileSqueeze update didn't run",
+                )
+            else:
+                restored = "" if status.get("restored") else " A rollback was not possible — please reinstall FileSqueeze."
+                self.icon.notify(
+                    f"The update to v{version} failed. FileSqueeze is still on v{previous} and works normally. "
+                    f"You can retry from the tray menu.{restored}",
+                    title="FileSqueeze update failed",
+                )
+        except Exception as e:
+            self.logger.warning(f"Could not show the update outcome notification: {e}", exc_info=True)
+
     def _check_for_updates(self):
         """Check GitHub for a newer release; runs on a background thread.
 
@@ -461,6 +537,13 @@ class TrayService:
         stored (surfacing the dynamic tray menu item and GUI banners) and a
         tray notification is shown.
         """
+        # Surface how the previous run's update attempt ended before anything
+        # new is announced (consumes the updater's status marker)
+        try:
+            self._notify_last_update_outcome()
+        except Exception as e:
+            self.logger.warning(f"Could not report the last update outcome: {e}", exc_info=True)
+
         try:
             info = check_for_updates(self.config)
         except Exception as e:
