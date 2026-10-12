@@ -83,8 +83,14 @@ try {
     $removed = $false
     if (Test-Path $SystemWideAutostart) {
         Remove-Item -Path $SystemWideAutostart -Force -ErrorAction SilentlyContinue
-        Write-Host "  System-wide auto-start removed" -ForegroundColor Gray
-        $removed = $true
+        if (Test-Path $SystemWideAutostart) {
+            # Removing from the all-users Startup folder needs admin rights;
+            # never claim success when the shortcut is still there
+            Write-Host "  System-wide auto-start could not be removed (admin rights required)" -ForegroundColor Yellow
+        } else {
+            Write-Host "  System-wide auto-start removed" -ForegroundColor Gray
+            $removed = $true
+        }
     }
     if (Test-Path $UserSpecificAutostart) {
         Remove-Item -Path $UserSpecificAutostart -Force -ErrorAction SilentlyContinue
@@ -116,17 +122,36 @@ if (Test-Path $SendToShortcut) {
 }
 
 # Uninstall FileSqueeze package
+# pip removes one copy per pass, so layered installs (e.g. a user-site copy
+# shadowing an old system-wide one) must be uninstalled in a loop — anything
+# left behind keeps shadowing future installs
 Write-Status "Uninstalling FileSqueeze package..."
 try {
-    & python -m pip show filesqueeze 2>$null | Out-Null
-    if ($LASTEXITCODE -eq 0) {
+    $copiesRemoved = 0
+    while ($true) {
+        & python -m pip show filesqueeze 2>$null | Out-Null
+        if ($LASTEXITCODE -ne 0) {
+            break
+        }
         python -m pip uninstall filesqueeze -y --quiet
+        if ($LASTEXITCODE -ne 0) {
+            throw "pip uninstall exited with code $LASTEXITCODE"
+        }
+        $copiesRemoved++
+        if ($copiesRemoved -ge 10) {
+            throw "still installed after removing 10 copies - remove the rest manually with: python -m pip uninstall filesqueeze"
+        }
+    }
+
+    if ($copiesRemoved -gt 1) {
+        Write-Host "  Removed $copiesRemoved layered copies" -ForegroundColor Gray
+    } elseif ($copiesRemoved -eq 1) {
         Write-Host "  Package uninstalled" -ForegroundColor Gray
     } else {
         Write-Host "  Package not installed" -ForegroundColor Yellow
     }
 } catch {
-    Write-Host "  Failed to uninstall package" -ForegroundColor Yellow
+    Write-Host "  Failed to uninstall package: $_" -ForegroundColor Yellow
 }
 
 # Summary
