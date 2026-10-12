@@ -29,10 +29,12 @@ filesqueeze/
 ├── ocr.py               # OCR processing for PDFs
 ├── gui.py               # GUI status window
 ├── gui_compress.py      # Standalone "Compress a File" dialog (tkinter)
+├── update_banner.py     # Shared "Update available" banner widget (one-click update)
 ├── standalone.py        # Single-file compression logic (tkinter-free)
 ├── tray.py              # System tray service
 ├── autostart.py         # Auto-startup configuration
-└── update_check.py      # GitHub release check for update notifications
+├── update_check.py      # GitHub release check for update notifications
+└── updater.py           # Release download/apply: wheel download, verify, pip install, relaunch
 ```
 
 **Critical Rule**: `system/` must NEVER import from `ops/` (prevents circular dependencies).

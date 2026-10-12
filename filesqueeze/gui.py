@@ -3,13 +3,23 @@
 GUI status window for FileSqueeze service monitoring.
 """
 
+import threading
 import tkinter as tk
 from datetime import datetime, timedelta
 from pathlib import Path
 from tkinter import scrolledtext, ttk
 
 from .service import ServiceState, StateProvider
-from .update_check import RELEASES_PAGE_URL, UpdateInfo
+from .update_banner import UpdateBanner
+from .update_check import (
+    MANUAL_CHECK_DISABLED,
+    MANUAL_CHECK_ERROR,
+    MANUAL_CHECK_UP_TO_DATE,
+    MANUAL_CHECK_UPDATE_AVAILABLE,
+    UpdateInfo,
+    run_manual_check,
+)
+from .updater import UpdateController
 
 
 class StatusWindow:
@@ -33,6 +43,9 @@ class StatusWindow:
         state_provider: StateProvider,
         refresh_interval: int | None = 2000,
         update_info: UpdateInfo | None = None,
+        update_controller: UpdateController | None = None,
+        on_update_applied: object | None = None,
+        on_update_found: object | None = None,
     ):
         """Initialize the status window.
 
@@ -41,19 +54,34 @@ class StatusWindow:
             refresh_interval: Auto-refresh interval in milliseconds (None for manual refresh only).
                              Default: 2000ms (2 seconds).
             update_info: Newer release found by the startup update check, if any
-                        (shows a banner with a link to the download page).
+                        (shows a banner with a one-click update).
+            update_controller: Shared download/apply controller; a private one is
+                        created when omitted (tests, standalone use).
+            on_update_applied: Called on the updater thread once the update is
+                        handed off and the app should quit so it can install and
+                        restart (the tray service passes its stop method). When
+                        None, "Update now" installs without quitting.
+            on_update_found: Called with an UpdateInfo when the manual
+                        "Check for updates" button finds a newer release (the
+                        tray service uses it to arm its own menu item).
         """
         self.state_provider = state_provider
         self.refresh_interval = refresh_interval
         self._auto_refresh_job = None
         self._logs_first_load = True  # Track first log load for auto-scroll
         self._update_info = update_info
+        self._on_update_applied = on_update_applied
+        self._on_update_found = on_update_found
+        self._update_banner = None  # Created when an update is known (startup or manual check)
+        self._manual_check_thread: threading.Thread | None = None
+        self._manual_check_result: tuple | None = None
 
         # Cache config and log file path (avoid creating new Config every refresh)
         from .config import Config
 
         self._config = Config()
         self._log_file = self._config.log_file
+        self._update_controller = update_controller or UpdateController(config=self._config)
 
         # Create main window
         self.root = tk.Tk()
@@ -72,6 +100,7 @@ class StatusWindow:
         # Main frame with padding
         main_frame = ttk.Frame(self.root, padding="10")
         main_frame.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))  # type: ignore[arg-type]  # type: ignore[arg-type]
+        self._main_frame = main_frame  # Parent for the late-created update banner
 
         # Configure grid weights for resizing
         self.root.columnconfigure(0, weight=1)
@@ -79,18 +108,23 @@ class StatusWindow:
         main_frame.columnconfigure(0, weight=1)
         main_frame.rowconfigure(2, weight=1)  # Tab control expands
 
-        # Title
+        # Title row: heading, last-manual-check result, and the check button
         title_label = ttk.Label(main_frame, text="FileSqueeze Service Status", font=("Helvetica", 14, "bold"))
-        title_label.grid(row=0, column=0, pady=(0, 10))
+        title_label.grid(row=0, column=0, pady=(0, 10), sticky=tk.W)
 
-        # Update banner (only when the startup check found a newer release)
+        self._check_result_label = ttk.Label(main_frame, text="", foreground="#555555", font=("Helvetica", 9))
+        self._check_result_label.grid(row=0, column=1, padx=(0, 8), pady=(0, 10), sticky=tk.E)
+
+        self._check_updates_btn = ttk.Button(main_frame, text="Check for updates", command=self._on_check_updates)
+        self._check_updates_btn.grid(row=0, column=2, pady=(0, 10), sticky=tk.E)
+
+        # Update banner (startup-found update, or added later by a manual check)
         if self._update_info is not None:
-            banner = self._create_update_banner(main_frame, self._update_info)
-            banner.grid(row=1, column=0, sticky=(tk.W, tk.E), pady=(0, 10))  # type: ignore[arg-type]
+            self._show_update_banner(self._update_info)
 
         # Create notebook (tabs)
         self.notebook = ttk.Notebook(main_frame)
-        self.notebook.grid(row=2, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))  # type: ignore[arg-type]  # type: ignore[arg-type]
+        self.notebook.grid(row=2, column=0, columnspan=3, sticky=(tk.W, tk.E, tk.N, tk.S))  # type: ignore[arg-type]  # type: ignore[arg-type]
 
         # Create Status tab
         self._create_status_tab()
@@ -98,31 +132,73 @@ class StatusWindow:
         # Create Logs tab
         self._create_logs_tab()
 
-    def _create_update_banner(self, parent: ttk.Frame, update_info: UpdateInfo):
-        """Build the 'new release available' banner shown under the title.
+    def _show_update_banner(self, update_info: UpdateInfo) -> None:
+        """Create (once) and show the 'update available' banner on the main frame.
 
-        Args:
-            parent: Parent widget for the banner.
-            update_info: The newer release found by the update check.
-
-        Returns:
-            The banner frame (not yet gridded).
+        Used both for a startup-found update and for one found later by the
+        manual "Check for updates" button; row 1 stays free for it either way.
         """
-        frame = ttk.LabelFrame(parent, text="Update available", padding="5")
-        frame.columnconfigure(0, weight=1)
+        self._update_info = update_info
+        if self._update_banner is not None:
+            return
+        self._update_banner = UpdateBanner(
+            self._main_frame,
+            self._update_controller,
+            update_info,
+            restart=self._on_update_applied is not None,
+            on_update_applied=self._on_update_applied,
+        )
+        self._update_banner.grid(row=1, column=0, columnspan=3, sticky=(tk.W, tk.E), pady=(0, 10))
 
-        message = f"FileSqueeze v{update_info.latest_version} is available (installed: v{update_info.current_version})."
-        ttk.Label(frame, text=message, font=("Helvetica", 9, "bold"), foreground="#B8860B").grid(row=0, column=0, sticky=tk.W)
+    def _on_check_updates(self) -> None:
+        """Handle the 'Check for updates' button - fresh check off the Tk thread."""
+        if self._manual_check_thread is not None and self._manual_check_thread.is_alive():
+            return
 
-        ttk.Button(frame, text="Download from GitHub", command=self._open_download_page).grid(row=0, column=1, padx=(10, 0))
-        return frame
+        self._check_updates_btn.state(["disabled"])
+        self._check_result_label.config(text="Checking for updates…", foreground="#555555")
 
-    def _open_download_page(self) -> None:
-        """Open the GitHub releases page in the default browser."""
-        import webbrowser
+        def _check() -> None:
+            try:
+                self._manual_check_result = run_manual_check(self._config)
+            except Exception as e:
+                print(f"Manual update check failed: {e}")
+                self._manual_check_result = (MANUAL_CHECK_ERROR, None)
 
-        url = self._update_info.download_url if self._update_info else RELEASES_PAGE_URL
-        webbrowser.open(url)
+        self._manual_check_thread = threading.Thread(target=_check, name="manual-update-check", daemon=True)
+        self._manual_check_thread.start()
+        self.root.after(200, self._poll_manual_check)
+
+    def _poll_manual_check(self) -> None:
+        """Collect the manual check result and update the UI (Tk main thread)."""
+        if not self.root.winfo_exists():
+            return
+        if self._manual_check_thread is not None and self._manual_check_thread.is_alive():
+            self.root.after(200, self._poll_manual_check)
+            return
+
+        result = self._manual_check_result
+        self._manual_check_result = None
+        self._manual_check_thread = None
+        self._check_updates_btn.state(["!disabled"])
+        if result is None:
+            return
+
+        status, info = result
+        if status == MANUAL_CHECK_UPDATE_AVAILABLE and info is not None:
+            self._check_result_label.config(text=f"Update found: v{info.latest_version}", foreground="#B8860B")
+            self._show_update_banner(info)
+            if self._on_update_found is not None:
+                try:
+                    self._on_update_found(info)
+                except Exception as e:
+                    print(f"on_update_found callback failed: {e}")
+        elif status == MANUAL_CHECK_UP_TO_DATE:
+            self._check_result_label.config(text="You're up to date.", foreground="#2E7D32")
+        elif status == MANUAL_CHECK_DISABLED:
+            self._check_result_label.config(text="Update checks are disabled in the configuration.", foreground="#666666")
+        else:
+            self._check_result_label.config(text="Couldn't reach GitHub — check the connection.", foreground="#B22222")
 
     def _create_status_tab(self):
         """Create the Status tab with service information."""

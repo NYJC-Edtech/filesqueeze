@@ -129,7 +129,10 @@ refresh_interval_ms = 2000
 
 [updates]
 # Check GitHub at startup for a newer release and notify in the tray/GUI.
-# FileSqueeze never downloads or installs anything on its own.
+# Results are cached for 6 hours so repeated starts don't hit the GitHub
+# API rate limit. Found updates are announced and applied with one click
+# from the tray menu or the Status window / Compress dialog ("Check for
+# updates" triggers a fresh check on demand).
 check_on_startup = true
 
 [retention]

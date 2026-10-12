@@ -41,7 +41,9 @@ from .standalone import (
     predict_output_path,
     resolve_final_output_path,
 )
-from .update_check import RELEASES_PAGE_URL, UpdateInfo, check_for_updates
+from .update_banner import UpdateBanner
+from .update_check import UpdateInfo, check_for_updates
+from .updater import UpdateController
 
 STATE_SECTION = "gui"
 STATE_KEY = "last_compress_dir"
@@ -125,6 +127,8 @@ class CompressDialog:
         initial_file: Path | str | None = None,
         update_info: UpdateInfo | None = None,
         check_updates: bool = False,
+        update_controller: UpdateController | None = None,
+        on_update_applied: object | None = None,
     ):
         """Initialize the dialog.
 
@@ -136,9 +140,20 @@ class CompressDialog:
             check_updates: When True and no update_info is given, check GitHub in
                 the background and show the banner if a newer release exists.
                 Only enable in dialog-only launches — the tray checks on its own.
+            update_controller: Shared download/apply controller (the tray passes
+                its own so windows agree on the in-flight update); a private one
+                is created when omitted.
+            on_update_applied: Called on the updater thread once the update is
+                handed off and the app should quit so it can install and
+                restart (the tray service passes its stop method). The banner
+                still defers to :meth:`_update_restart_refusal` at click time:
+                while a compression runs, the update is refused rather than
+                quitting mid-file.
         """
         self.config = config or Config()
         self.logger = logging.getLogger(__name__)
+        self._update_controller = update_controller or UpdateController(config=self.config)
+        self._on_update_applied = on_update_applied
 
         self._worker: threading.Thread | None = None
         self._result: tuple | None = None
@@ -175,11 +190,19 @@ class CompressDialog:
         main.columnconfigure(0, weight=1)
         main.rowconfigure(1, weight=1)
 
-        # Update banner: not gridded until an update check reports a newer
-        # release; the stacked frames always occupy row 1 so a late banner
-        # never re-grids anything
-        self._update_banner = ttk.LabelFrame(main, text="Update available", padding="5")
-        self._update_banner.columnconfigure(0, weight=1)
+        # Update banner: empty until an update check reports a newer release
+        # (set_update_info builds the contents); the stacked frames always
+        # occupy row 1 so a late banner never re-grids anything.
+        # The restart decision happens at click time via restart_decider:
+        # quitting mid-compression would drop the user's file, so the update
+        # is refused while one runs and otherwise restarts the app like the
+        # tray menu does.
+        self._update_banner = UpdateBanner(
+            main,
+            self._update_controller,
+            on_update_applied=self._on_update_applied,
+            restart_decider=self._update_restart_refusal,
+        )
 
         # Stacked state frames occupy the same grid cell; tkraise selects
         self._setup_frame = ttk.Frame(main)
@@ -306,6 +329,26 @@ class CompressDialog:
 
     # ------------------------------------------------------- update notices
 
+    @property
+    def is_compressing(self) -> bool:
+        """Whether a compression worker is currently running.
+
+        Consulted by the tray service and the update banner: quitting the app
+        for an update while this is True would drop the user's file.
+        """
+        return self._worker is not None and self._worker.is_alive()
+
+    def _update_restart_refusal(self) -> str | None:
+        """Click-time restart gate for the update banner.
+
+        Returns None when updating may quit and restart the app, or a
+        user-facing reason why not. Evaluated on every click because the
+        answer changes as compressions start and finish.
+        """
+        if self.is_compressing:
+            return "A compression is running — wait for it to finish before updating."
+        return None
+
     def _start_update_check(self) -> None:
         """Check GitHub for a newer release on a background thread.
 
@@ -337,28 +380,18 @@ class CompressDialog:
             self._show_update_banner()
 
     def _show_update_banner(self) -> None:
-        """Populate and reveal the 'update available' banner."""
+        """Populate and reveal the 'update available' banner.
+
+        The banner offers a one-click update that installs for the *next*
+        FileSqueeze start (restart=False): the dialog may be mid-compression
+        and quitting the process would drop the user's file.
+        """
         info = self._update_info
         if info is None:
             return
 
-        for child in self._update_banner.winfo_children():
-            child.destroy()
-        message = f"FileSqueeze v{info.latest_version} is available (installed: v{info.current_version})."
-        ttk.Label(self._update_banner, text=message, font=("Helvetica", 9, "bold"), foreground="#B8860B").grid(
-            row=0, column=0, sticky="w"
-        )
-        ttk.Button(self._update_banner, text="Download from GitHub", command=self._open_download_page).grid(
-            row=0, column=1, padx=(10, 0)
-        )
+        self._update_banner.set_update_info(info)
         self._update_banner.grid(row=0, column=0, sticky="ew", pady=(0, 10))
-
-    def _open_download_page(self) -> None:
-        """Open the GitHub releases page in the default browser."""
-        import webbrowser
-
-        url = self._update_info.download_url if self._update_info else RELEASES_PAGE_URL
-        webbrowser.open(url)
 
     # ------------------------------------------------------------- actions
 

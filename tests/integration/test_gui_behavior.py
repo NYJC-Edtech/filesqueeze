@@ -221,24 +221,65 @@ class TestTrayCompressMenuItem:
 
 
 class TestTrayUpdateMenuItem:
-    """Tests for the update-available tray flow (version check, v0.9.2).
+    """Tests for the update-available tray flow.
 
     CODE-LEVEL tests following the file's convention: the startup check must
     run off the tray thread, surface a menu item only when a newer release was
-    found, and hand the result to both windows so their banners can render.
+    found, offer a one-click update, and hand the result (plus the shared
+    controller) to both windows so their banners can render.
     """
 
-    def test_tray_menu_contains_update_item_wired_to_releases_page(self):
-        """The pystray menu must include an update entry bound to _on_open_releases_page."""
+    def test_tray_menu_contains_update_now_item(self):
+        """The pystray menu must include an update entry bound to _on_update_now."""
         import inspect
 
         from filesqueeze.tray import TrayService
 
         start_source = inspect.getsource(TrayService.start)
 
-        assert "Update available" in start_source, "Tray menu must contain an update-available item"
-        assert "_on_open_releases_page" in start_source, "Update menu item must be wired to _on_open_releases_page"
+        assert "_update_menu_text" in start_source, "Tray menu item text must come from _update_menu_text"
+        assert "_on_update_now" in start_source, "Update menu item must be wired to _on_update_now"
         assert "visible=" in start_source, "Update menu item must be hidden until an update is found"
+
+    def test_update_menu_text_offers_and_tracks_the_update(self):
+        """The label must offer the update and show progress while running."""
+        import inspect
+
+        from filesqueeze.tray import TrayService
+
+        source = inspect.getsource(TrayService._update_menu_text)
+        assert "Update to v" in source, "Idle label must offer the update"
+        assert "Updating to v" in source, "Running label must show the update in flight"
+        assert "_update_controller.running" in source, "Label must distinguish idle vs running"
+
+    def test_update_now_starts_controller_with_restart_and_quit_callback(self):
+        """Clicking Update now must apply and restart via the tray's quit hook."""
+        import inspect
+
+        from filesqueeze.tray import TrayService
+
+        source = inspect.getsource(TrayService._on_update_now)
+        assert "_update_controller.start" in source, "Must start the shared update controller"
+        assert "restart=True" in source, "Service-mode update must relaunch FileSqueeze"
+        assert "_quit_for_update" in source, "The quit hook must be passed as on_applied"
+
+    def test_update_now_defers_while_a_compression_runs(self):
+        """Quitting mid-compression would drop the user's file; the tray must refuse."""
+        import inspect
+
+        from filesqueeze.tray import TrayService
+
+        source = inspect.getsource(TrayService._on_update_now)
+        assert "is_compressing" in source, "Tray update must check the compress dialog's in-flight state"
+
+    def test_quit_for_update_stops_the_service(self):
+        """The quit hook must stop the service so the detached updater can act."""
+        import inspect
+
+        from filesqueeze.tray import TrayService
+
+        source = inspect.getsource(TrayService._quit_for_update)
+        assert "self.stop()" in source, "_quit_for_update must stop the tray service"
 
     def test_startup_check_runs_on_background_thread_and_notifies(self):
         """The version check must not block tray startup and must notify on a find."""
@@ -251,52 +292,139 @@ class TestTrayUpdateMenuItem:
 
         assert "threading.Thread" in start_source, "Update check must run on a background thread"
         assert "check_for_updates" in check_source, "_check_for_updates must call the update checker"
-        assert "self._update_info" in check_source, "_check_for_updates must store the result for menu/banners"
+        assert "_on_update_found" in check_source, "_check_for_updates must store the result for menu/banners"
         assert "notify" in check_source, "_check_for_updates must show a tray notification when an update exists"
 
-    def test_releases_handler_opens_browser_to_download_page(self):
-        """The handler must open the GitHub releases page in a browser."""
+    def test_startup_check_is_announce_only_in_0_9_2(self):
+        """The 0.9.2 startup check announces and lets the user apply — no auto-apply.
+
+        updates.auto_apply is planned for a later release; this branch must not
+        download anything without a click.
+        """
         import inspect
 
         from filesqueeze.tray import TrayService
 
-        source = inspect.getsource(TrayService._on_open_releases_page)
-        assert "webbrowser.open" in source, "_on_open_releases_page must open a browser"
-        assert "RELEASES_PAGE_URL" in source, "_on_open_releases_page must use the GitHub releases page URL"
+        source = inspect.getsource(TrayService._check_for_updates)
+        assert "auto_apply" not in source, "0.9.2 must not auto-apply updates at startup"
 
-    def test_windows_created_by_tray_receive_update_info(self):
-        """StatusWindow and CompressDialog opened from the tray get the check result."""
+    def test_manual_check_menu_item_runs_fresh_check_off_the_menu_thread(self):
+        """'Check for updates' must be wired and must not block the tray thread."""
         import inspect
 
         from filesqueeze.tray import TrayService
 
-        assert "update_info=self._update_info" in inspect.getsource(TrayService._show_status_window), (
-            "StatusWindow must receive the update check result"
+        start_source = inspect.getsource(TrayService.start)
+        handler_source = inspect.getsource(TrayService._on_check_for_updates_now)
+        run_source = inspect.getsource(TrayService._run_manual_check)
+
+        assert "Check for updates" in start_source, "Tray menu must contain a 'Check for updates' item"
+        assert "_on_check_for_updates_now" in start_source, "Check item must be wired to its handler"
+        assert "threading.Thread" in handler_source, "Manual check must run on a background thread"
+        assert "run_manual_check" in run_source, "Manual check must use the fresh-check helper"
+
+    def test_manual_check_surfaces_every_outcome(self):
+        """A manual check must notify for found/up-to-date/offline/disabled — not stay silent."""
+        import inspect
+
+        from filesqueeze.tray import TrayService
+
+        run_source = inspect.getsource(TrayService._run_manual_check)
+        for marker in (
+            "MANUAL_CHECK_UPDATE_AVAILABLE",
+            "MANUAL_CHECK_UP_TO_DATE",
+            "MANUAL_CHECK_DISABLED",
+            "is this machine online",
+        ):
+            assert marker in run_source, f"Manual check must handle {marker}"
+
+    def test_manual_check_result_arms_the_update_menu_item(self):
+        """A found update from the manual check must go through _on_update_found."""
+        import inspect
+
+        from filesqueeze.tray import TrayService
+
+        run_source = inspect.getsource(TrayService._run_manual_check)
+        assert "_on_update_found" in run_source, "Manual check must store found updates via _on_update_found"
+
+    def test_windows_created_by_tray_receive_update_info_and_controller(self):
+        """StatusWindow and CompressDialog opened from the tray get the check result,
+        the shared controller, and the quit hook.
+
+        Regression test for the review finding: without ``on_update_applied``,
+        the windows' banners ran with restart=False, whose updater waits for
+        the tray process to exit — which never happens — so pip never ran.
+        """
+        import inspect
+
+        from filesqueeze.tray import TrayService
+
+        status_source = inspect.getsource(TrayService._show_status_window)
+        dialog_source = inspect.getsource(TrayService._show_compress_dialog)
+
+        assert "update_info=self._update_info" in status_source, "StatusWindow must receive the update check result"
+        assert "update_controller=self._update_controller" in status_source, "StatusWindow must share the controller"
+        assert "on_update_applied=self._quit_for_update" in status_source, "StatusWindow updates must quit so pip can run"
+        assert "on_update_found=self._on_update_found" in status_source, (
+            "Manual checks in the StatusWindow must arm the tray's update menu item"
         )
-        assert "update_info=self._update_info" in inspect.getsource(TrayService._show_compress_dialog), (
-            "CompressDialog must receive the update check result"
-        )
+        assert "update_info=self._update_info" in dialog_source, "CompressDialog must receive the update check result"
+        assert "update_controller=self._update_controller" in dialog_source, "CompressDialog must share the controller"
+        assert "on_update_applied=self._quit_for_update" in dialog_source, "CompressDialog updates must quit so pip can run"
 
 
 class TestUpdateBanner:
-    """Tests for the in-window update banners (v0.9.2).
+    """Tests for the in-window update banners.
 
-    CODE-LEVEL tests: both windows must render a banner with a download-page
-    link when given an UpdateInfo; the dialog must also support self-checking.
+    CODE-LEVEL tests: both windows must render the shared UpdateBanner, the
+    banner must offer a one-click update plus a releases-page fallback, and
+    the dialog-only path must install without quitting the app.
     """
 
-    def test_status_window_renders_banner_with_download_link(self):
+    def test_status_window_renders_shared_update_banner(self):
         import inspect
 
         from filesqueeze.gui import StatusWindow
 
         widgets_source = inspect.getsource(StatusWindow._create_widgets)
-        banner_source = inspect.getsource(StatusWindow._create_update_banner)
+        banner_source = inspect.getsource(StatusWindow._show_update_banner)
 
-        assert "_create_update_banner" in widgets_source, "StatusWindow must integrate the update banner"
+        assert "_show_update_banner" in widgets_source, "StatusWindow must integrate the update banner"
+        assert "UpdateBanner(" in banner_source, "StatusWindow must render the shared UpdateBanner"
         assert "UpdateInfo" in inspect.getsource(StatusWindow.__init__), "StatusWindow must accept an UpdateInfo"
-        assert "Download from GitHub" in banner_source, "Banner must offer a download link"
-        assert "_open_download_page" in banner_source, "Download link must be wired to _open_download_page"
+
+    def test_status_window_has_manual_check_button(self):
+        """The Status window must offer a 'Check for updates' button on the Tk thread."""
+        import inspect
+
+        from filesqueeze.gui import StatusWindow
+
+        widgets_source = inspect.getsource(StatusWindow._create_widgets)
+        handler_source = inspect.getsource(StatusWindow._on_check_updates)
+        poll_source = inspect.getsource(StatusWindow._poll_manual_check)
+
+        assert "Check for updates" in widgets_source, "StatusWindow must have a 'Check for updates' button"
+        assert "_on_check_updates" in widgets_source, "Check button must be wired to its handler"
+        assert "threading.Thread" in handler_source, "The check must run off the Tk thread"
+        assert "run_manual_check" in handler_source, "The check must use the fresh-check helper"
+        assert "_show_update_banner" in poll_source, "A found update must render the banner from the poll"
+        assert "winfo_exists" in poll_source, "The poll must stop once the window is gone"
+
+    def test_status_window_late_banner_renders_after_manual_check(self):
+        """A manual check finding an update must show the banner in the already-built window."""
+        import inspect
+
+        from filesqueeze.gui import StatusWindow
+
+        banner_source = inspect.getsource(StatusWindow._show_update_banner)
+
+        assert "UpdateBanner(" in banner_source, "_show_update_banner must create the shared banner"
+        assert "on_update_applied=self._on_update_applied" in banner_source, (
+            "Late banners must quit on update, same as startup banners"
+        )
+        assert "restart=self._on_update_applied is not None" in banner_source, (
+            "Late banners must decide restart the same way as startup banners"
+        )
 
     def test_compress_dialog_can_self_check_and_show_banner(self):
         import inspect
@@ -308,8 +436,62 @@ class TestUpdateBanner:
 
         assert "check_updates" in init_source, "CompressDialog must support self-checking for dialog-only launches"
         assert "_start_update_check" in init_source, "Self-check must be started from __init__"
-        assert "Download from GitHub" in banner_source, "Banner must offer a download link"
-        assert "_open_download_page" in banner_source, "Download link must be wired to _open_download_page"
+        assert "set_update_info" in banner_source, "Banner must be filled from the check result"
+
+    def test_banner_offers_update_now_with_progress_and_fallback(self):
+        """The shared banner must have the one-click action, progress, cancel, and a link."""
+        import inspect
+
+        from filesqueeze.update_banner import UpdateBanner
+
+        build_source = inspect.getsource(UpdateBanner._build_widgets)
+        render_source = inspect.getsource(UpdateBanner._render)
+
+        assert "Update now" in build_source, "Banner must offer a one-click update"
+        assert "Release notes" in build_source, "Banner must keep a releases-page fallback"
+        assert "can_self_update" in build_source, "Update button must be gated on self-update capability"
+        assert "Progressbar" in build_source, "Banner must show download progress"
+        assert "Cancel" in build_source, "Download must be cancellable"
+        assert "PHASE_DOWNLOADING" in render_source, "Banner must react to update phases"
+
+    def test_dialog_defers_restart_while_compressing(self):
+        """The dialog's restart decision must be made at click time, not construction.
+
+        A compression may start after the banner is built; quitting then would
+        drop the user's file, so the banner consults a decider on each click.
+        """
+        import inspect
+
+        from filesqueeze.gui_compress import CompressDialog
+
+        widgets_source = inspect.getsource(CompressDialog._create_widgets)
+        refusal_source = inspect.getsource(CompressDialog._update_restart_refusal)
+
+        assert "restart_decider=" in widgets_source, "Dialog must gate restart via the banner's click-time decider"
+        assert "is_compressing" in refusal_source, "The decider must refuse while a compression is running"
+
+        # And the tray/other surfaces can consult the same state directly
+        assert isinstance(CompressDialog.is_compressing, property), "Dialog must expose is_compressing for the tray guard"
+
+    def test_banner_polls_controller_on_the_tk_thread(self):
+        """State must be polled via after(); the controller thread never touches widgets."""
+        import inspect
+
+        from filesqueeze.update_banner import UpdateBanner
+
+        poll_source = inspect.getsource(UpdateBanner._poll)
+        assert ".after(" in poll_source, "Banner updates must be scheduled on the Tk thread"
+        assert "snapshot()" in poll_source, "Banner must read the controller's pollable state"
+
+    def test_banner_restart_decision_goes_through_the_decider(self):
+        """The decider runs on click; a refusal shows its reason instead of starting."""
+        import inspect
+
+        from filesqueeze.update_banner import UpdateBanner
+
+        source = inspect.getsource(UpdateBanner._on_update_now)
+        assert "_restart_decider" in source, "Update now must honor the click-time restart decision"
+        assert "refusal" in source, "A refusal reason must be surfaced in the banner"
 
 
 if __name__ == "__main__":
