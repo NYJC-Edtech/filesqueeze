@@ -42,7 +42,7 @@ from pathlib import Path
 from typing import Callable
 
 from .config import Config
-from .update_check import UpdateInfo, is_dev_checkout
+from .update_check import UpdateInfo, is_dev_checkout, normalize_version
 
 logger = logging.getLogger(__name__)
 
@@ -93,11 +93,6 @@ class UpdateProgress:
         if self.downloaded is None or not self.total:
             return None
         return min(100, self.downloaded * 100 // self.total)
-
-
-def normalize_version(version: str) -> str:
-    """Drop the ``v`` prefix GitHub tags carry, so ``v0.9.3`` -> ``0.9.3``."""
-    return version.strip().lower().removeprefix("v")
 
 
 def wheel_filename(version: str) -> str:
@@ -571,7 +566,7 @@ class UpdateController:
             self._restart = restart
             self._on_applied = on_applied
             self._cancel_event = threading.Event()
-            version = normalize_version(update_info.latest_version)
+            version = update_info.latest_version  # display-ready: UpdateInfo normalized it
             self._progress = UpdateProgress(phase=PHASE_DOWNLOADING, message=f"Downloading FileSqueeze v{version}…")
             self._thread = threading.Thread(target=self._run, name="update-apply", daemon=True)
             self._thread.start()
@@ -616,7 +611,7 @@ class UpdateController:
     def _run(self) -> None:
         assert self._update_info is not None
         info = self._update_info
-        version = normalize_version(info.latest_version)
+        version = info.latest_version  # display-ready: UpdateInfo normalized it
         try:
             wheel = download_wheel(
                 info,
@@ -639,7 +634,7 @@ class UpdateController:
             spawn_updater(
                 wheel,
                 build_relaunch_command() if self._restart else None,
-                previous_version=normalize_version(info.current_version),
+                previous_version=info.current_version,
                 target_version=version,
                 status_file=update_status_path(),
             )

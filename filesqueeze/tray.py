@@ -357,6 +357,7 @@ class TrayService:
         """Dynamic tray menu label for the update item (re-evaluated on menu open)."""
         if self._update_info is None:
             return "Update"
+        # UpdateInfo.latest_version is display-ready (no "v" prefix) — see update_check.UpdateInfo
         version = self._update_info.latest_version
         if self._update_controller.running:
             percent = self._update_controller.snapshot().percent

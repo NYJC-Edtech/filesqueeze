@@ -46,9 +46,26 @@ _USER_AGENT = "filesqueeze-update-check"
 _WHEEL_ASSET_PATTERN = re.compile(r"filesqueeze-(\d+(?:\.\d+)*)-py3-none-any\.whl", re.IGNORECASE)
 
 
+def normalize_version(version: str) -> str:
+    """Drop the ``v`` prefix GitHub tags carry, so ``v0.9.3`` -> ``0.9.3``.
+
+    Version-string hygiene next to :func:`parse_version`: display strings
+    prefix a literal ``v``, so anything derived from a GitHub tag must be
+    stripped first. :class:`UpdateInfo` applies this at construction, making
+    its fields display-ready (issue #42).
+    """
+    return version.strip().lower().removeprefix("v")
+
+
 @dataclass(frozen=True)
 class UpdateInfo:
     """A newer release found on GitHub.
+
+    Both version fields are display-ready: :func:`normalize_version` strips
+    the ``v`` prefix GitHub tags carry at construction, so user-facing strings
+    can prefix a literal ``v`` without rendering ``vv0.9.3`` (issue #42).
+    Version comparison, wheel matching and pip verification all normalize
+    again internally, so the raw tag is never needed by callers.
 
     ``wheel_url`` is the direct download URL of the release's wheel asset;
     None when the release publishes no matching wheel (auto-update then
@@ -59,6 +76,14 @@ class UpdateInfo:
     latest_version: str
     download_url: str
     wheel_url: str | None = None
+
+    def __post_init__(self) -> None:
+        # Frozen dataclass, so normalize through object.__setattr__. Doing it
+        # here (once, at the type boundary) rather than at each display site
+        # is what structurally retired the "vv0.9.3" bug class: a raw tag can
+        # never reach an f-string again.
+        object.__setattr__(self, "current_version", normalize_version(self.current_version))
+        object.__setattr__(self, "latest_version", normalize_version(self.latest_version))
 
 
 def get_current_version() -> str | None:

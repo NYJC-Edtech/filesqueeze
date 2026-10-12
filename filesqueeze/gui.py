@@ -7,6 +7,7 @@ import tkinter as tk
 from datetime import datetime, timedelta
 from pathlib import Path
 from tkinter import scrolledtext, ttk
+from typing import Callable
 
 from .service import ServiceState, StateProvider
 from .update_banner import AboutTab
@@ -37,8 +38,8 @@ class StatusWindow:
         refresh_interval: int | None = 2000,
         update_info: UpdateInfo | None = None,
         update_controller: UpdateController | None = None,
-        on_update_applied: object | None = None,
-        on_update_found: object | None = None,
+        on_update_applied: Callable[[], None] | None = None,
+        on_update_found: Callable[[UpdateInfo], None] | None = None,
     ):
         """Initialize the status window.
 
@@ -53,7 +54,8 @@ class StatusWindow:
             on_update_applied: Called on the updater thread once the update is
                         handed off and the app should quit so it can install and
                         restart (the tray service passes its stop method). When
-                        None, "Update Now" installs without quitting.
+                        None, no quit is triggered and the update applies the
+                        next time FileSqueeze exits.
             on_update_found: Called with an UpdateInfo when the About tab's
                         manual "Check for updates" finds a newer release (the
                         tray service uses it to arm its own menu item).

@@ -412,6 +412,143 @@ class TestTrayUpdateMenuItem:
         assert "on_update_applied=self._quit_for_update" in dialog_source, "CompressDialog updates must quit so pip can run"
 
 
+def _bare_tray_service(update_info, controller=None):
+    """A TrayService with only the update state set, skipping TrayService.__init__.
+
+    __init__ starts watchers and grabs the Windows single-instance mutex —
+    none of that is needed to exercise the update display paths. The icon is
+    a Mock so tray notifications can be captured.
+    """
+    import logging
+    from unittest.mock import Mock
+
+    from filesqueeze.tray import TrayService
+
+    service = TrayService.__new__(TrayService)
+    service._update_info = update_info
+    service._update_controller = controller
+    service._manual_check_running = False
+    service._update_waiting_dialog = None
+    service.config = None  # update checks are monkeypatched; None never touches the network
+    service.logger = logging.getLogger("filesqueeze.tray")
+    service.icon = Mock()
+    return service
+
+
+class TestUpdateStringFormatting:
+    """Regression tests for issue #42: update strings must never render "vv0.9.x".
+
+    The invariant lives in UpdateInfo itself: __post_init__ normalizes both
+    version fields at construction, so every display site can prefix a
+    literal "v" without a second "v" appearing. These tests feed a raw
+    v-tagged UpdateInfo through the real formatting paths and assert on the
+    produced strings — they cover every current display site and any future
+    one, no matter how it interpolates the fields.
+    """
+
+    @staticmethod
+    def _found_update():
+        from filesqueeze.update_check import UpdateInfo
+
+        return UpdateInfo(
+            current_version="0.9.2",
+            latest_version="v0.9.3",
+            download_url="https://example.com/releases",
+            wheel_url="https://example.com/filesqueeze-0.9.3-py3-none-any.whl",
+        )
+
+    def test_update_info_stores_display_ready_versions(self):
+        """The raw GitHub tag must never survive UpdateInfo construction.
+
+        This is the load-bearing half of the issue #42 fix: display sites may
+        interpolate the fields directly only because normalization happens
+        here, once, at the type boundary.
+        """
+        import filesqueeze.update_check as update_check_module
+        from filesqueeze.update_check import UpdateInfo
+
+        assert update_check_module.normalize_version is not None  # hygiene helper lives beside the type
+
+        info = UpdateInfo(current_version="0.9.2", latest_version=" v0.9.3 ", download_url="https://example.com")
+        assert info.latest_version == "0.9.3"
+        assert info.current_version == "0.9.2"
+
+        tagged = UpdateInfo(current_version="0.9.2", latest_version="V0.9.4", download_url="https://example.com")
+        assert tagged.latest_version == "0.9.4"
+
+    def test_tray_menu_text_names_the_update_with_a_single_v(self):
+        """'Update to vv0.9.3 now' must be 'Update to v0.9.3 now'."""
+        from filesqueeze.updater import UpdateController
+
+        service = _bare_tray_service(self._found_update(), UpdateController())
+        text = service._update_menu_text()
+        assert text == "Update to v0.9.3 now"
+        assert "vv" not in text
+
+    def test_tray_menu_text_while_running_shows_progress_with_a_single_v(self):
+        """'Updating to vv0.9.3… 42%' must be 'Updating to v0.9.3… 42%'."""
+        from unittest.mock import Mock
+
+        from filesqueeze.updater import PHASE_DOWNLOADING, UpdateProgress
+
+        controller = Mock()
+        controller.running = True
+        controller.snapshot.return_value = UpdateProgress(phase=PHASE_DOWNLOADING, downloaded=42, total=100)
+        service = _bare_tray_service(self._found_update(), controller)
+        text = service._update_menu_text()
+        assert text == "Updating to v0.9.3… 42%"
+        assert "vv" not in text
+
+    def test_update_found_log_has_a_single_v(self, caplog):
+        """The startup check's log line must read 'v0.9.3', not 'vv0.9.3'."""
+        import logging
+
+        service = _bare_tray_service(None)
+        with caplog.at_level(logging.INFO, logger="filesqueeze.tray"):
+            service._on_update_found(self._found_update())
+        assert "Update available: v0.9.3 (installed: v0.9.2)" in caplog.text
+        assert "vv" not in caplog.text
+
+    def test_startup_check_notification_has_a_single_v(self, monkeypatch):
+        """The 'update available' balloon must read 'v0.9.3', not 'vv0.9.3'."""
+        import filesqueeze.tray as tray_module
+
+        monkeypatch.setattr(tray_module, "check_for_updates", lambda config: self._found_update())
+        service = _bare_tray_service(None)
+        service._check_for_updates()
+        message = service.icon.notify.call_args[0][0]
+        assert "FileSqueeze v0.9.3 is available (installed: v0.9.2)" in message
+        assert "vv" not in message
+
+    def test_manual_check_notification_has_a_single_v(self, monkeypatch):
+        """The manual check's balloon must read 'v0.9.3', not 'vv0.9.3'."""
+        import filesqueeze.tray as tray_module
+        from filesqueeze.update_check import MANUAL_CHECK_UPDATE_AVAILABLE
+
+        monkeypatch.setattr(
+            tray_module, "run_manual_check", lambda config: (MANUAL_CHECK_UPDATE_AVAILABLE, self._found_update())
+        )
+        service = _bare_tray_service(None)
+        service._run_manual_check()
+        message = service.icon.notify.call_args[0][0]
+        assert "FileSqueeze v0.9.3 is available" in message
+        assert "Update to v0.9.3 now" in message
+        assert "vv" not in message
+
+    def test_update_now_download_notice_has_a_single_v(self):
+        """'Updating FileSqueeze' balloon must read 'Downloading FileSqueeze v0.9.3…'."""
+        from unittest.mock import Mock
+
+        controller = Mock()
+        controller.running = False
+        controller.start.return_value = True
+        service = _bare_tray_service(self._found_update(), controller)
+        service._on_update_now()
+        message = service.icon.notify.call_args[0][0]
+        assert "Downloading FileSqueeze v0.9.3…" in message
+        assert "vv" not in message
+
+
 class TestUpdateBanner:
     """Tests for the update UI widgets.
 

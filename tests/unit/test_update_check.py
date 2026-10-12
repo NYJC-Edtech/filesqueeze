@@ -283,7 +283,7 @@ class TestCheckResultCache:
             info = check_for_updates(cache_path=cache_file)
 
         mock_fetch.assert_called_once()
-        assert info is not None and info.latest_version == "v0.9.3"
+        assert info is not None and info.latest_version == "0.9.3"  # UpdateInfo normalizes the raw tag
 
     def test_corrupt_cache_is_ignored(self, tmp_path):
         from filesqueeze.update_check import check_for_updates
@@ -365,7 +365,7 @@ class TestRunManualCheck:
 
         assert status == MANUAL_CHECK_UPDATE_AVAILABLE
         assert info is not None
-        assert info.latest_version == "v0.9.3"
+        assert info.latest_version == "0.9.3"  # display-ready, tag normalized
         assert info.current_version == "0.9.2"
         assert info.download_url == RELEASES_PAGE_URL
         assert info.wheel_url is not None and info.wheel_url.endswith("filesqueeze-0.9.3-py3-none-any.whl")
