@@ -13,7 +13,16 @@ from PIL import Image, ImageDraw
 from .config import Config
 from .logger import setup_logging
 from .service import DirectoryWatcher
-from .update_check import RELEASES_PAGE_URL, UpdateInfo, check_for_updates
+from .update_check import (
+    MANUAL_CHECK_DISABLED,
+    MANUAL_CHECK_UP_TO_DATE,
+    MANUAL_CHECK_UPDATE_AVAILABLE,
+    UpdateInfo,
+    check_for_updates,
+    get_current_version,
+    run_manual_check,
+)
+from .updater import UpdateController
 
 # App User Model ID for Windows to recognize this app consistently
 APP_USER_MODEL_ID = "com.filesqueeze.app"
@@ -59,6 +68,10 @@ class TrayService:
         self._compress_dialog = None  # Track the standalone compress dialog instance
         self._mutex = None  # Windows named mutex for single-instance enforcement
         self._update_info: UpdateInfo | None = None  # Newer release found at startup, if any
+        self._manual_check_running = False  # A user-requested check is in flight
+        # Shared download/apply controller: the tray menu, status window and
+        # compress dialog all show the same in-flight update through it
+        self._update_controller = UpdateController(config=self.config)
 
     def _ensure_single_instance(self):
         """Ensure only one FileSqueeze instance is running per mode.
@@ -265,7 +278,14 @@ class TrayService:
             # CRITICAL: Create and store the window BEFORE showing it
             # This ensures _status_window is set immediately for singleton enforcement
             # even though window.show() will block on mainloop()
-            self._status_window = StatusWindow(self.watcher, refresh_interval=refresh_interval, update_info=self._update_info)
+            self._status_window = StatusWindow(
+                self.watcher,
+                refresh_interval=refresh_interval,
+                update_info=self._update_info,
+                update_controller=self._update_controller,
+                on_update_applied=self._quit_for_update,
+                on_update_found=self._on_update_found,
+            )
             self._status_window.show()
 
             # After window closes, clear the reference so a new window can be opened
@@ -310,7 +330,12 @@ class TrayService:
 
             # Store the dialog BEFORE show() blocks on mainloop(), so the
             # singleton check works while the dialog is open
-            self._compress_dialog = CompressDialog(config=self.config, update_info=self._update_info)
+            self._compress_dialog = CompressDialog(
+                config=self.config,
+                update_info=self._update_info,
+                update_controller=self._update_controller,
+                on_update_applied=self._quit_for_update,
+            )
             self._compress_dialog.show()
 
             # After the dialog closes, allow a new one to be opened
@@ -320,17 +345,113 @@ class TrayService:
             self.logger.error(f"Failed to show compress dialog: {e}", exc_info=True)
             self._compress_dialog = None
 
-    def _on_open_releases_page(self, icon: object = None, item: object = None):
-        """Handle 'update available' menu action - open the GitHub releases page.
+    def _update_menu_text(self, item: object = None) -> str:
+        """Dynamic tray menu label for the update item (re-evaluated on menu open)."""
+        if self._update_info is None:
+            return "Update"
+        version = self._update_info.latest_version
+        if self._update_controller.running:
+            percent = self._update_controller.snapshot().percent
+            if percent is not None:
+                return f"Updating to v{version}… {percent}%"
+            return f"Updating to v{version}…"
+        return f"Update to v{version} now"
+
+    def _on_update_now(self, icon: object = None, item: object = None):
+        """Handle 'Update now' - download and apply the newer release, then restart.
+
+        The download runs on the updater's background thread; once applied, a
+        detached updater installs the wheel after this process exits and
+        relaunches the service (see filesqueeze.updater).
+        """
+        if self._update_info is None:
+            return
+
+        if self._update_controller.running:
+            self.icon.notify(self._update_controller.snapshot().message or "Update in progress…", title="FileSqueeze update")
+            return
+
+        if self._compress_dialog is not None and self._compress_dialog.is_compressing:
+            # Quitting mid-compression would drop the user's file; the update
+            # stays available once the compression finishes
+            self.icon.notify("A compression is running — wait for it to finish before updating.", title="FileSqueeze update")
+            return
+
+        version = self._update_info.latest_version
+        started = self._update_controller.start(self._update_info, restart=True, on_applied=self._quit_for_update)
+        if started:
+            self.logger.info(f"Update to v{version} requested from tray menu")
+            self.icon.notify(
+                f"Downloading FileSqueeze v{version}… FileSqueeze will restart when done.", title="Updating FileSqueeze"
+            )
+        else:
+            # Refused (dev checkout, or release without a wheel): surface why
+            reason = self._update_controller.snapshot().message
+            self.logger.info(f"Automatic update not available: {reason}")
+            self.icon.notify(reason, title="FileSqueeze update")
+
+    def _quit_for_update(self):
+        """Stop the service so the detached updater can install and relaunch.
+
+        Runs on the updater thread once the handoff is in place. Quitting
+        releases the single-instance mutex and closes the package files the
+        detached updater needs to replace.
+        """
+        self.logger.info("Update applied — stopping FileSqueeze; it will restart into the new version")
+        self.stop()
+
+    def _on_update_found(self, info: UpdateInfo):
+        """Store a freshly found update so the menu item and windows surface it.
+
+        Safe to call from any thread: it only assigns an attribute and logs.
+        """
+        self._update_info = info
+        self.logger.info(f"Update available: v{info.latest_version} (installed: v{info.current_version})")
+
+    def _on_check_for_updates_now(self, icon: object = None, item: object = None):
+        """Handle 'Check for updates' - run a fresh (uncached) check off the menu thread.
 
         Args:
             icon: Tray icon instance.
             item: Menu item instance.
         """
-        import webbrowser
+        if self._manual_check_running:
+            self.icon.notify("An update check is already running…", title="FileSqueeze update check")
+            return
+        self._manual_check_running = True
+        threading.Thread(target=self._run_manual_check, name="manual-update-check", daemon=True).start()
 
-        self.logger.info(f"Opening releases page: {RELEASES_PAGE_URL}")
-        webbrowser.open(RELEASES_PAGE_URL)
+    def _run_manual_check(self):
+        """Run the manual check and show its outcome as a tray notification.
+
+        Unlike the silent startup check, a user-requested check reports every
+        outcome: up to date, offline/error, disabled, or a found update (which
+        also arms the 'Update to vX now' menu item and window banners).
+        """
+        try:
+            status, info = run_manual_check(self.config)
+            if status == MANUAL_CHECK_UPDATE_AVAILABLE and info is not None:
+                self._on_update_found(info)
+                message = (
+                    f"FileSqueeze v{info.latest_version} is available (installed: v{info.current_version}). "
+                    f"Choose 'Update to v{info.latest_version} now' to install it."
+                )
+            elif status == MANUAL_CHECK_UP_TO_DATE:
+                current = get_current_version()
+                message = f"FileSqueeze v{current} is up to date."
+            elif status == MANUAL_CHECK_DISABLED:
+                message = "Update checks are disabled in the configuration."
+            else:
+                message = "Could not check for updates — is this machine online?"
+            self.icon.notify(message, title="FileSqueeze update check")
+        except Exception as e:
+            self.logger.warning(f"Manual update check failed: {e}", exc_info=True)
+            try:
+                self.icon.notify("Could not check for updates.", title="FileSqueeze update check")
+            except Exception:
+                self.logger.warning("Could not show manual-check failure notification", exc_info=True)
+        finally:
+            self._manual_check_running = False
 
     def _check_for_updates(self):
         """Check GitHub for a newer release; runs on a background thread.
@@ -350,13 +471,12 @@ class TrayService:
             self.logger.debug("No newer FileSqueeze release found (or update check disabled)")
             return
 
-        self._update_info = info
-        self.logger.info(f"Update available: v{info.latest_version} (installed: v{info.current_version})")
+        self._on_update_found(info)
 
         try:
             self.icon.notify(
                 f"FileSqueeze v{info.latest_version} is available (installed: v{info.current_version}). "
-                "Right-click the tray icon and choose the update entry to get it.",
+                "Right-click the tray icon and choose 'Update now' to install it.",
                 title="FileSqueeze update available",
             )
         except Exception as e:
@@ -402,12 +522,13 @@ class TrayService:
             pystray.MenuItem("Compress a File…", self._on_compress_file),
             pystray.MenuItem("Open Input Folder", self._on_open_input),
             pystray.MenuItem("Open Output Folder", self._on_open_output),
+            pystray.MenuItem("Check for updates", self._on_check_for_updates_now),
             # Hidden until the startup update check finds a newer release;
             # pystray re-evaluates the dynamic text/visibility each time the
-            # menu is opened.
+            # menu is opened. Clicking downloads, installs and restarts.
             pystray.MenuItem(
-                lambda item: f"Update available: v{self._update_info.latest_version} — open download page",
-                self._on_open_releases_page,
+                self._update_menu_text,
+                self._on_update_now,
                 visible=lambda item: self._update_info is not None,
             ),
             pystray.Menu.SEPARATOR,

@@ -16,6 +16,20 @@ def _api_response(payload) -> io.BytesIO:
     return io.BytesIO(json.dumps(payload).encode("utf-8"))
 
 
+def _release_payload(tag: str = "v0.9.2", wheel_version: str | None = None) -> dict:
+    """Build a GitHub latest-release payload with one wheel asset."""
+    version = wheel_version or tag.lower().removeprefix("v")
+    return {
+        "tag_name": tag,
+        "assets": [
+            {
+                "name": f"filesqueeze-{version}-py3-none-any.whl",
+                "browser_download_url": f"https://example.com/filesqueeze-{version}-py3-none-any.whl",
+            }
+        ],
+    }
+
+
 class TestParseVersion:
     def test_parses_plain_version(self):
         from filesqueeze.update_check import parse_version
@@ -141,14 +155,36 @@ class TestCheckForUpdates:
 
         with (
             patch("filesqueeze.update_check.get_current_version", return_value="0.9.1"),
-            patch("filesqueeze.update_check.fetch_latest_release", return_value="v0.9.2"),
+            patch("filesqueeze.update_check.fetch_release_payload", return_value=_release_payload("v0.9.2")),
         ):
             from filesqueeze.update_check import RELEASES_PAGE_URL, UpdateInfo, check_for_updates
 
             info = check_for_updates(Config({"updates": {"check_on_startup": True}}))
 
-        assert info == UpdateInfo(current_version="0.9.1", latest_version="v0.9.2", download_url=RELEASES_PAGE_URL)
+        assert info == UpdateInfo(
+            current_version="0.9.1",
+            latest_version="v0.9.2",
+            download_url=RELEASES_PAGE_URL,
+            wheel_url="https://example.com/filesqueeze-0.9.2-py3-none-any.whl",
+        )
         assert "github.com" in info.download_url
+
+    def test_wheel_url_is_none_when_release_has_no_wheel(self):
+        from filesqueeze.config import Config
+        from filesqueeze.update_check import check_for_updates
+
+        payload = {
+            "tag_name": "v0.9.2",
+            "assets": [{"name": "notes.txt", "browser_download_url": "https://example.com/notes.txt"}],
+        }
+        with (
+            patch("filesqueeze.update_check.get_current_version", return_value="0.9.1"),
+            patch("filesqueeze.update_check.fetch_release_payload", return_value=payload),
+        ):
+            info = check_for_updates(Config({"updates": {"check_on_startup": True}}))
+
+        assert info is not None
+        assert info.wheel_url is None
 
     def test_returns_none_when_up_to_date(self):
         from filesqueeze.config import Config
@@ -156,7 +192,7 @@ class TestCheckForUpdates:
 
         with (
             patch("filesqueeze.update_check.get_current_version", return_value="0.9.2"),
-            patch("filesqueeze.update_check.fetch_latest_release", return_value="v0.9.2"),
+            patch("filesqueeze.update_check.fetch_release_payload", return_value=_release_payload("v0.9.2")),
         ):
             assert check_for_updates(Config({"updates": {"check_on_startup": True}})) is None
 
@@ -164,7 +200,7 @@ class TestCheckForUpdates:
         from filesqueeze.config import Config
         from filesqueeze.update_check import check_for_updates
 
-        with patch("filesqueeze.update_check.fetch_latest_release") as mock_fetch:
+        with patch("filesqueeze.update_check.fetch_release_payload") as mock_fetch:
             assert check_for_updates(Config({"updates": {"check_on_startup": False}})) is None
             mock_fetch.assert_not_called()
 
@@ -174,6 +210,210 @@ class TestCheckForUpdates:
 
         with (
             patch("filesqueeze.update_check.get_current_version", return_value="0.9.1"),
-            patch("filesqueeze.update_check.fetch_latest_release", return_value=None),
+            patch("filesqueeze.update_check.fetch_release_payload", return_value=None),
         ):
             assert check_for_updates(Config({"updates": {"check_on_startup": True}})) is None
+
+
+class TestFindWheelAsset:
+    def test_finds_matching_wheel(self):
+        from filesqueeze.update_check import find_wheel_asset
+
+        assert (
+            find_wheel_asset(_release_payload("v0.9.2"), "v0.9.2") == "https://example.com/filesqueeze-0.9.2-py3-none-any.whl"
+        )
+
+    def test_ignores_asset_with_wrong_version(self):
+        from filesqueeze.update_check import find_wheel_asset
+
+        assert find_wheel_asset(_release_payload("v0.9.2", wheel_version="0.9.1"), "v0.9.2") is None
+
+    def test_ignores_non_wheel_assets(self):
+        from filesqueeze.update_check import find_wheel_asset
+
+        payload = {
+            "tag_name": "v0.9.2",
+            "assets": [{"name": "filesqueeze-0.9.2.zip", "browser_download_url": "https://example.com/x.zip"}],
+        }
+        assert find_wheel_asset(payload, "v0.9.2") is None
+
+    def test_handles_missing_or_malformed_assets(self):
+        from filesqueeze.update_check import find_wheel_asset
+
+        assert find_wheel_asset({}, "v0.9.2") is None
+        assert find_wheel_asset({"assets": "nope"}, "v0.9.2") is None
+        assert find_wheel_asset({"assets": [{"name": "filesqueeze-0.9.2-py3-none-any.whl"}]}, "v0.9.2") is None
+        assert find_wheel_asset(None, "v0.9.2") is None
+
+
+class TestCheckResultCache:
+    def test_successful_check_writes_cache_and_reuse_skips_the_api(self, tmp_path):
+        from filesqueeze.update_check import RELEASES_PAGE_URL, UpdateInfo, check_for_updates
+
+        cache_file = tmp_path / "update_cache.json"
+        with (
+            patch("filesqueeze.update_check.get_current_version", return_value="0.9.1"),
+            patch("filesqueeze.update_check.fetch_release_payload", return_value=_release_payload("v0.9.2")) as mock_fetch,
+        ):
+            first = check_for_updates(cache_path=cache_file)
+            second = check_for_updates(cache_path=cache_file)
+
+        assert mock_fetch.call_count == 1  # second check was served from the cache
+        assert first == second
+        assert first == UpdateInfo(
+            current_version="0.9.1",
+            latest_version="v0.9.2",
+            download_url=RELEASES_PAGE_URL,
+            wheel_url="https://example.com/filesqueeze-0.9.2-py3-none-any.whl",
+        )
+
+    def test_stale_cache_is_refetched(self, tmp_path):
+        import time
+
+        from filesqueeze.update_check import CACHE_MAX_AGE_SECONDS, check_for_updates
+
+        cache_file = tmp_path / "update_cache.json"
+        stale = {"checked_at": time.time() - CACHE_MAX_AGE_SECONDS - 60, "tag": "v0.9.2", "wheel_url": None}
+        cache_file.write_text(json.dumps(stale), encoding="utf-8")
+
+        with (
+            patch("filesqueeze.update_check.get_current_version", return_value="0.9.1"),
+            patch("filesqueeze.update_check.fetch_release_payload", return_value=_release_payload("v0.9.3")) as mock_fetch,
+        ):
+            info = check_for_updates(cache_path=cache_file)
+
+        mock_fetch.assert_called_once()
+        assert info is not None and info.latest_version == "v0.9.3"
+
+    def test_corrupt_cache_is_ignored(self, tmp_path):
+        from filesqueeze.update_check import check_for_updates
+
+        cache_file = tmp_path / "update_cache.json"
+        cache_file.write_text("not json", encoding="utf-8")
+
+        with (
+            patch("filesqueeze.update_check.get_current_version", return_value="0.9.1"),
+            patch("filesqueeze.update_check.fetch_release_payload", return_value=_release_payload("v0.9.2")) as mock_fetch,
+        ):
+            info = check_for_updates(cache_path=cache_file)
+
+        mock_fetch.assert_called_once()
+        assert info is not None
+
+    def test_use_cache_false_bypasses_a_fresh_cache(self, tmp_path):
+        from filesqueeze.update_check import check_for_updates
+
+        cache_file = tmp_path / "update_cache.json"
+        with patch("filesqueeze.update_check.fetch_release_payload", return_value=_release_payload("v0.9.2")) as mock_fetch:
+            check_for_updates(cache_path=cache_file)
+            check_for_updates(cache_path=cache_file, use_cache=False)
+
+        assert mock_fetch.call_count == 2
+
+    def test_no_cache_path_means_no_caching_between_calls(self):
+        # Under pytest the default cache location resolves to None (never touch
+        # user state from tests), so repeated checks each hit the (mocked) API.
+        from filesqueeze.update_check import _cache_path, check_for_updates
+
+        assert _cache_path() is None
+
+        with (
+            patch("filesqueeze.update_check.get_current_version", return_value="0.9.1"),
+            patch("filesqueeze.update_check.fetch_release_payload", return_value=_release_payload("v0.9.2")) as mock_fetch,
+        ):
+            check_for_updates()
+            check_for_updates()
+
+        assert mock_fetch.call_count == 2
+
+
+class TestIsDevCheckout:
+    def test_true_when_pyproject_sits_next_to_the_package(self):
+        from filesqueeze.update_check import is_dev_checkout
+
+        # Test runs execute from the repo checkout
+        assert is_dev_checkout() is True
+
+    def test_false_for_installed_layout(self):
+        from unittest.mock import MagicMock
+
+        from filesqueeze.update_check import is_dev_checkout
+
+        fake_root = MagicMock()
+        fake_root.resolve.return_value.parent.parent.__truediv__.return_value.exists.return_value = False
+        with patch("filesqueeze.update_check.Path", return_value=fake_root):
+            assert is_dev_checkout() is False
+
+
+class TestRunManualCheck:
+    """The user-requested check classifies every outcome instead of staying silent."""
+
+    def test_returns_update_info_when_newer_release_exists(self):
+        with (
+            patch("filesqueeze.update_check.get_current_version", return_value="0.9.2"),
+            patch("filesqueeze.update_check.fetch_release_payload", return_value=_release_payload("v0.9.3")),
+            patch("filesqueeze.update_check._read_cache", return_value=None) as mock_read,
+            patch("filesqueeze.update_check._write_cache") as mock_write,
+        ):
+            from filesqueeze.update_check import (
+                MANUAL_CHECK_UPDATE_AVAILABLE,
+                RELEASES_PAGE_URL,
+                run_manual_check,
+            )
+
+            status, info = run_manual_check()
+
+        assert status == MANUAL_CHECK_UPDATE_AVAILABLE
+        assert info is not None
+        assert info.latest_version == "v0.9.3"
+        assert info.current_version == "0.9.2"
+        assert info.download_url == RELEASES_PAGE_URL
+        assert info.wheel_url is not None and info.wheel_url.endswith("filesqueeze-0.9.3-py3-none-any.whl")
+        # A manual check is always fresh: the cache is neither read nor written
+        mock_read.assert_not_called()
+        mock_write.assert_not_called()
+
+    def test_returns_up_to_date_when_latest_matches_installed(self):
+        with (
+            patch("filesqueeze.update_check.get_current_version", return_value="0.9.2"),
+            patch("filesqueeze.update_check.fetch_release_payload", return_value=_release_payload("v0.9.2")),
+        ):
+            from filesqueeze.update_check import MANUAL_CHECK_UP_TO_DATE, run_manual_check
+
+            status, info = run_manual_check()
+
+        assert status == MANUAL_CHECK_UP_TO_DATE
+        assert info is None
+
+    def test_returns_error_when_github_is_unreachable(self):
+        with (
+            patch("filesqueeze.update_check.get_current_version", return_value="0.9.2"),
+            patch("filesqueeze.update_check.fetch_release_payload", return_value=None),
+        ):
+            from filesqueeze.update_check import MANUAL_CHECK_ERROR, run_manual_check
+
+            status, info = run_manual_check()
+
+        assert status == MANUAL_CHECK_ERROR
+        assert info is None
+
+    def test_returns_error_when_running_version_is_unknown(self):
+        with patch("filesqueeze.update_check.get_current_version", return_value=None):
+            from filesqueeze.update_check import MANUAL_CHECK_ERROR, run_manual_check
+
+            status, info = run_manual_check()
+
+        assert status == MANUAL_CHECK_ERROR
+        assert info is None
+
+    def test_returns_disabled_without_touching_the_network(self):
+        from filesqueeze.config import Config
+
+        with patch("filesqueeze.update_check.fetch_release_payload") as mock_fetch:
+            from filesqueeze.update_check import MANUAL_CHECK_DISABLED, run_manual_check
+
+            status, info = run_manual_check(Config({"updates": {"check_on_startup": False}}))
+
+        assert status == MANUAL_CHECK_DISABLED
+        assert info is None
+        mock_fetch.assert_not_called()

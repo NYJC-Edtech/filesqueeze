@@ -14,7 +14,7 @@ Utility package for compressing videos, PDFs, and images using FFmpeg, Ghostscri
 - **Standalone Mode**: Compress a single file to a chosen destination via a dialog (`compress --gui`, tray menu, or right-click → Send To)
 - **Service Mode**: Background service with system tray icon (Windows)
 - **Auto-Start**: Start automatically at login (no admin required)
-- **Update Notifications**: Checks GitHub at startup for newer releases and notifies in the tray/GUI with a link to the download page (never downloads or installs anything on its own)
+- **One-Click Update**: Checks GitHub at startup (or via **Check for updates**) and notifies in the tray/GUI; one click downloads, installs via pip (no installer .exe, no admin), and restarts into the new version
 - **Batch Processing**: Process entire directories at once
 - **Binary Auto-Detection**: Automatically finds FFmpeg, Ghostscript, and Tesseract
 
@@ -43,6 +43,7 @@ poetry run python -m filesqueeze service run  # Development install
   - [Method 2: PyPI Package](#method-2-pypi-package-recommended-for-python-users)
   - [Method 3: Development Installation](#method-3-development-installation-poetry)
   - [Locked-Down Machines](#locked-down-machines-no-installers-no-admin-rights)
+  - [Updating](#updating)
 - [External Dependencies](#external-dependencies)
 - [Configuration](#configuration)
 - [Usage](#usage)
@@ -169,6 +170,20 @@ ghostscript_path = "C:/Users/you/FileSqueeze/bin/gs/bin/gswin64c.exe"
 Verify with `python -m filesqueeze detect` (where each binary was found) and `python -m filesqueeze doctor` (full diagnostic, including feature availability).
 
 > If policy blocks *running* any .exe from user-writable folders (AppLocker default rules do), portable binaries won't start either — ask IT to install or whitelist `python.exe`, `ffmpeg.exe`, and `gswin64c.exe` rather than working around it.
+
+### Updating
+
+FileSqueeze checks GitHub for a newer release when the service starts (cached for 6 hours, so it never hammers the API). When one is found you get a tray notification, a tray menu entry, and a banner in the Status window and Compress dialog. You can also check manually any time: **Check for updates** in the tray menu, or the **Check for updates** button in the Status window.
+
+**One click, no installer:** choose **Update to vX now** in the tray menu (or **Update now** in the Status window / Compress dialog banner). FileSqueeze downloads the release wheel, verifies it, quits, installs it with `pip install --force-reinstall --no-deps`, and starts again with the new version. Your config (`~/.config/filesqueeze/config.toml`) and watched folders are untouched, and no admin rights are needed — pip falls back to a user install when the Python site-packages folder isn't writable. The download is cancellable; if it fails, the banner keeps a *Release notes* link.
+
+If a compression is running, the update waits: both the tray and the Compress dialog ask you to finish it first, since quitting mid-compression would drop your file. In a dialog-only launch (`compress --gui`, no tray running) the update installs when you close the dialog.
+
+Notes:
+
+- **Dev checkouts never self-update** — update with `git pull` instead (the app tells you so if you try).
+- **Releases without a wheel asset** degrade to a *Release notes* link.
+- Fully locked-down setups where pip can't write anywhere still get the *Release notes* link to download the wheel manually.
 
 ---
 
