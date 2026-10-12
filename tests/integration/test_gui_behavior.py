@@ -413,57 +413,84 @@ class TestTrayUpdateMenuItem:
 
 
 class TestUpdateBanner:
-    """Tests for the in-window update banners.
+    """Tests for the update UI widgets.
 
-    CODE-LEVEL tests: both windows must render the shared UpdateBanner, the
-    banner must offer a one-click update plus a releases-page fallback, and
-    the dialog-only path must install without quitting the app.
+    CODE-LEVEL tests: the Status window's About tab carries versions, the
+    manual check and the greyed-until-found Update Now button; the Compress
+    dialog keeps the shared UpdateBanner; both drive the shared controller.
     """
 
-    def test_status_window_renders_shared_update_banner(self):
+    def test_status_window_has_about_tab_with_the_update_ui(self):
+        """The Status window must have an About tab wired to the shared update machinery."""
         import inspect
 
         from filesqueeze.gui import StatusWindow
 
         widgets_source = inspect.getsource(StatusWindow._create_widgets)
-        banner_source = inspect.getsource(StatusWindow._show_update_banner)
+        about_source = inspect.getsource(StatusWindow._create_about_tab)
 
-        assert "_show_update_banner" in widgets_source, "StatusWindow must integrate the update banner"
-        assert "UpdateBanner(" in banner_source, "StatusWindow must render the shared UpdateBanner"
-        assert "UpdateInfo" in inspect.getsource(StatusWindow.__init__), "StatusWindow must accept an UpdateInfo"
+        assert "_create_about_tab" in widgets_source, "StatusWindow must build the About tab"
+        assert "About" in about_source, "The third notebook tab must be titled 'About'"
+        assert "AboutTab(" in about_source, "The About tab must render the shared AboutTab widget"
+        assert "update_info=self._update_info" in about_source, "Startup-found updates must reach the About tab"
+        assert "self._update_controller" in about_source, "About tab must share the update controller"
+        assert "on_update_applied=self._on_update_applied" in about_source, "About-tab updates must quit so pip can run"
+        assert "restart=self._on_update_applied is not None" in about_source, (
+            "Restart must be decided exactly like the pre-About banner did"
+        )
 
-    def test_status_window_has_manual_check_button(self):
-        """The Status window must offer a 'Check for updates' button on the Tk thread."""
+    def test_about_tab_owns_the_manual_check(self):
+        """The 'Check for updates' button moved to the About tab (out of the header)."""
         import inspect
 
         from filesqueeze.gui import StatusWindow
+        from filesqueeze.update_banner import AboutTab
 
         widgets_source = inspect.getsource(StatusWindow._create_widgets)
-        handler_source = inspect.getsource(StatusWindow._on_check_updates)
-        poll_source = inspect.getsource(StatusWindow._poll_manual_check)
+        check_source = inspect.getsource(AboutTab._on_check_updates)
+        poll_source = inspect.getsource(AboutTab._poll_manual_check)
 
-        assert "Check for updates" in widgets_source, "StatusWindow must have a 'Check for updates' button"
-        assert "_on_check_updates" in widgets_source, "Check button must be wired to its handler"
-        assert "threading.Thread" in handler_source, "The check must run off the Tk thread"
-        assert "run_manual_check" in handler_source, "The check must use the fresh-check helper"
-        assert "_show_update_banner" in poll_source, "A found update must render the banner from the poll"
+        assert "Check for updates" not in widgets_source, "The check button must NOT sit in the window header anymore"
+        assert "Check for updates" in inspect.getsource(AboutTab._build_widgets), "The button lives on the About tab"
+        assert "_on_check_updates" in inspect.getsource(AboutTab._build_widgets), "Check button must be wired to its handler"
+        assert "threading.Thread" in check_source, "The check must run off the Tk thread"
+        assert "run_manual_check" in check_source, "The check must use the fresh-check helper"
+        assert "set_update_info" in poll_source, "A found update must fill the About tab from the poll"
+        assert "_on_update_found" in poll_source, "A found update must arm the tray's menu item"
         assert "winfo_exists" in poll_source, "The poll must stop once the window is gone"
 
-    def test_status_window_late_banner_renders_after_manual_check(self):
-        """A manual check finding an update must show the banner in the already-built window."""
+    def test_about_tab_shows_versions_link_and_greyed_update_now(self):
+        """About tab: current version, latest version + link when found, Update Now greyed until then."""
+        import inspect
+
+        from filesqueeze.update_banner import AboutTab
+
+        build_source = inspect.getsource(AboutTab._build_widgets)
+        render_source = inspect.getsource(AboutTab._render_update_state)
+
+        assert "Current version: v" in build_source, "The tab must display the running version"
+        assert "Latest version: v" in render_source, "A found update must show the latest version"
+        assert "Release notes on GitHub" in build_source, "The GitHub releases-page link must be present"
+        assert "Update Now" in build_source, "The tab must offer the one-click update"
+        assert '"disabled"' in render_source, "Update Now must start disabled/greyed out"
+        assert '"!disabled"' in render_source, "Update Now must enable once a newer release is found"
+        assert "can_self_update" in render_source, "Update Now must stay greyed when the install can't self-update"
+        assert "Progressbar" in build_source, "Download progress must render on the tab"
+
+    def test_manual_check_fills_the_about_tab_and_arms_the_tray(self):
+        """A manual check finding an update must fill the already-built About tab."""
         import inspect
 
         from filesqueeze.gui import StatusWindow
+        from filesqueeze.update_banner import AboutTab
 
-        banner_source = inspect.getsource(StatusWindow._show_update_banner)
-
-        assert "UpdateBanner(" in banner_source, "_show_update_banner must create the shared banner"
-        assert "on_update_applied=self._on_update_applied" in banner_source, (
-            "Late banners must quit on update, same as startup banners"
+        about_source = inspect.getsource(StatusWindow._create_about_tab)
+        assert "on_update_found=self._on_update_found" in about_source, (
+            "Manual-check finds must be reported to the tray (menu item arming)"
         )
-        assert "restart=self._on_update_applied is not None" in banner_source, (
-            "Late banners must decide restart the same way as startup banners"
-        )
+        assert "set_update_info" in inspect.getsource(AboutTab.set_update_info) or "set_update_info" in (
+            inspect.getsource(AboutTab._poll_manual_check)
+        ), "The tab must update in place via set_update_info"
 
     def test_compress_dialog_can_self_check_and_show_banner(self):
         import inspect

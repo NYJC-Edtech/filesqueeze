@@ -173,7 +173,7 @@ Verify with `python -m filesqueeze detect` (where each binary was found) and `py
 
 ### Updating
 
-FileSqueeze checks GitHub for a newer release when the service starts (cached for 6 hours, so it never hammers the API). When one is found you get a tray notification, a tray menu entry, and a banner in the Status window and Compress dialog. You can also check manually any time: **Check for updates** in the tray menu, or the **Check for updates** button in the Status window.
+FileSqueeze checks GitHub for a newer release when the service starts (cached for 6 hours, so it never hammers the API). When one is found you get a tray notification, a tray menu entry, and a banner in the Status window and Compress dialog. You can also check manually any time: **Check for updates** in the tray menu, or the **Check for updates** button on the Status window's **About** tab — which also shows the current version and, when a newer release is found, the latest version, a link to the GitHub release page, and an **Update Now** button (greyed out until an update is available).
 
 **One click, no installer:** choose **Update to vX now** in the tray menu (or **Update now** in the Status window / Compress dialog banner). FileSqueeze downloads the release wheel, verifies it, quits, installs it with `pip install --force-reinstall --no-deps`, and starts again with the new version. Your config (`~/.config/filesqueeze/config.toml`) and watched folders are untouched, and no admin rights are needed — pip falls back to a user install when the Python site-packages folder isn't writable. The download is cancellable; if it fails, the banner keeps a *Release notes* link.
 
