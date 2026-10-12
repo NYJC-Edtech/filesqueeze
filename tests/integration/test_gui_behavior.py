@@ -438,11 +438,12 @@ def _bare_tray_service(update_info, controller=None):
 class TestUpdateStringFormatting:
     """Regression tests for issue #42: update strings must never render "vv0.9.x".
 
-    UpdateInfo.latest_version carries the raw GitHub tag ("v0.9.3"); every
-    user-visible string that prefixes a literal "v" must normalize the tag
-    first. Unlike the source-inspection tests elsewhere in this file, these
-    run the real formatting code against a "v"-tagged UpdateInfo and assert
-    on the produced strings.
+    The invariant lives in UpdateInfo itself: __post_init__ normalizes both
+    version fields at construction, so every display site can prefix a
+    literal "v" without a second "v" appearing. These tests feed a raw
+    v-tagged UpdateInfo through the real formatting paths and assert on the
+    produced strings — they cover every current display site and any future
+    one, no matter how it interpolates the fields.
     """
 
     @staticmethod
@@ -455,6 +456,25 @@ class TestUpdateStringFormatting:
             download_url="https://example.com/releases",
             wheel_url="https://example.com/filesqueeze-0.9.3-py3-none-any.whl",
         )
+
+    def test_update_info_stores_display_ready_versions(self):
+        """The raw GitHub tag must never survive UpdateInfo construction.
+
+        This is the load-bearing half of the issue #42 fix: display sites may
+        interpolate the fields directly only because normalization happens
+        here, once, at the type boundary.
+        """
+        import filesqueeze.update_check as update_check_module
+        from filesqueeze.update_check import UpdateInfo
+
+        assert update_check_module.normalize_version is not None  # hygiene helper lives beside the type
+
+        info = UpdateInfo(current_version="0.9.2", latest_version=" v0.9.3 ", download_url="https://example.com")
+        assert info.latest_version == "0.9.3"
+        assert info.current_version == "0.9.2"
+
+        tagged = UpdateInfo(current_version="0.9.2", latest_version="V0.9.4", download_url="https://example.com")
+        assert tagged.latest_version == "0.9.4"
 
     def test_tray_menu_text_names_the_update_with_a_single_v(self):
         """'Update to vv0.9.3 now' must be 'Update to v0.9.3 now'."""
@@ -527,24 +547,6 @@ class TestUpdateStringFormatting:
         message = service.icon.notify.call_args[0][0]
         assert "Downloading FileSqueeze v0.9.3…" in message
         assert "vv" not in message
-
-    def test_no_ui_module_interpolates_the_raw_tag_after_a_literal_v(self):
-        """Source guard: a literal 'v' may only be followed by a normalized tag.
-
-        Catches the banner/About label paths that need a real display to run
-        (widget tests are deferred, issue #33): any f-string interpolating
-        latest_version right after a literal 'v' must wrap it in
-        normalize_version().
-        """
-        import inspect
-        import re
-
-        from filesqueeze import gui, gui_compress, tray, update_banner
-
-        pattern = re.compile(r"v\{(?![^}]*normalize_version)[^}]*latest_version")
-        for module in (tray, update_banner, gui, gui_compress):
-            matches = pattern.findall(inspect.getsource(module))
-            assert not matches, f"{module.__name__} renders the raw tag after a literal 'v' (issue #42): {matches}"
 
 
 class TestUpdateBanner:

@@ -28,6 +28,7 @@ import tkinter as tk
 import tomllib
 from pathlib import Path
 from tkinter import filedialog, messagebox, ttk
+from typing import Callable
 
 from .config import Config
 from .standalone import (
@@ -128,7 +129,7 @@ class CompressDialog:
         update_info: UpdateInfo | None = None,
         check_updates: bool = False,
         update_controller: UpdateController | None = None,
-        on_update_applied: object | None = None,
+        on_update_applied: Callable[[], None] | None = None,
     ):
         """Initialize the dialog.
 

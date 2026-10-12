@@ -21,7 +21,9 @@ import threading
 import tkinter as tk
 import webbrowser
 from tkinter import ttk
+from typing import Callable
 
+from .config import Config
 from .update_check import (
     MANUAL_CHECK_DISABLED,
     MANUAL_CHECK_ERROR,
@@ -41,8 +43,8 @@ from .updater import (
     PHASE_VERIFYING,
     PHASE_WAITING,
     UpdateController,
+    UpdateProgress,
     can_self_update,
-    normalize_version,
 )
 
 # Gold/red/green/gray tones shared with the rest of the FileSqueeze UI
@@ -55,6 +57,13 @@ _COLOR_MUTED = "#666666"
 _TERMINAL_PHASES = (PHASE_DONE, PHASE_FAILED, PHASE_CANCELLED)
 
 
+def _format_progress_text(snap: UpdateProgress) -> str:
+    """Controller message with the download percentage appended, when known."""
+    if snap.percent is None:
+        return snap.message
+    return f"{snap.message} ({snap.percent}%)"
+
+
 class UpdateBanner(ttk.LabelFrame):
     """'Update available' banner: Update now / Release notes, progress, cancel."""
 
@@ -62,12 +71,12 @@ class UpdateBanner(ttk.LabelFrame):
 
     def __init__(
         self,
-        master: object,
+        master: tk.Misc | None,
         controller: UpdateController,
         update_info: UpdateInfo | None = None,
         *,
         restart: bool = False,
-        on_update_applied: object | None = None,
+        on_update_applied: Callable[[], None] | None = None,
     ):
         """Build the banner.
 
@@ -112,10 +121,7 @@ class UpdateBanner(ttk.LabelFrame):
         for child in self.winfo_children():
             child.destroy()
 
-        message = (
-            f"FileSqueeze v{normalize_version(update_info.latest_version)} "
-            f"is available (installed: v{update_info.current_version})."
-        )
+        message = f"FileSqueeze v{update_info.latest_version} is available (installed: v{update_info.current_version})."
         ttk.Label(self, text=message, font=("Helvetica", 9, "bold"), foreground=_COLOR_AVAILABLE).grid(
             row=0, column=0, sticky="w"
         )
@@ -183,7 +189,7 @@ class UpdateBanner(ttk.LabelFrame):
         if self._controller.running or snap.phase not in _TERMINAL_PHASES:
             self.after(self.POLL_INTERVAL_MS, self._poll)
 
-    def _render(self, snap: object) -> None:
+    def _render(self, snap: UpdateProgress) -> None:
         """Repaint the widgets for an update phase (Tk main thread only)."""
         label = self._status_label
         bar = self._progressbar
@@ -195,7 +201,7 @@ class UpdateBanner(ttk.LabelFrame):
         if snap.phase == PHASE_DOWNLOADING:
             buttons.grid_remove()
             label.grid()
-            label.config(text=self._format_progress_text(snap), foreground=_COLOR_INFO)
+            label.config(text=_format_progress_text(snap), foreground=_COLOR_INFO)
             cancel.state(["!disabled"])
             cancel.grid()
             bar.grid()
@@ -236,12 +242,6 @@ class UpdateBanner(ttk.LabelFrame):
         self._status_label.grid()
         self._status_label.config(text=message, foreground=foreground)
         self._buttons_frame.grid()
-
-    @staticmethod
-    def _format_progress_text(snap: object) -> str:
-        if snap.percent is None:
-            return snap.message
-        return f"{snap.message} ({snap.percent}%)"
 
 
 class UpdateWaitingDialog:
@@ -326,14 +326,14 @@ class AboutTab(ttk.Frame):
 
     def __init__(
         self,
-        master: object,
+        master: tk.Misc | None,
         controller: UpdateController,
-        config: object | None = None,
+        config: Config | None = None,
         update_info: UpdateInfo | None = None,
         *,
         restart: bool = False,
-        on_update_applied: object | None = None,
-        on_update_found: object | None = None,
+        on_update_applied: Callable[[], None] | None = None,
+        on_update_found: Callable[[UpdateInfo], None] | None = None,
         current_version: str | None = None,
     ):
         """Build the tab.
@@ -446,9 +446,7 @@ class AboutTab(ttk.Frame):
 
         status, info = result
         if status == MANUAL_CHECK_UPDATE_AVAILABLE and info is not None:
-            self._check_result_label.config(
-                text=f"Update found: v{normalize_version(info.latest_version)}", foreground=_COLOR_AVAILABLE
-            )
+            self._check_result_label.config(text=f"Update found: v{info.latest_version}", foreground=_COLOR_AVAILABLE)
             self.set_update_info(info)
             if self._on_update_found is not None:
                 try:
@@ -513,7 +511,7 @@ class AboutTab(ttk.Frame):
         found = self._update_info is not None
 
         if found:
-            self._latest_label.config(text=f"Latest version: v{normalize_version(self._update_info.latest_version)}")
+            self._latest_label.config(text=f"Latest version: v{self._update_info.latest_version}")
             self._latest_label.grid()
         else:
             self._latest_label.config(text="")
@@ -527,7 +525,7 @@ class AboutTab(ttk.Frame):
         cancel_visible = False
 
         if snap.phase in (PHASE_DOWNLOADING, PHASE_VERIFYING, PHASE_WAITING, PHASE_INSTALLING):
-            message = self._format_progress_text(snap)
+            message = _format_progress_text(snap)
             bar_mode = "determinate" if snap.percent is not None else "indeterminate"
             bar_percent = snap.percent
             cancel_visible = snap.phase in (PHASE_DOWNLOADING, PHASE_WAITING)
@@ -542,10 +540,10 @@ class AboutTab(ttk.Frame):
             message = "Update cancelled."
             color = _COLOR_MUTED
             update_now_enabled = found
-        elif found:
+        elif self._update_info is not None:
             can_auto, reason = can_self_update(self._update_info)
             if can_auto:
-                message = f"FileSqueeze v{normalize_version(self._update_info.latest_version)} is available — click “Update Now” to install."
+                message = f"FileSqueeze v{self._update_info.latest_version} is available — click “Update Now” to install."
                 color = _COLOR_AVAILABLE
                 update_now_enabled = True
             else:
@@ -571,9 +569,3 @@ class AboutTab(ttk.Frame):
             self._cancel_btn.pack()
         else:
             self._cancel_btn.pack_forget()
-
-    @staticmethod
-    def _format_progress_text(snap: object) -> str:
-        if snap.percent is None:
-            return snap.message
-        return f"{snap.message} ({snap.percent}%)"
