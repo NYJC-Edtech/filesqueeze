@@ -7,7 +7,7 @@ thread via ``after()``.
 
 - :class:`UpdateBanner` — the Compress dialog's "Update available" banner:
   hidden until a newer release is found, with Update now / Release notes,
-  progress and cancel.
+  status text and cancel.
 - :class:`AboutTab` — the Status window's About tab: current version, the
   "Check for updates" button, and an always-present Update Now button that
   stays greyed out until a newer release is found and no update is running.
@@ -102,7 +102,6 @@ class UpdateBanner(ttk.LabelFrame):
         self._buttons_frame: ttk.Frame | None = None
         self._status_label: ttk.Label | None = None
         self._cancel_btn: ttk.Button | None = None
-        self._progressbar: ttk.Progressbar | None = None
 
         if update_info is not None:
             self._build_widgets(update_info)
@@ -134,7 +133,7 @@ class UpdateBanner(ttk.LabelFrame):
             ttk.Button(self._buttons_frame, text="Update now", command=self._on_update_now).pack(side="left", padx=(0, 5))
         ttk.Button(self._buttons_frame, text="Release notes", command=self._open_release_notes).pack(side="left")
 
-        # Progress row: gridded then removed so the options are remembered
+        # Status row: gridded then removed so the grid options are remembered
         self._status_label = ttk.Label(self, text="", foreground=_COLOR_INFO)
         self._status_label.grid(row=1, column=0, columnspan=2, sticky="w", pady=(5, 0))
         self._status_label.grid_remove()
@@ -142,10 +141,6 @@ class UpdateBanner(ttk.LabelFrame):
         self._cancel_btn = ttk.Button(self, text="Cancel", command=self._on_cancel_update)
         self._cancel_btn.grid(row=1, column=1, sticky="e", pady=(5, 0))
         self._cancel_btn.grid_remove()
-
-        self._progressbar = ttk.Progressbar(self, mode="determinate", maximum=100)
-        self._progressbar.grid(row=2, column=0, columnspan=2, sticky="ew", pady=(4, 0))
-        self._progressbar.grid_remove()
 
         # Reflect an update the shared controller may already have in flight
         self._poll()
@@ -190,12 +185,17 @@ class UpdateBanner(ttk.LabelFrame):
             self.after(self.POLL_INTERVAL_MS, self._poll)
 
     def _render(self, snap: UpdateProgress) -> None:
-        """Repaint the widgets for an update phase (Tk main thread only)."""
+        """Repaint the widgets for an update phase (Tk main thread only).
+
+        Text-only by design: the release wheel is small and downloads in a
+        flash, so a progress bar only flickers through its animation modes —
+        the status label (with the percentage when the server reports a size)
+        is the whole progress report.
+        """
         label = self._status_label
-        bar = self._progressbar
         cancel = self._cancel_btn
         buttons = self._buttons_frame
-        if label is None or bar is None or cancel is None or buttons is None:
+        if label is None or cancel is None or buttons is None:
             return
 
         if snap.phase == PHASE_DOWNLOADING:
@@ -204,21 +204,10 @@ class UpdateBanner(ttk.LabelFrame):
             label.config(text=_format_progress_text(snap), foreground=_COLOR_INFO)
             cancel.state(["!disabled"])
             cancel.grid()
-            bar.grid()
-            bar.stop()
-            if snap.percent is None:
-                bar.config(mode="indeterminate")
-                bar.start(12)
-            else:
-                bar.config(mode="determinate", value=snap.percent)
         elif snap.phase in (PHASE_VERIFYING, PHASE_WAITING, PHASE_INSTALLING):
             buttons.grid_remove()
             label.grid()
             label.config(text=snap.message, foreground=_COLOR_INFO)
-            bar.grid()
-            bar.stop()
-            bar.config(mode="indeterminate")
-            bar.start(12)
             # Waiting is still cancellable — nothing has been handed off yet
             if snap.phase == PHASE_WAITING:
                 cancel.state(["!disabled"])
@@ -234,10 +223,8 @@ class UpdateBanner(ttk.LabelFrame):
 
     def _show_outcome(self, message: str, foreground: str) -> None:
         """Show a terminal state: message only, buttons back for retry."""
-        if self._progressbar is None or self._cancel_btn is None or self._status_label is None or self._buttons_frame is None:
+        if self._cancel_btn is None or self._status_label is None or self._buttons_frame is None:
             return
-        self._progressbar.stop()
-        self._progressbar.grid_remove()
         self._cancel_btn.grid_remove()
         self._status_label.grid()
         self._status_label.config(text=message, foreground=foreground)
@@ -264,7 +251,7 @@ class UpdateWaitingDialog:
 
         self.root = tk.Tk()
         self.root.title("FileSqueeze update")
-        self.root.geometry("430x130")
+        self.root.geometry("430x110")
         self.root.resizable(False, False)
         self.root.attributes("-topmost", True)
 
@@ -274,9 +261,6 @@ class UpdateWaitingDialog:
         self.root.rowconfigure(0, weight=1)
 
         ttk.Label(frame, text=self.MESSAGE, wraplength=380, justify="center", font=("Helvetica", 10)).pack(expand=True)
-        self._progressbar = ttk.Progressbar(frame, mode="indeterminate")
-        self._progressbar.pack(fill="x", pady=(14, 0))
-        self._progressbar.start(12)
 
         # Informational only: the window manager's close button just dismisses
         # the notice; it does not cancel the update (use the banner's Cancel).
@@ -315,8 +299,9 @@ class AboutTab(ttk.Frame):
     Shows the running version, owns the "Check for updates" button, and keeps
     an always-present **Update Now** button that is greyed out unless a newer
     release has been found and no update is currently running — plus the
-    latest version and a GitHub releases-page link once one is found. Progress
-    (download %, waiting for tasks, installing) renders in the same section.
+    latest version and a GitHub releases-page link once one is found. The
+    update's progress is reported as text only (with a percentage while the
+    server reports the download size) in the same section.
 
     Manual checks run off the Tk thread; found updates are surfaced here and
     reported through ``on_update_found`` so the tray can arm its menu item.
@@ -404,10 +389,6 @@ class AboutTab(ttk.Frame):
         self._cancel_btn = ttk.Button(buttons, text="Cancel", command=self._on_cancel_update)
         self._cancel_btn.pack(side=tk.LEFT, padx=(8, 0))
         self._cancel_btn.pack_forget()
-
-        self._progressbar = ttk.Progressbar(section, mode="determinate", maximum=100)
-        self._progressbar.grid(row=3, column=0, columnspan=2, sticky="ew", pady=(8, 0))
-        self._progressbar.grid_remove()
 
     # ---------------------------------------------------------------- actions
 
@@ -520,14 +501,10 @@ class AboutTab(ttk.Frame):
         message = ""
         color = _COLOR_INFO
         update_now_enabled = False
-        bar_mode: str | None = None  # None hides the bar; "determinate"/"indeterminate"
-        bar_percent: int | None = None
         cancel_visible = False
 
         if snap.phase in (PHASE_DOWNLOADING, PHASE_VERIFYING, PHASE_WAITING, PHASE_INSTALLING):
             message = _format_progress_text(snap)
-            bar_mode = "determinate" if snap.percent is not None else "indeterminate"
-            bar_percent = snap.percent
             cancel_visible = snap.phase in (PHASE_DOWNLOADING, PHASE_WAITING)
         elif snap.phase == PHASE_DONE:
             message = snap.message
@@ -554,15 +531,6 @@ class AboutTab(ttk.Frame):
 
         self._update_now_btn.state(["!disabled"] if update_now_enabled else ["disabled"])
         self._status_label.config(text=message, foreground=color)
-
-        self._progressbar.stop()
-        if bar_mode is None:
-            self._progressbar.grid_remove()
-        else:
-            self._progressbar.config(mode=bar_mode, value=bar_percent if bar_percent is not None else 0)
-            self._progressbar.grid()
-            if bar_mode == "indeterminate":
-                self._progressbar.start(12)
 
         if cancel_visible:
             self._cancel_btn.state(["!disabled"])

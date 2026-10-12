@@ -612,7 +612,7 @@ class TestUpdateBanner:
         assert '"disabled"' in render_source, "Update Now must start disabled/greyed out"
         assert '"!disabled"' in render_source, "Update Now must enable once a newer release is found"
         assert "can_self_update" in render_source, "Update Now must stay greyed when the install can't self-update"
-        assert "Progressbar" in build_source, "Download progress must render on the tab"
+        assert "Progressbar" not in build_source, "Update progress must be text-only (no progress bar)"
 
     def test_manual_check_fills_the_about_tab_and_arms_the_tray(self):
         """A manual check finding an update must fill the already-built About tab."""
@@ -641,8 +641,8 @@ class TestUpdateBanner:
         assert "_start_update_check" in init_source, "Self-check must be started from __init__"
         assert "set_update_info" in banner_source, "Banner must be filled from the check result"
 
-    def test_banner_offers_update_now_with_progress_and_fallback(self):
-        """The shared banner must have the one-click action, progress, cancel, and a link."""
+    def test_banner_offers_update_now_with_status_text_and_fallback(self):
+        """The shared banner must have the one-click action, status text, cancel, and a link."""
         import inspect
 
         from filesqueeze.update_banner import UpdateBanner
@@ -653,7 +653,7 @@ class TestUpdateBanner:
         assert "Update now" in build_source, "Banner must offer a one-click update"
         assert "Release notes" in build_source, "Banner must keep a releases-page fallback"
         assert "can_self_update" in build_source, "Update button must be gated on self-update capability"
-        assert "Progressbar" in build_source, "Banner must show download progress"
+        assert "Progressbar" not in build_source, "Banner progress must be text-only (no progress bar)"
         assert "Cancel" in build_source, "Download must be cancellable"
         assert "PHASE_DOWNLOADING" in render_source, "Banner must react to update phases"
 
@@ -705,6 +705,7 @@ class TestUpdateBanner:
 
         class_source = inspect.getsource(UpdateWaitingDialog)
         assert "ttk.Button" not in class_source, "The waiting notice must be buttonless"
+        assert "Progressbar" not in class_source, "The waiting notice is text-only — no progress bar"
         assert "after all tasks complete" in class_source, "Notice must say the app will close and update"
         assert "-topmost" in class_source, "Notice must be visible while other windows are in use"
 
