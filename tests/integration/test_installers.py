@@ -231,9 +231,9 @@ class TestUninstallationProcessInvariant:
         assert not removes_config, "Uninstaller should not remove user configuration directory"
 
         # Also check that the script says it keeps config
-        assert (
-            "Keep user configuration" in content or "configuration and logs" in content or "preserves" in content.lower()
-        ), "Uninstaller should explicitly state it preserves user config"
+        assert "Keep user configuration" in content or "configuration and logs" in content or "preserves" in content.lower(), (
+            "Uninstaller should explicitly state it preserves user config"
+        )
 
     def test_uninstall_enables_fresh_install(self, project_root):
         """After uninstall, should be able to install again without errors."""
@@ -247,9 +247,9 @@ class TestUninstallationProcessInvariant:
 
         # Verify uninstall removes the package
         uninstall_content = uninstall_script.read_text()
-        assert (
-            "pip uninstall" in uninstall_content or "uninstall filesqueeze" in uninstall_content.lower()
-        ), "Uninstaller should remove FileSqueeze package"
+        assert "pip uninstall" in uninstall_content or "uninstall filesqueeze" in uninstall_content.lower(), (
+            "Uninstaller should remove FileSqueeze package"
+        )
 
         # Verify install can handle re-installation
         install_content = install_script.read_text()
@@ -291,9 +291,9 @@ class TestInstallerBehavior:
         content = install_script.read_text()
 
         # Verify it runs init-config or creates config
-        assert (
-            "init-config" in content or "config.toml" in content or "Generate configuration" in content
-        ), "Installer should generate configuration file"
+        assert "init-config" in content or "config.toml" in content or "Generate configuration" in content, (
+            "Installer should generate configuration file"
+        )
 
     def test_installer_checks_python_version(self, project_root):
         """Installer should verify Python 3.11+ is installed."""
@@ -329,9 +329,9 @@ class TestInstallerStopsRunningService:
         content = install_script.read_text()
 
         assert "Stop-Process" in content, "Installer should stop running service processes"
-        assert (
-            "Service stopped. It will be restarted after installation." in content
-        ), "Installer should tell the user the service will be restarted"
+        assert "Service stopped. It will be restarted after installation." in content, (
+            "Installer should tell the user the service will be restarted"
+        )
 
     def test_install_restarts_service_it_stopped(self, project_root):
         """Installer should restart the service if it was running before reinstall."""
@@ -351,6 +351,80 @@ class TestInstallerStopsRunningService:
         for script_name in ("install.ps1", "stop-service.ps1", "uninstall.ps1"):
             content = (project_root / script_name).read_text()
             assert 'Name -like "python*"' in content, f"{script_name} should filter process candidates by python* process name"
+
+
+class TestInstallerLaunchIsolation:
+    """Launches must be shadow-proof: a checkout's working directory must never
+    leak into the running service.
+
+    `python -m` puts the working directory first on sys.path, so a service
+    launched from inside a repo checkout silently runs the checkout instead of
+    the installed package — production once "upgraded to 0.9.2" this way and
+    then stopped detecting updates once the checkout's version moved past the
+    release.
+
+    CODE-LEVEL tests: verify the script logic by inspection, consistent with
+    the other installer tests in this module (running the installer here
+    would mutate the real installation).
+    """
+
+    @pytest.fixture
+    def project_root(self):
+        """Get project root directory."""
+        return Path(__file__).parent.parent.parent
+
+    def test_restart_uses_explicit_working_directory_outside_the_repo(self, project_root):
+        """The installer's post-reinstall restart must not inherit the repo as cwd."""
+        install_script = project_root / "install.ps1"
+        content = install_script.read_text()
+
+        assert "if ($script:ServiceWasRunning)" in content
+        restart_block = content.split("if ($script:ServiceWasRunning)")[1]
+
+        assert "WorkingDirectory = $env:USERPROFILE" in restart_block, (
+            "Restart must set an explicit working directory outside the repo"
+        )
+        assert '"-P"' in restart_block, "Restart must pass -P so the launch cannot pick up a checkout via sys.path"
+
+    def test_shortcuts_launch_shadow_proof(self, project_root):
+        """All pythonw shortcuts (service, compress, SendTo) must pass -P."""
+        install_script = project_root / "install.ps1"
+        content = install_script.read_text()
+
+        assert content.count("-P -m filesqueeze") == 3, (
+            "Each of the three pythonw shortcuts must pass -P to keep a checkout's "
+            "working directory from shadowing the installed package"
+        )
+
+    def test_uninstall_shortcut_does_not_depend_on_the_checkout(self, project_root):
+        """The Uninstall shortcut must run a copy shipped with the shortcuts.
+
+        A shortcut into the install-time checkout breaks as soon as that
+        checkout is moved or deleted.
+        """
+        install_script = project_root / "install.ps1"
+        content = install_script.read_text()
+
+        assert "Copy-Item" in content and "uninstall.ps1" in content, "The uninstaller must be copied next to the shortcuts"
+        assert "$StartMenuFolder\\uninstall.ps1" in content, "The Uninstall shortcut must target the copied uninstaller"
+        assert "WorkingDirectory = $ScriptDir" not in content, "No shortcut may keep the repo as working directory"
+
+    def test_uninstall_removes_all_layered_copies(self, project_root):
+        """pip removes one copy per pass; layered installs need a loop."""
+        uninstall_script = project_root / "uninstall.ps1"
+        content = uninstall_script.read_text()
+
+        assert "while" in content, "Uninstall must loop until pip reports filesqueeze gone"
+        assert "pip show" in content, "Each pass must re-check the installation state"
+
+    def test_uninstall_reports_admin_failure_for_system_autostart(self, project_root):
+        """Removing the all-users autostart needs admin; failure must be surfaced."""
+        uninstall_script = project_root / "uninstall.ps1"
+        content = uninstall_script.read_text()
+
+        assert "admin rights required" in content, (
+            "Uninstaller must not claim success when the system-wide autostart shortcut could not be removed"
+        )
 
 
 if __name__ == "__main__":

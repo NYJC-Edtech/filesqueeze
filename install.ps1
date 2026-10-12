@@ -293,10 +293,13 @@ $WshShell = New-Object -ComObject WScript.Shell
 # Shortcut: FileSqueeze
 # Use pythonw.exe (windowless Python) to avoid console window
 # This allows the tray icon to work properly
+# -P stops Python from putting the working directory on sys.path, so a
+# checkout in whatever folder the shortcut is launched from can never
+# shadow the installed package
 $PythonwPath = Join-Path $PythonInstallPath "pythonw.exe"
 $Shortcut = $WshShell.CreateShortcut("$StartMenuFolder\\FileSqueeze.lnk")
 $Shortcut.TargetPath = $PythonwPath
-$Shortcut.Arguments = "-m filesqueeze service run"
+$Shortcut.Arguments = "-P -m filesqueeze service run"
 $Shortcut.Description = "Start FileSqueeze compression service with system tray icon"
 # Set working directory to user home to avoid using Start Menu folder as cwd
 $Shortcut.WorkingDirectory = $env:USERPROFILE
@@ -306,7 +309,7 @@ Write-Host "  Created: FileSqueeze" -ForegroundColor Gray
 # Shortcut: FileSqueeze Compress (standalone single-file mode)
 $Shortcut = $WshShell.CreateShortcut("$StartMenuFolder\\FileSqueeze Compress.lnk")
 $Shortcut.TargetPath = $PythonwPath
-$Shortcut.Arguments = "-m filesqueeze compress --gui"
+$Shortcut.Arguments = "-P -m filesqueeze compress --gui"
 $Shortcut.Description = "Compress a single file with FileSqueeze"
 $Shortcut.WorkingDirectory = $env:USERPROFILE
 $Shortcut.Save()
@@ -318,18 +321,22 @@ Write-Host "  Created: FileSqueeze Compress" -ForegroundColor Gray
 $SendToShortcut = "$env:APPDATA\\Microsoft\\Windows\\SendTo\\FileSqueeze.lnk"
 $Shortcut = $WshShell.CreateShortcut($SendToShortcut)
 $Shortcut.TargetPath = $PythonwPath
-$Shortcut.Arguments = "-m filesqueeze compress --gui"
+$Shortcut.Arguments = "-P -m filesqueeze compress --gui"
 $Shortcut.Description = "Compress this file with FileSqueeze"
 $Shortcut.WorkingDirectory = $env:USERPROFILE
 $Shortcut.Save()
 Write-Host "  Created: SendTo\FileSqueeze (right-click menu)" -ForegroundColor Gray
 
 # Shortcut: Uninstall FileSqueeze
+# Run a copy of the uninstaller placed next to the shortcuts: a shortcut
+# into the install-time checkout would break as soon as that checkout is
+# moved or deleted
+Copy-Item -Path "$ScriptDir\uninstall.ps1" -Destination "$StartMenuFolder\uninstall.ps1" -Force
 $Shortcut = $WshShell.CreateShortcut("$StartMenuFolder\\Uninstall FileSqueeze.lnk")
 $Shortcut.TargetPath = "powershell.exe"
-$Shortcut.Arguments = "-ExecutionPolicy Bypass -NoProfile -File `"$ScriptDir\uninstall.ps1`""
+$Shortcut.Arguments = "-ExecutionPolicy Bypass -NoProfile -File `"$StartMenuFolder\uninstall.ps1`""
 $Shortcut.Description = "Uninstall FileSqueeze"
-$Shortcut.WorkingDirectory = $ScriptDir
+$Shortcut.WorkingDirectory = $env:USERPROFILE
 $Shortcut.Save()
 Write-Host "  Created: Uninstall FileSqueeze" -ForegroundColor Gray
 
@@ -451,11 +458,16 @@ if ($script:ServiceWasRunning) {
     Write-Status "Service was running before reinstall - restarting..." "Yellow"
     try {
         # Start the service in background using pythonw.exe (no console window)
+        # WorkingDirectory must NOT be this repo: python -m puts the working
+        # directory first on sys.path, so a checkout there silently shadows the
+        # freshly installed package (production once ran the dev checkout this
+        # way). -P additionally isolates the launch from wherever it starts.
         $PythonwPath = Join-Path $PythonInstallPath "pythonw.exe"
         $processParams = @{
             FilePath = $PythonwPath
-            ArgumentList = "-m", "filesqueeze", "service", "run"
+            ArgumentList = "-P", "-m", "filesqueeze", "service", "run"
             WindowStyle = "Hidden"
+            WorkingDirectory = $env:USERPROFILE
         }
         Start-Process @processParams -ErrorAction Stop
         Write-Host "  Service restarted - look for the 'FS' icon in your system tray" -ForegroundColor Gray
