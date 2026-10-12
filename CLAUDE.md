@@ -131,6 +131,7 @@ Tests automatically run in "dev mode" which provides complete isolation from pro
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) - System architecture and design patterns
 - [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) - Development setup and deployment
 - [docs/TESTING.md](docs/TESTING.md) - Testing guidelines and safety rules
+- [docs/RELEASING.md](docs/RELEASING.md) - Publishing protocols (versioning hard rules, minor branches, release checklist)
 
 ### Specialized Documentation
 - [docs/INSTALLATION_PRINCIPLES.md](docs/INSTALLATION_PRINCIPLES.md) - Installation system design
