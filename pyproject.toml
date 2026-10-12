@@ -1,6 +1,6 @@
 [project]
 name = "filesqueeze"
-version = "0.9.3-rc1"
+version = "0.9.3"
 description = "Utility package for compressing various file types"
 authors = [
     {name = "JS Ng",email = "ngjunsiang@gmail.com"}
