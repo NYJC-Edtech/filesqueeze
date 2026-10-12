@@ -11,9 +11,9 @@ When the install cannot self-update (dev checkout, or a release without a
 published wheel), the banner falls back to a "Release notes" button only.
 """
 
+import tkinter as tk
 import webbrowser
 from tkinter import ttk
-from typing import Callable
 
 from .update_check import RELEASES_PAGE_URL, UpdateInfo
 from .updater import (
@@ -23,6 +23,7 @@ from .updater import (
     PHASE_FAILED,
     PHASE_INSTALLING,
     PHASE_VERIFYING,
+    PHASE_WAITING,
     UpdateController,
     can_self_update,
 )
@@ -50,7 +51,6 @@ class UpdateBanner(ttk.LabelFrame):
         *,
         restart: bool = False,
         on_update_applied: object | None = None,
-        restart_decider: Callable[[], str | None] | None = None,
     ):
         """Build the banner.
 
@@ -64,22 +64,14 @@ class UpdateBanner(ttk.LabelFrame):
                 the detached updater to take over (the tray service passes its
                 stop method).
             on_update_applied: Called on the updater thread after the handoff.
-            restart_decider: Optional click-time override of ``restart``:
-                returning None means restart is allowed (requires
-                ``on_update_applied``); returning a string refuses the
-                restart-mode update and shows the string as the reason. The
-                compress dialog uses this to hold updates while a compression
-                is running — the answer can change between building the
-                banner and clicking the button.
         """
         super().__init__(master, text="Update available", padding="5")
         self.columnconfigure(0, weight=1)
 
         self._controller = controller
         self._update_info = update_info
-        self._restart = restart and on_update_applied is not None and restart_decider is None
+        self._restart = restart and on_update_applied is not None
         self._on_update_applied = on_update_applied
-        self._restart_decider = restart_decider
 
         self._buttons_frame: ttk.Frame | None = None
         self._status_label: ttk.Label | None = None
@@ -135,24 +127,15 @@ class UpdateBanner(ttk.LabelFrame):
     # ---------------------------------------------------------------- actions
 
     def _on_update_now(self) -> None:
-        """Start download+apply on the controller and poll it onto the widgets."""
+        """Start download+apply on the controller and poll it onto the widgets.
+
+        The controller holds the handoff while app tasks are running (the tray
+        wires its task gate into the controller), so "Update now" is always
+        safe to click — the app quits only once tasks have finished.
+        """
         if self._update_info is None:
             return
-
-        restart = self._restart
-        if self._restart_decider is not None:
-            refusal = self._restart_decider()
-            if refusal is not None:
-                # Cannot quit right now (e.g. a compression is running): say
-                # so instead of silently installing into a wait that may
-                # never end
-                if self._status_label is not None:
-                    self._status_label.grid()
-                    self._status_label.config(text=refusal, foreground=_COLOR_ERROR)
-                return
-            restart = self._on_update_applied is not None
-
-        self._controller.start(self._update_info, restart=restart, on_applied=self._on_update_applied)
+        self._controller.start(self._update_info, restart=self._restart, on_applied=self._on_update_applied)
         # Renders the fresh in-progress state, or why the update was refused /
         # where an already-running one stands
         self._poll()
@@ -202,15 +185,20 @@ class UpdateBanner(ttk.LabelFrame):
                 bar.start(12)
             else:
                 bar.config(mode="determinate", value=snap.percent)
-        elif snap.phase in (PHASE_VERIFYING, PHASE_INSTALLING):
+        elif snap.phase in (PHASE_VERIFYING, PHASE_WAITING, PHASE_INSTALLING):
             buttons.grid_remove()
             label.grid()
             label.config(text=snap.message, foreground=_COLOR_INFO)
-            cancel.grid_remove()
             bar.grid()
             bar.stop()
             bar.config(mode="indeterminate")
             bar.start(12)
+            # Waiting is still cancellable — nothing has been handed off yet
+            if snap.phase == PHASE_WAITING:
+                cancel.state(["!disabled"])
+                cancel.grid()
+            else:
+                cancel.grid_remove()
         elif snap.phase == PHASE_DONE:
             self._show_outcome(f"✓ {snap.message}", _COLOR_OK)
         elif snap.phase == PHASE_FAILED:
@@ -234,3 +222,68 @@ class UpdateBanner(ttk.LabelFrame):
         if snap.percent is None:
             return snap.message
         return f"{snap.message} ({snap.percent}%)"
+
+
+class UpdateWaitingDialog:
+    """Buttonless notice: "FileSqueeze will close and update after all tasks complete."
+
+    Shown by the tray when an update is verified but tasks (a running
+    compression, a watched file mid-processing) delay the quit, so the user
+    knows what is about to happen instead of the app vanishing later. There
+    are deliberately no buttons — the update was already confirmed by the
+    click that started it; the window closes itself when the update leaves
+    the waiting state (applied → the process exits anyway; failed/cancelled →
+    the banner is the place to retry from).
+    """
+
+    POLL_INTERVAL_MS = 500
+    MESSAGE = "FileSqueeze will close and install the update after all tasks complete."
+
+    def __init__(self, controller: UpdateController):
+        self._controller = controller
+
+        self.root = tk.Tk()
+        self.root.title("FileSqueeze update")
+        self.root.geometry("430x130")
+        self.root.resizable(False, False)
+        self.root.attributes("-topmost", True)
+
+        frame = ttk.Frame(self.root, padding="20")
+        frame.grid(row=0, column=0, sticky="nsew")
+        self.root.columnconfigure(0, weight=1)
+        self.root.rowconfigure(0, weight=1)
+
+        ttk.Label(frame, text=self.MESSAGE, wraplength=380, justify="center", font=("Helvetica", 10)).pack(expand=True)
+        self._progressbar = ttk.Progressbar(frame, mode="indeterminate")
+        self._progressbar.pack(fill="x", pady=(14, 0))
+        self._progressbar.start(12)
+
+        # Informational only: the window manager's close button just dismisses
+        # the notice; it does not cancel the update (use the banner's Cancel).
+        self.root.protocol("WM_DELETE_WINDOW", self._on_close)
+
+        self._poll()
+
+    def _poll(self) -> None:
+        """Close once the update is no longer waiting (and the quit is near)."""
+        if not self.root.winfo_exists():
+            return
+        phase = self._controller.snapshot().phase
+        if phase not in (PHASE_WAITING, PHASE_DOWNLOADING, PHASE_VERIFYING, PHASE_INSTALLING):
+            self.root.destroy()
+            return
+        self.root.after(self.POLL_INTERVAL_MS, self._poll)
+
+    def _on_close(self) -> None:
+        self.root.destroy()
+
+    def show(self) -> None:
+        """Run the dialog's event loop (blocks until closed)."""
+        self.root.mainloop()
+
+    def close(self) -> None:
+        """Close the dialog programmatically."""
+        try:
+            self.root.destroy()
+        except tk.TclError:
+            pass

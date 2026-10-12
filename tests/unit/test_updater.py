@@ -6,7 +6,9 @@ stale module object while unittest.mock's patch() re-imports a fresh one.
 """
 
 import json
+import os
 import threading
+import time
 import zipfile
 from unittest.mock import patch
 
@@ -224,6 +226,14 @@ class TestUpdateController:
         if thread is not None:
             thread.join(timeout=timeout)
 
+    def _wait_for_phase(self, controller, phase, timeout=5.0):
+        deadline = time.time() + timeout
+        while time.time() < deadline:
+            if controller.snapshot().phase == phase:
+                return True
+            time.sleep(0.05)
+        return False
+
     @pytest.fixture(autouse=True)
     def _installed_layout(self):
         # Tests run inside the repo checkout, where the real check returns True;
@@ -362,6 +372,80 @@ class TestUpdateController:
 
         assert controller.snapshot().phase == PHASE_FAILED
 
+    def test_task_gate_holds_the_handoff_until_tasks_finish(self, tmp_path):
+        """No handoff while tasks run: spawn deferred, notice fired, then proceed."""
+        from filesqueeze.updater import PHASE_DONE, PHASE_WAITING, UpdateController
+
+        wheel = _make_wheel(tmp_path)
+        tasks_running = [True]
+        waiting_fired = []
+        applied = threading.Event()
+        controller = UpdateController(
+            wait_for_tasks=lambda: tasks_running[0],
+            on_waiting=lambda: waiting_fired.append(True),
+        )
+
+        with (
+            patch("filesqueeze.updater.download_wheel", return_value=wheel),
+            patch("filesqueeze.updater.verify_wheel"),
+            patch("filesqueeze.updater.spawn_updater") as mock_spawn,
+        ):
+            assert controller.start(_update_info(), restart=True, on_applied=applied.set) is True
+            assert self._wait_for_phase(controller, PHASE_WAITING), "update must enter the waiting phase"
+            time.sleep(0.3)  # give a slow misbehaving handoff a chance to happen
+
+            assert waiting_fired == [True], "entering the wait must fire on_waiting once"
+            mock_spawn.assert_not_called()  # the checklist: never quit mid-task
+            assert not applied.is_set()
+
+            tasks_running[0] = False
+            self._wait(controller)
+
+        mock_spawn.assert_called_once()
+        assert applied.is_set()
+        assert controller.snapshot().phase == PHASE_DONE
+
+    def test_no_waiting_callback_when_tasks_are_already_idle(self, tmp_path):
+        from filesqueeze.updater import PHASE_DONE, UpdateController
+
+        wheel = _make_wheel(tmp_path)
+        waiting_fired = []
+        controller = UpdateController(wait_for_tasks=lambda: False, on_waiting=lambda: waiting_fired.append(True))
+
+        with (
+            patch("filesqueeze.updater.download_wheel", return_value=wheel),
+            patch("filesqueeze.updater.verify_wheel"),
+            patch("filesqueeze.updater.spawn_updater"),
+        ):
+            controller.start(_update_info(), restart=False)
+            self._wait(controller)
+
+        assert waiting_fired == [], "idle app must skip the waiting phase entirely"
+        assert controller.snapshot().phase == PHASE_DONE
+
+    def test_cancel_while_waiting_for_tasks(self, tmp_path):
+        """Cancelling during the wait aborts cleanly: no handoff, no quit."""
+        from filesqueeze.updater import PHASE_CANCELLED, PHASE_WAITING, UpdateController
+
+        gate = threading.Event()
+        gate.set()  # tasks "running"
+        applied = threading.Event()
+        controller = UpdateController(wait_for_tasks=gate.is_set)
+
+        with (
+            patch("filesqueeze.updater.download_wheel", return_value=_make_wheel(tmp_path)),
+            patch("filesqueeze.updater.verify_wheel"),
+            patch("filesqueeze.updater.spawn_updater") as mock_spawn,
+        ):
+            controller.start(_update_info(), restart=True, on_applied=applied.set)
+            assert self._wait_for_phase(controller, PHASE_WAITING)
+            controller.cancel()
+            self._wait(controller)
+
+        mock_spawn.assert_not_called()
+        assert not applied.is_set()
+        assert controller.snapshot().phase == PHASE_CANCELLED
+
 
 class TestUpdaterScript:
     def test_script_installs_and_relaunches_without_importing_filesqueeze(self):
@@ -372,16 +456,36 @@ class TestUpdaterScript:
         assert "relaunch" in UPDATER_SCRIPT
         assert "import filesqueeze" not in UPDATER_SCRIPT  # must stay install-agnostic
 
+    def test_script_backs_up_verifies_and_records_the_outcome(self):
+        from filesqueeze.updater import UPDATER_SCRIPT
+
+        assert "backup_installation" in UPDATER_SCRIPT, "A bad install needs a rollback source"
+        assert "restore_installation" in UPDATER_SCRIPT, "A failed install must be rolled back"
+        assert "installed_version()" in UPDATER_SCRIPT, "pip's outcome must be verified, not assumed"
+        assert "installed == target" in UPDATER_SCRIPT, "Success requires the exact target version installed"
+        assert '"aborted"' in UPDATER_SCRIPT, "A timed-out handoff must be reported, not silent"
+        assert '"failed"' in UPDATER_SCRIPT and '"success"' in UPDATER_SCRIPT, "Outcome marker needs both states"
+        assert "restored" in UPDATER_SCRIPT, "Failures must record whether the old version came back"
+
     def test_spawn_updater_detaches_with_payload(self, tmp_path):
         from filesqueeze.updater import spawn_updater
 
         with patch("filesqueeze.updater.subprocess.Popen") as mock_popen:
-            spawn_updater(tmp_path / "wheel.whl", ["python", "-m", "filesqueeze", "service", "run"])
+            spawn_updater(
+                tmp_path / "wheel.whl",
+                ["python", "-m", "filesqueeze", "service", "run"],
+                previous_version="0.9.2",
+                target_version="0.9.3",
+                status_file=tmp_path / "status.json",
+            )
 
         # argv is [python, -c, UPDATER_SCRIPT, json-payload]
         payload = json.loads(mock_popen.call_args.args[0][3])
         assert payload["wheel"].endswith("wheel.whl")
         assert payload["relaunch"] == ["python", "-m", "filesqueeze", "service", "run"]
+        assert payload["previous_version"] == "0.9.2"
+        assert payload["target_version"] == "0.9.3"
+        assert payload["status_file"].endswith("status.json")
         assert isinstance(payload["parent_pid"], int)
 
     def test_timeout_aborts_without_installing_and_cleans_up_the_wheel(self, tmp_path):
@@ -418,3 +522,45 @@ class TestUpdaterScript:
         assert "removed temporary wheel" in result.stdout
         assert not wheel.exists()  # no stray wheel left in temp
         assert "installing" not in result.stdout  # pip never ran
+
+
+class TestUpdateStatusMarker:
+    def test_status_path_is_none_under_pytest_and_honors_override(self, tmp_path):
+        from filesqueeze.updater import update_status_path
+
+        assert update_status_path() is None, "tests must never touch the real user marker"
+        override = tmp_path / "status.json"
+        with patch.dict(os.environ, {"FILEQUEEZE_UPDATE_STATUS": str(override)}):
+            assert update_status_path() == override
+
+    def test_consume_reads_and_clears_the_marker(self, tmp_path):
+        from filesqueeze.updater import consume_update_status
+
+        marker = tmp_path / "update_status.json"
+        marker.write_text(
+            json.dumps({"status": "failed", "version": "0.9.3", "previous": "0.9.2", "restored": True}),
+            encoding="utf-8",
+        )
+
+        outcome = consume_update_status(marker)
+        assert outcome is not None
+        assert outcome["status"] == "failed"
+        assert outcome["restored"] is True
+
+        assert not marker.exists(), "the marker must be consumed exactly once"
+        assert consume_update_status(marker) is None
+
+    def test_consume_tolerates_missing_or_garbage_markers(self, tmp_path):
+        from filesqueeze.updater import consume_update_status
+
+        assert consume_update_status(tmp_path / "absent.json") is None
+
+        garbage = tmp_path / "garbage.json"
+        garbage.write_text("{not json", encoding="utf-8")
+        assert consume_update_status(garbage) is None
+
+    def test_consume_defaults_to_none_without_a_path(self):
+        # Under pytest the default location resolves to None (never touch user state)
+        from filesqueeze.updater import consume_update_status
+
+        assert consume_update_status() is None

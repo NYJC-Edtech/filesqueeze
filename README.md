@@ -177,13 +177,14 @@ FileSqueeze checks GitHub for a newer release when the service starts (cached fo
 
 **One click, no installer:** choose **Update to vX now** in the tray menu (or **Update now** in the Status window / Compress dialog banner). FileSqueeze downloads the release wheel, verifies it, quits, installs it with `pip install --force-reinstall --no-deps`, and starts again with the new version. Your config (`~/.config/filesqueeze/config.toml`) and watched folders are untouched, and no admin rights are needed — pip falls back to a user install when the Python site-packages folder isn't writable. The download is cancellable; if it fails, the banner keeps a *Release notes* link.
 
-If a compression is running, the update waits: both the tray and the Compress dialog ask you to finish it first, since quitting mid-compression would drop your file. In a dialog-only launch (`compress --gui`, no tray running) the update installs when you close the dialog.
+**Tasks finish first:** if a compression is running or the service is mid-file, FileSqueeze does not quit right away — a buttonless notice tells you it *will close and install the update after all tasks complete*, and the quit happens automatically once everything finishes. You can still cancel during the wait. In a dialog-only launch (`compress --gui`, no tray running) the update installs when you close the dialog.
 
 Notes:
 
 - **Dev checkouts never self-update** — update with `git pull` instead (the app tells you so if you try).
 - **Releases without a wheel asset** degrade to a *Release notes* link.
 - Fully locked-down setups where pip can't write anywhere still get the *Release notes* link to download the wheel manually.
+- **Failed updates don't strand you**: the installed version is backed up before pip runs; if the install fails, the previous version is restored and FileSqueeze tells you the update failed the next time it starts — it stays fully usable and you can retry from the tray menu.
 
 ---
 

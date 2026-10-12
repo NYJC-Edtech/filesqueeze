@@ -145,10 +145,9 @@ class CompressDialog:
                 is created when omitted.
             on_update_applied: Called on the updater thread once the update is
                 handed off and the app should quit so it can install and
-                restart (the tray service passes its stop method). The banner
-                still defers to :meth:`_update_restart_refusal` at click time:
-                while a compression runs, the update is refused rather than
-                quitting mid-file.
+                restart (the tray service passes its stop method). While a
+                compression is running, the tray's task gate holds the update
+                (with a buttonless notice) instead of quitting mid-file.
         """
         self.config = config or Config()
         self.logger = logging.getLogger(__name__)
@@ -193,15 +192,13 @@ class CompressDialog:
         # Update banner: empty until an update check reports a newer release
         # (set_update_info builds the contents); the stacked frames always
         # occupy row 1 so a late banner never re-grids anything.
-        # The restart decision happens at click time via restart_decider:
-        # quitting mid-compression would drop the user's file, so the update
-        # is refused while one runs and otherwise restarts the app like the
-        # tray menu does.
+        # Clicking "Update now" quits and restarts the app like the tray menu;
+        # the controller's task gate holds the handoff while a compression is
+        # running, so quitting mid-file cannot happen.
         self._update_banner = UpdateBanner(
             main,
             self._update_controller,
             on_update_applied=self._on_update_applied,
-            restart_decider=self._update_restart_refusal,
         )
 
         # Stacked state frames occupy the same grid cell; tkraise selects
@@ -333,21 +330,10 @@ class CompressDialog:
     def is_compressing(self) -> bool:
         """Whether a compression worker is currently running.
 
-        Consulted by the tray service and the update banner: quitting the app
+        Consulted by the tray service's update task gate: quitting the app
         for an update while this is True would drop the user's file.
         """
         return self._worker is not None and self._worker.is_alive()
-
-    def _update_restart_refusal(self) -> str | None:
-        """Click-time restart gate for the update banner.
-
-        Returns None when updating may quit and restart the app, or a
-        user-facing reason why not. Evaluated on every click because the
-        answer changes as compressions start and finish.
-        """
-        if self.is_compressing:
-            return "A compression is running — wait for it to finish before updating."
-        return None
 
     def _start_update_check(self) -> None:
         """Check GitHub for a newer release on a background thread.

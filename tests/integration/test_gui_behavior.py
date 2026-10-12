@@ -263,14 +263,53 @@ class TestTrayUpdateMenuItem:
         assert "restart=True" in source, "Service-mode update must relaunch FileSqueeze"
         assert "_quit_for_update" in source, "The quit hook must be passed as on_applied"
 
-    def test_update_now_defers_while_a_compression_runs(self):
-        """Quitting mid-compression would drop the user's file; the tray must refuse."""
+    def test_update_controller_is_wired_to_the_task_gate(self):
+        """The handoff must be gated on running tasks and pop the waiting notice."""
+        import inspect
+
+        from filesqueeze.tray import TrayService
+
+        source = inspect.getsource(TrayService.__init__)
+        assert "wait_for_tasks=self._has_running_tasks" in source, "Controller must gate on the tray's task check"
+        assert "on_waiting=self._on_update_waiting" in source, "Entering the wait must trigger the buttonless notice"
+
+    def test_task_gate_covers_dialog_compressions_and_watched_files(self):
+        """Both task sources block the update: dialog worker and watcher processing."""
+        import inspect
+
+        from filesqueeze.tray import TrayService
+
+        source = inspect.getsource(TrayService._has_running_tasks)
+        assert "is_compressing" in source, "A running dialog compression is a task"
+        assert "processing_files" in source, "A watched file mid-processing is a task"
+
+    def test_update_now_does_not_refuse_when_tasks_are_running(self):
+        """Deferral replaced the old refusal: no task check in the click handler itself.
+
+        With the task gate in the controller, "Update now" is always accepted;
+        the checklist's buttonless notice informs the user of the deferred quit
+        instead of a refusal notification.
+        """
         import inspect
 
         from filesqueeze.tray import TrayService
 
         source = inspect.getsource(TrayService._on_update_now)
-        assert "is_compressing" in source, "Tray update must check the compress dialog's in-flight state"
+        assert "is_compressing" not in source, "Refusal moved to the controller task gate"
+
+    def test_startup_reports_the_previous_update_outcome(self):
+        """A failed/aborted update must reach the user, not just the log file."""
+        import inspect
+
+        from filesqueeze.tray import TrayService
+
+        check_source = inspect.getsource(TrayService._check_for_updates)
+        assert "_notify_last_update_outcome" in check_source, "Startup must consume the updater's status marker"
+
+        outcome_source = inspect.getsource(TrayService._notify_last_update_outcome)
+        assert "consume_update_status" in outcome_source, "Outcome must come from the updater's marker file"
+        assert "update failed" in outcome_source, "A failed install must be surfaced as a failure"
+        assert "notify" in outcome_source, "The outcome must be surfaced as a tray notification"
 
     def test_quit_for_update_stops_the_service(self):
         """The quit hook must stop the service so the detached updater can act."""
@@ -454,24 +493,24 @@ class TestUpdateBanner:
         assert "Cancel" in build_source, "Download must be cancellable"
         assert "PHASE_DOWNLOADING" in render_source, "Banner must react to update phases"
 
-    def test_dialog_defers_restart_while_compressing(self):
-        """The dialog's restart decision must be made at click time, not construction.
+    def test_dialog_updates_are_gated_by_the_controller_not_refused(self):
+        """Deferral lives in the controller's task gate, not a dialog-side decider.
 
-        A compression may start after the banner is built; quitting then would
-        drop the user's file, so the banner consults a decider on each click.
+        The dialog banner always offers "Update now"; while a compression
+        runs, the tray's gate holds the quit (with the buttonless notice)
+        instead of the dialog refusing the click.
         """
         import inspect
 
         from filesqueeze.gui_compress import CompressDialog
 
         widgets_source = inspect.getsource(CompressDialog._create_widgets)
-        refusal_source = inspect.getsource(CompressDialog._update_restart_refusal)
 
-        assert "restart_decider=" in widgets_source, "Dialog must gate restart via the banner's click-time decider"
-        assert "is_compressing" in refusal_source, "The decider must refuse while a compression is running"
+        assert "restart_decider" not in widgets_source, "The click-time decider was replaced by the controller task gate"
+        assert "on_update_applied=self._on_update_applied" in widgets_source, "Dialog updates must quit via the tray hook"
 
-        # And the tray/other surfaces can consult the same state directly
-        assert isinstance(CompressDialog.is_compressing, property), "Dialog must expose is_compressing for the tray guard"
+        # The tray's task gate still reads the dialog's in-flight state
+        assert isinstance(CompressDialog.is_compressing, property), "Dialog must expose is_compressing for the task gate"
 
     def test_banner_polls_controller_on_the_tk_thread(self):
         """State must be polled via after(); the controller thread never touches widgets."""
@@ -483,15 +522,31 @@ class TestUpdateBanner:
         assert ".after(" in poll_source, "Banner updates must be scheduled on the Tk thread"
         assert "snapshot()" in poll_source, "Banner must read the controller's pollable state"
 
-    def test_banner_restart_decision_goes_through_the_decider(self):
-        """The decider runs on click; a refusal shows its reason instead of starting."""
+    def test_banner_shows_the_waiting_phase_as_cancellable(self):
+        """While tasks hold the handoff, the banner shows the wait and lets the user cancel."""
         import inspect
 
         from filesqueeze.update_banner import UpdateBanner
 
-        source = inspect.getsource(UpdateBanner._on_update_now)
-        assert "_restart_decider" in source, "Update now must honor the click-time restart decision"
-        assert "refusal" in source, "A refusal reason must be surfaced in the banner"
+        render_source = inspect.getsource(UpdateBanner._render)
+        assert "PHASE_WAITING" in render_source, "Banner must render the waiting-for-tasks phase"
+        waiting_block = render_source.split("PHASE_WAITING")[1].split("elif")[0]
+        assert "Cancel" in waiting_block or "cancel" in waiting_block, "Waiting must stay cancellable"
+
+    def test_waiting_notice_is_buttonless_and_self_closing(self):
+        """The checklist's buttonless dialog: information only, closes itself."""
+        import inspect
+
+        from filesqueeze.update_banner import UpdateWaitingDialog
+
+        class_source = inspect.getsource(UpdateWaitingDialog)
+        assert "ttk.Button" not in class_source, "The waiting notice must be buttonless"
+        assert "after all tasks complete" in class_source, "Notice must say the app will close and update"
+        assert "-topmost" in class_source, "Notice must be visible while other windows are in use"
+
+        poll_source = inspect.getsource(UpdateWaitingDialog._poll)
+        assert "snapshot()" in poll_source, "Notice must watch the shared controller"
+        assert "destroy" in poll_source, "Notice must close itself once the update leaves waiting"
 
 
 if __name__ == "__main__":
