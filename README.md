@@ -47,6 +47,7 @@ poetry run python -m filesqueeze service run  # Development install
   - [Method 1: System-Wide Installer](#method-1-system-wide-installer-recommended-for-end-users)
   - [Method 2: From a Release Wheel](#method-2-from-a-release-wheel-advanced)
   - [Method 3: Development Installation](#method-3-development-installation-poetry)
+  - [External Dependency Setup](#external-dependency-setup)
   - [Locked-Down Machines](#locked-down-machines-no-installers-no-admin-rights)
   - [Updating](#updating)
 - [External Dependencies](#external-dependencies)
@@ -98,7 +99,7 @@ bash install.sh
 - ✅ Generates `~/.config/filesqueeze/config.toml` (preserves an existing config; prompts and backs up before overwriting)
 - ✅ Creates Start Menu shortcuts (service, Compress dialog, uninstaller) and a right-click **Send To → FileSqueeze** entry
 - ✅ Creates default input/output directories and offers auto-start on login
-- ✅ Detects FFmpeg, Ghostscript, Tesseract
+- ✅ Offers [external-dependency setup](#external-dependency-setup): detect FFmpeg/Ghostscript/Tesseract and optionally install portable builds into your binaries folder
 - ✅ Stops a running service before reinstall and restarts it afterwards
 
 **After installation:**
@@ -160,6 +161,25 @@ poetry run python -m filesqueeze detect                   # verify binaries
 
 With a development install, prefix every command with `poetry run`, e.g. `poetry run python -m filesqueeze service run`.
 
+### External Dependency Setup
+
+Both installers offer to run `filesqueeze setup-deps` after installation, and you can run it again any time. The flow:
+
+1. **Pick your binaries folder** — a native dialog asks for an *existing* directory (the one you keep portable tools in; the picker starts at `~/FileSqueeze/bin` when it exists). Nothing outside this folder is touched.
+2. **Detect** — FileSqueeze scans the folder (a few levels deep) for FFmpeg, Ghostscript, and Tesseract and reports what is already there.
+3. **Choose what to install** — for the missing ones, a checklist offers any combination, including **Install none**. Required dependencies are pre-checked; Tesseract (optional) is not.
+4. **Portable install** — chosen dependencies are downloaded from the canonical sources listed under [External Dependencies](#external-dependencies) and unpacked into your folder. Ghostscript and Tesseract ship only as installer `.exe` files, so **7-Zip is downloaded too if it's missing** (into `<folder>/7-Zip`) to unpack them — no installers are ever run, and no admin rights are used.
+5. **Config wiring** — the located paths are written into `~/.config/filesqueeze/config.toml` (backed up first), so they take priority over PATH auto-detection.
+
+Headless or scripted use skips the dialogs:
+
+```powershell
+filesqueeze setup-deps --dir "D:\Tools\bin" --install ffmpeg,ghostscript --yes
+filesqueeze setup-deps --dir "D:\Tools\bin" --install none --yes    # detect only
+```
+
+On Linux the flow is detect-and-advise: missing dependencies get the matching package-manager command, since no portable builds are published for them.
+
 ### Locked-Down Machines (No Installers, No Admin Rights)
 
 FileSqueeze itself is pure Python — installing it never requires running an .exe installer. The only installer-based pieces are the [external binaries](#external-dependencies), and each has an installer-free route:
@@ -171,6 +191,8 @@ FileSqueeze itself is pure Python — installing it never requires running an .e
   Extract into your portable-tools folder (any folder works — the examples below use `C:\Users\you\FileSqueeze\bin\`) and point the config at it (below). No PATH changes needed.
 - **Ghostscript** has no official portable zip — its official downloads are installer `.exe` files, always current at <https://github.com/ArtifexSoftware/ghostpdl-downloads/releases/latest> (the Windows 64-bit asset is named `gs<version>w64.exe`, e.g. `gs10080w64.exe` for 10.08.0). The installer can be opened like an archive with [7-Zip](https://www.7-zip.org/) (*Open archive*), and the extracted folder works standalone.
 - **Tesseract** is optional — skip it unless you need OCR for scanned PDFs. If you do need it, the canonical Windows builds are the [UB-Mannheim installers](https://github.com/UB-Mannheim/tesseract/wiki) (also just an `.exe`; same 7-Zip extraction trick works).
+
+All of this is automated by [`filesqueeze setup-deps`](#external-dependency-setup): it picks the folder, detects what's there, downloads these exact portable builds, and bootstraps 7-Zip itself when it's missing — the manual routes above remain the fallback when even that can't run.
 
 To install FileSqueeze and wire up the extracted binaries:
 
