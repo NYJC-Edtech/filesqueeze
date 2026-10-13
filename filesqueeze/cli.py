@@ -6,28 +6,55 @@ import typing
 from pathlib import Path
 
 
+def user_config_path() -> Path:
+    """The canonical config location, read regardless of working directory."""
+    return Path.home() / ".config" / "filesqueeze" / "config.toml"
+
+
+def default_config_output() -> Path:
+    """Where ``init-config`` writes when ``--output`` is not given.
+
+    A dev checkout gets ``./filesqueeze.toml`` (the project config for that
+    checkout, and what the test suite expects). An installed copy defaults
+    to the user config — the only location the app reads no matter which
+    directory it starts from.
+    """
+    from filesqueeze.update_check import is_dev_checkout
+
+    if is_dev_checkout():
+        return Path.cwd() / "filesqueeze.toml"
+    return user_config_path()
+
+
 def cmd_init_config(args: argparse.Namespace) -> None:
     """Generate an example configuration file with auto-detected binaries."""
     # Import here to avoid issues if config module has errors
     from filesqueeze.config import Config
     from filesqueeze.system.binaries import BinaryFinder
 
-    output_path = Path(args.output) if args.output else Path.cwd() / "filesqueeze.toml"
+    if args.output:
+        output_path = Path(args.output)
+    else:
+        output_path = default_config_output()
 
     # SAFEGUARD: Prevent accidental overwrite of user config location
     # The user config is ~/.config/filesqueeze/config.toml and should only be
-    # edited manually by the user, not overwritten by init-config.
-    user_config_path = Path.home() / ".config" / "filesqueeze" / "config.toml"
-    is_user_config = output_path == user_config_path
+    # edited manually by the user, not overwritten by init-config. The guard
+    # applies when --output explicitly points at it; the installed-copy
+    # default above targets it deliberately, and an existing file there is
+    # still protected by the --force check below.
+    is_user_config = output_path == user_config_path()
 
-    if is_user_config and not args.user_config:
+    if is_user_config and not args.user_config and args.output:
         print(f"Error: Cannot write to user config location: {output_path}")
         print()
         print("The user config file at ~/.config/filesqueeze/config.toml contains your")
         print("personal settings and should not be overwritten with defaults.")
         print()
         print("To create a project config instead (recommended):")
-        print("  - Run init-config without --output (creates ./filesqueeze.toml)")
+        print("  - Run init-config without --output (creates ./filesqueeze.toml in a dev")
+        print("    checkout; in an installed copy it targets the user config, and an")
+        print("    existing file there still requires --force)")
         print("  - Or specify: --output /path/to/project/filesqueeze.toml")
         print()
         print("If you REALLY want to reset your user config to defaults, use:")
@@ -45,9 +72,13 @@ def cmd_init_config(args: argparse.Namespace) -> None:
 
     # If file exists and --force not specified, warn user
     if output_path.exists() and not args.force:
-        print(f"Error: Configuration file already exists at {output_path}")
+        print(f"Error: Configuration file already exists at: {output_path}")
         print("Use --force to overwrite it, or specify a different path with --output")
         sys.exit(1)
+
+    # The output directory may not exist yet (e.g. first run creating the
+    # user config location on a fresh machine)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
 
     # Find the example config - it should be in the same directory as this file (main.py)
     # When running as module, __file__ will be in the package directory
@@ -557,7 +588,11 @@ Examples:
 
     # init-config command
     init_parser = subparsers.add_parser("init-config", help="Generate an example configuration file")
-    init_parser.add_argument("--output", "-o", help="Output path for config file (default: ./filesqueeze.toml)")
+    init_parser.add_argument(
+        "--output",
+        "-o",
+        help="Output path for config file (default: ./filesqueeze.toml in a dev checkout; ~/.config/filesqueeze/config.toml in an installed copy)",
+    )
     init_parser.add_argument(
         "--force", "-f", action="store_true", help="Overwrite existing configuration file (creates backup)"
     )

@@ -8,7 +8,7 @@ This document documents the proper FileSqueeze commands to use instead of ad-hoc
 
 **Generate user config:**
 ```powershell
-filesqueeze init-config --output "$env:USERPROFILE\.config\filesqueeze\config.toml"
+filesqueeze init-config --output "$env:USERPROFILE\.config\filesqueeze\config.toml" --user-config
 ```
 
 **Detect binaries (FFmpeg, Ghostscript, Tesseract):**
@@ -69,7 +69,7 @@ filesqueeze watch <input_dir> <output_dir>
 **Generate config instead of manual creation:**
 ```powershell
 # GOOD - Use filesqueeze init-config
-filesqueeze init-config --output "$env:USERPROFILE\.config\filesqueeze\config.toml"
+filesqueeze init-config --output "$env:USERPROFILE\.config\filesqueeze\config.toml" --user-config
 
 # BAD - Don't manually create config
 New-Item -ItemType Directory -Path "$env:USERPROFILE\.config\filesqueeze" -Force
@@ -215,7 +215,7 @@ pytest tests/ -v
 
 **Option A - Use init-config to regenerate:**
 ```powershell
-filesqueeze init-config --output "$env:USERPROFILE\.config\filesqueeze\config.toml"
+filesqueeze init-config --output "$env:USERPROFILE\.config\filesqueeze\config.toml" --user-config
 # Then edit the file to change paths
 ```
 
@@ -254,7 +254,7 @@ notepad "$env:USERPROFILE\.config\filesqueeze\config.toml"
 
 **Regenerate from defaults:**
 ```powershell
-filesqueeze init-config --output "$env:USERPROFILE\.config\filesqueeze\config.toml" --force
+filesqueeze init-config --output "$env:USERPROFILE\.config\filesqueeze\config.toml" --user-config --force
 ```
 
 ---
@@ -369,7 +369,7 @@ filesqueeze service run
 ### Example 3: Configure for network drives
 ```powershell
 # Generate config
-filesqueeze init-config --output "$env:USERPROFILE\.config\filesqueeze\config.toml"
+filesqueeze init-config --output "$env:USERPROFILE\.config\filesqueeze\config.toml" --user-config
 
 # Edit to use network drives
 notepad "$env:USERPROFILE\.config\filesqueeze\config.toml"

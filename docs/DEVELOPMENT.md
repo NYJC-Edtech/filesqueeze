@@ -153,7 +153,6 @@ git push origin v0.1.0
 - [ ] Upload install scripts to web server/GitHub
 - [ ] Test installer on fresh Windows machine
 - [ ] Test installer on fresh Linux machine
-- [ ] Publish to PyPI (or TestPyPI for testing)
-- [ ] Create GitHub release
+- [ ] Create GitHub release with the wheel attached (no PyPI — FileSqueeze is not published there)
 - [ ] Update documentation with actual URLs
-- [ ] Test PyPI installation: `pip install filesqueeze`
+- [ ] Test installation from the release wheel: `python -m pip install --force-reinstall "<wheel-url>"`
