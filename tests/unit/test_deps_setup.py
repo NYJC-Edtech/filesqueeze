@@ -8,11 +8,17 @@ separately (sandbox), not here.
 
 import io
 import json
+import sys
 import zipfile
 from pathlib import Path
 from unittest.mock import patch
 
 import pytest
+
+# The portable-install machinery is Windows-only: on Linux run_setup refuses
+# installs with "no portable build is available on this platform", so tests
+# that exercise installs are skipped on the Linux CI leg.
+windows_only = pytest.mark.skipif(sys.platform != "win32", reason="portable install flow is Windows-only")
 
 # --------------------------------------------------------------------------
 # Helpers
@@ -140,8 +146,10 @@ class TestDetection:
     def test_detect_dependencies_reports_all(self, tmp_path):
         from filesqueeze.deps_setup import detect_dependencies
 
+        # Platform-appropriate names so the test holds on Windows and Linux
         (tmp_path / "ffmpeg").mkdir()
         (tmp_path / "ffmpeg" / "ffmpeg.exe").write_bytes(b"MZ")
+        (tmp_path / "ffmpeg" / "ffmpeg").write_bytes(b"MZ")
         found = detect_dependencies(tmp_path)
         assert found["ffmpeg"] is not None
         assert found["ghostscript"] is None
@@ -336,6 +344,7 @@ class TestRunSetup:
         monkeypatch.setattr("filesqueeze.deps_setup.urllib.request.urlopen", fake_urlopen)
         monkeypatch.setattr("filesqueeze.deps_setup.subprocess.run", _fake_7zr_run())
 
+    @windows_only
     def test_installs_ffmpeg_and_wires_config(self, tmp_path, monkeypatch):
         from filesqueeze.deps_setup import run_setup
 
@@ -353,6 +362,7 @@ class TestRunSetup:
             data = tomllib.load(f)
         assert data["ffmpeg"]["path"].endswith("ffmpeg.exe")
 
+    @windows_only
     def test_installs_gs_with_bootstrapped_sevenzip(self, tmp_path, monkeypatch):
         from filesqueeze.deps_setup import run_setup
 
@@ -367,6 +377,7 @@ class TestRunSetup:
         assert report.installed["ghostscript"] == base / "ghostscript" / "bin" / "gswin64c.exe"
         assert any("7-Zip" in note for note in report.notes)
 
+    @windows_only
     def test_uses_cached_sevenzip(self, tmp_path, monkeypatch):
         from filesqueeze.deps_setup import run_setup
 
@@ -392,6 +403,7 @@ class TestRunSetup:
         assert report.failed == {}
         assert set(report.skipped) == {"ffmpeg", "ghostscript", "tesseract"}
 
+    @windows_only
     def test_existing_binaries_are_wired_not_reinstalled(self, tmp_path, monkeypatch):
         from filesqueeze.deps_setup import run_setup
 
