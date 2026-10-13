@@ -226,12 +226,23 @@ try {
     Write-Host "  Warning: Could not verify installation" -ForegroundColor Yellow
 }
 
-# Detect binaries
-Write-Status "Detecting FFmpeg, Ghostscript, and Tesseract..."
-try {
-    filesqueeze detect
-} catch {
-    Write-Host "  Warning: Binary detection had issues" -ForegroundColor Yellow
+# External dependencies: detect in a folder of the user's choice, and
+# optionally install portable builds there (the user picks what to
+# install, including nothing)
+Write-Status "External dependencies (FFmpeg, Ghostscript, Tesseract)..."
+$setupDeps = Read-Host "Set up external dependencies now? Picks your binaries folder, detects what's there, and offers portable installs (choose 'Install none' to skip) [Y/n]"
+if ($setupDeps -eq "" -or $setupDeps -eq "Y" -or $setupDeps -eq "y") {
+    try {
+        filesqueeze setup-deps
+    } catch {
+        Write-Host "  Warning: Dependency setup had issues" -ForegroundColor Yellow
+    }
+} else {
+    try {
+        filesqueeze detect
+    } catch {
+        Write-Host "  Warning: Binary detection had issues" -ForegroundColor Yellow
+    }
 }
 
 # Generate configuration

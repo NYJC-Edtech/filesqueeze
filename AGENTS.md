@@ -95,6 +95,9 @@ poetry run python -m filesqueeze service run
 # Detect binaries (FFmpeg, Ghostscript, Tesseract)
 poetry run python -m filesqueeze detect
 
+# Set up external dependencies (pick binaries folder, detect, optional portable installs)
+poetry run python -m filesqueeze setup-deps
+
 # Diagnostics
 poetry run python -m filesqueeze doctor
 ```

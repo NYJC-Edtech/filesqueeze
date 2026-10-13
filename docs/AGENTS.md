@@ -16,6 +16,11 @@ filesqueeze init-config --output "$env:USERPROFILE\.config\filesqueeze\config.to
 filesqueeze detect
 ```
 
+**Set up external dependencies (pick a binaries folder, detect, optionally install portable builds):**
+```powershell
+filesqueeze setup-deps
+```
+
 **Run diagnostics:**
 ```powershell
 filesqueeze doctor
@@ -268,6 +273,7 @@ filesqueeze init-config --output "$env:USERPROFILE\.config\filesqueeze\config.to
 | Uninstall | `.\uninstall.ps1 -Force` or `poetry run uninstall` |
 | Generate config | `filesqueeze init-config` |
 | Detect binaries | `filesqueeze detect` |
+| Set up external dependencies | `filesqueeze setup-deps` |
 | Run diagnostics | `filesqueeze doctor` |
 | Start service | `filesqueeze service run` |
 | Install auto-start | `filesqueeze service install` |

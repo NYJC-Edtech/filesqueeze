@@ -454,6 +454,49 @@ def cmd_detect(args: argparse.Namespace) -> None:
         print_detection_results()
 
 
+def cmd_setup_deps(args: argparse.Namespace) -> None:
+    """Interactive external-dependency setup (detect / install portable builds)."""
+    from filesqueeze.deps_setup import SetupError, TkSetupUI, run_setup
+
+    requested = None
+    if args.install is not None:
+        requested = {item.strip().lower() for item in args.install.split(",") if item.strip()}
+
+    ui = None
+    if args.dir is None or args.install is None or not args.yes:
+        try:
+            ui = TkSetupUI()
+        except Exception:  # no display / no tkinter
+            if args.dir is None or args.install is None:
+                print("No display available for dialogs; pass --dir and --install to run headless.")
+                sys.exit(1)
+
+    def progress(done: int, total: int | None) -> None:
+        if total:
+            shown = int(done * 100 / total)
+            if shown % 5 == 0:
+                print(f"  {done / 1e6:.1f} / {total / 1e6:.1f} MB ({shown}%)", end="\r", flush=True)
+
+    try:
+        report = run_setup(
+            ui,
+            base_dir=args.dir,
+            requested=requested,
+            assume_yes=args.yes,
+            wire_config=not args.no_wire,
+            progress=progress,
+        )
+    except SetupError as e:
+        print(f"Error: {e}")
+        sys.exit(1)
+
+    print()
+    for line in report.summary_lines():
+        print(line)
+    if report.failed:
+        sys.exit(1)
+
+
 def cmd_watch(args: argparse.Namespace) -> None:
     """Watch directory for new files and compress them."""
     from filesqueeze.config import Config
@@ -708,6 +751,20 @@ Examples:
     detect_parser = subparsers.add_parser("detect", help="Detect installed binaries (FFmpeg, Ghostscript, Tesseract, etc.)")
     detect_parser.add_argument("--json", action="store_true", help="Output detection results as JSON")
 
+    # setup-deps command
+    setup_deps_parser = subparsers.add_parser(
+        "setup-deps",
+        help="Set up external dependencies: pick your binaries folder, detect, optionally install portable builds",
+    )
+    setup_deps_parser.add_argument("--dir", "-d", help="Existing binaries directory (skips the folder dialog)")
+    setup_deps_parser.add_argument(
+        "--install",
+        "-i",
+        help="Comma list to install: ffmpeg, ghostscript, tesseract — or 'none' (skips the choice dialog)",
+    )
+    setup_deps_parser.add_argument("--yes", "-y", action="store_true", help="No confirmations (headless)")
+    setup_deps_parser.add_argument("--no-wire", action="store_true", help="Do not write detected paths into the user config")
+
     # For backward compatibility, also support --init-config as a flag
     parser.add_argument(
         "--init-config",
@@ -745,6 +802,9 @@ Examples:
 
     if args.command == "init-config":
         return cmd_init_config(args)
+
+    if args.command == "setup-deps":
+        return cmd_setup_deps(args)
 
     if args.command == "scan":
         return cmd_scan(args)

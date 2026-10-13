@@ -177,13 +177,22 @@ else
     status "Skipping dependency installation (--skip-deps)"
 fi
 
-# Detect binaries and generate config
-status "Detecting FFmpeg, Ghostscript, and Tesseract..."
-echo -e "  ${GRAY}Running: poetry run python -m filesqueeze detect${NC}"
-
-if ! poetry run python -m filesqueeze detect; then
-    warn "Binary detection had issues"
-    echo -e "  ${YELLOW}Some dependencies may be missing. Run 'filesqueeze doctor' after installation.${NC}"
+# External dependencies: detect in a folder of the user's choice; on Linux
+# there are no portable builds to fetch, so missing ones get package-manager
+# advice (no dialogs over SSH: setup-deps falls back to detect)
+status "External dependencies (FFmpeg, Ghostscript, Tesseract)..."
+read -p "Set up external dependencies now? (choose your binaries folder, detect what's there) [Y/n] " -n 1 -r
+echo
+if [[ $REPLY =~ ^[Yy]$ ]] || [[ -z $REPLY ]]; then
+    if ! poetry run python -m filesqueeze setup-deps; then
+        warn "Dependency setup had issues; falling back to plain detection"
+        poetry run python -m filesqueeze detect || warn "Binary detection had issues"
+    fi
+else
+    if ! poetry run python -m filesqueeze detect; then
+        warn "Binary detection had issues"
+        echo -e "  ${YELLOW}Some dependencies may be missing. Run 'filesqueeze doctor' after installation.${NC}"
+    fi
 fi
 
 # Generate configuration at the user config location — the only path the
