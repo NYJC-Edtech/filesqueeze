@@ -21,9 +21,14 @@ Utility package for compressing videos, PDFs, and images using FFmpeg, Ghostscri
 ## Quick Start
 
 ```bash
-# System-wide installation (Windows)
+# System-wide installation (Windows) — from a release tag
+git clone https://github.com/NYJC-Edtech/filesqueeze.git
 cd filesqueeze
+git checkout v0.9.4                  # or the latest release tag
 .\install.ps1
+
+# Linux equivalent:
+bash install.sh
 
 # Or for development: Poetry installation
 .\install-dev.ps1
@@ -40,7 +45,7 @@ poetry run python -m filesqueeze service run  # Development install
 
 - [Installation](#installation)
   - [Method 1: System-Wide Installer](#method-1-system-wide-installer-recommended-for-end-users)
-  - [Method 2: PyPI Package](#method-2-pypi-package-recommended-for-python-users)
+  - [Method 2: From a Release Wheel](#method-2-from-a-release-wheel-advanced)
   - [Method 3: Development Installation](#method-3-development-installation-poetry)
   - [Locked-Down Machines](#locked-down-machines-no-installers-no-admin-rights)
   - [Updating](#updating)
@@ -54,7 +59,9 @@ poetry run python -m filesqueeze service run  # Development install
 
 ## Installation
 
-FileSqueeze supports multiple installation methods. The scripts follow [Installation Principles](docs/INSTALLATION_PRINCIPLES.md): robust error handling, PATH refresh, and graceful fallbacks.
+The **canonical installation** is the installer script — `install.ps1` on Windows, `install.sh` on Linux. The scripts follow [Installation Principles](docs/INSTALLATION_PRINCIPLES.md): robust error handling, PATH refresh, and graceful fallbacks.
+
+> **Install from a release tag.** The installer builds from the local checkout, so check out the tag you want first (`git checkout vX.Y.Z`, or download that release's source archive) — otherwise you install whatever the working copy happens to contain.
 
 ### Method 1: System-Wide Installer (Recommended for End Users)
 
@@ -62,6 +69,7 @@ FileSqueeze supports multiple installation methods. The scripts follow [Installa
 
 #### Prerequisites
 - Python 3.11 or later
+- Git (or a downloaded source archive of the release)
 - FFmpeg (for video compression)
 - Ghostscript (for PDF compression)
 - Tesseract OCR (optional, for scanned PDFs)
@@ -69,20 +77,29 @@ FileSqueeze supports multiple installation methods. The scripts follow [Installa
 #### Installation
 
 ```powershell
-# Navigate to FileSqueeze directory
+# Windows
+git clone https://github.com/NYJC-Edtech/filesqueeze.git
 cd filesqueeze
-
-# Run system installer
-.\install.ps1
+git checkout v0.9.4        # or the latest release tag
+.\install.ps1              # reinstall over an existing install with -Force
 ```
 
-**What the installer does:**
+```bash
+# Linux
+git clone https://github.com/NYJC-Edtech/filesqueeze.git
+cd filesqueeze
+git checkout v0.9.4        # or the latest release tag
+bash install.sh
+```
+
+**What the installer does** (Windows):
 - ✅ Checks Python 3.11+ installation
-- ✅ Builds FileSqueeze package (wheel)
-- ✅ Installs system-wide with pip
-- ✅ Creates Start Menu shortcuts
-- ✅ Generates configuration file
+- ✅ Builds FileSqueeze from the checkout and installs it system-wide with pip
+- ✅ Generates `~/.config/filesqueeze/config.toml` (preserves an existing config; prompts and backs up before overwriting)
+- ✅ Creates Start Menu shortcuts (service, Compress dialog, uninstaller) and a right-click **Send To → FileSqueeze** entry
+- ✅ Creates default input/output directories and offers auto-start on login
 - ✅ Detects FFmpeg, Ghostscript, Tesseract
+- ✅ Stops a running service before reinstall and restarts it afterwards
 
 **After installation:**
 ```bash
@@ -99,22 +116,26 @@ filesqueeze service install
 filesqueeze doctor
 ```
 
-### Method 2: PyPI Package (Recommended for Python Users)
+### Method 2: From a Release Wheel (Advanced)
 
-**Best for:** Python users who just want `pip install`
+**Best for:** scripted or pip-only setups where the installer's extras (shortcuts, config generation, auto-start) are handled separately
 
-```bash
-pip install filesqueeze
-filesqueeze-init          # Generate configuration, then edit filesqueeze.toml
-filesqueeze-service       # Start the service
-```
-
-**All commands:** `filesqueeze` (main CLI), `filesqueeze-compress`, `filesqueeze-scan`, `filesqueeze-watch`, `filesqueeze-service`, `filesqueeze-init`, `filesqueeze-detect`
+FileSqueeze is **not published on PyPI** — `pip install filesqueeze` will not work. Every [GitHub release](https://github.com/NYJC-Edtech/filesqueeze/releases) publishes a wheel; its primary consumer is the built-in one-click updater (see [Updating](#updating)), but you can install one manually:
 
 ```bash
-pip install --upgrade filesqueeze   # Update
-pip uninstall filesqueeze           # Uninstall
+# 1. Copy the .whl asset URL from the latest release:
+#    https://github.com/NYJC-Edtech/filesqueeze/releases/latest
+# 2. Install it with the SAME interpreter that will run FileSqueeze.
+#    Use `python -m pip`, not bare `pip` — on machines with several Pythons,
+#    bare `pip` often belongs to a different one, and the package lands in
+#    an environment the app never runs from.
+python -m pip install --force-reinstall "<wheel-url>"
+
+# 3. Generate the config (installed copies write to ~/.config/filesqueeze/config.toml)
+python -m filesqueeze init-config
 ```
+
+A manual wheel install swaps code only: no Start Menu / Send To shortcuts, no auto-start, no default directories, and no service stop/restart on reinstall. For a complete setup, prefer the installer (Method 1). Once installed this way, subsequent updates arrive through the in-app updater like any other install.
 
 ### Method 3: Development Installation (Poetry)
 
@@ -143,9 +164,13 @@ With a development install, prefix every command with `poetry run`, e.g. `poetry
 
 FileSqueeze itself is pure Python — installing it never requires running an .exe installer. The only installer-based pieces are the [external binaries](#external-dependencies), and each has an installer-free route:
 
-- **FFmpeg** ships as a portable archive, not an installer: download the `.7z` (gyan.dev) or `.zip` (BtbN) build, extract anywhere, and point the config at it (below). No PATH changes needed.
-- **Ghostscript**'s official installer can be opened like an archive with [7-Zip](https://www.7-zip.org/) (*Open archive*), and the extracted folder works standalone.
-- **Tesseract** is optional — skip it unless you need OCR for scanned PDFs.
+- **FFmpeg** ships as a portable archive, not an installer. Direct, always-current links (no version hunting, no wrong-version risk):
+  - gyan.dev release build (recommended): <https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip> — a permanent URL that always serves the newest release build; it's a plain `.zip`, so even 7-Zip isn't needed
+  - BtbN build (alternative): <https://github.com/BtbN/FFmpeg-Builds/releases/latest/download/ffmpeg-master-latest-win64-gpl.zip>
+  
+  Extract into your portable-tools folder (any folder works — the examples below use `C:\Users\you\FileSqueeze\bin\`) and point the config at it (below). No PATH changes needed.
+- **Ghostscript** has no official portable zip — its official downloads are installer `.exe` files, always current at <https://github.com/ArtifexSoftware/ghostpdl-downloads/releases/latest> (the Windows 64-bit asset is named `gs<version>w64.exe`, e.g. `gs10080w64.exe` for 10.08.0). The installer can be opened like an archive with [7-Zip](https://www.7-zip.org/) (*Open archive*), and the extracted folder works standalone.
+- **Tesseract** is optional — skip it unless you need OCR for scanned PDFs. If you do need it, the canonical Windows builds are the [UB-Mannheim installers](https://github.com/UB-Mannheim/tesseract/wiki) (also just an `.exe`; same 7-Zip extraction trick works).
 
 To install FileSqueeze and wire up the extracted binaries:
 
@@ -197,10 +222,11 @@ Notes:
 
 **Windows:**
 ```bash
-# Download ffmpeg-release-essentials.7z from:
-# https://www.gyan.dev/ffmpeg/builds/#release-builds
-# Extract to C:\Program Files\ffmpeg
-# Add C:\Program Files\ffmpeg\bin to your PATH
+# Direct download (portable — always the latest release build, no version hunting):
+# https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip
+#   (alternative: https://github.com/BtbN/FFmpeg-Builds/releases/latest/download/ffmpeg-master-latest-win64-gpl.zip)
+# Extract to C:\Program Files\ffmpeg (or anywhere)
+# Add <extracted>\bin to your PATH, or set the path in your config (see Configuration)
 
 # Or use chocolatey:
 choco install ffmpeg
@@ -214,6 +240,10 @@ winget install ffmpeg
 
 **Linux:**
 ```bash
+# Portable static build (no root needed — direct, always-latest link):
+# https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-amd64-static.tar.xz
+#   (also available for arm64; extract anywhere and set the path in your config)
+
 # Ubuntu/Debian
 sudo apt-get install ffmpeg
 
@@ -229,8 +259,10 @@ sudo pacman -S ffmpeg
 
 **Windows:**
 ```bash
-# Download from:
-# https://ghostscript.com/releases/index.html
+# Direct download (always the current release page):
+# https://github.com/ArtifexSoftware/ghostpdl-downloads/releases/latest
+# The Windows 64-bit asset is named gs<version>w64.exe (e.g. gs10080w64.exe = 10.08.0)
+
 # Or use chocolatey:
 choco install ghostscript
 ```
@@ -258,8 +290,11 @@ sudo pacman -S ghostscript
 
 **Windows:**
 ```bash
-# Download from:
-# https://tesseract-ocr.com/#download
+# Canonical Windows builds (UB-Mannheim) — wiki with links to every build:
+# https://github.com/UB-Mannheim/tesseract/wiki
+# Direct directory listing (filenames are versioned, e.g. tesseract-ocr-w64-setup-5.4.0.exe):
+# https://digi.bib.uni-mannheim.de/tesseract/
+
 # Or use chocolatey:
 choco install tesseract
 ```
@@ -287,13 +322,14 @@ Only needed for PowerPoint files — no download here; PowerPoint must already b
 
 ### Quick Setup
 
-Generate an example configuration file:
+Generate an example configuration file with auto-detected binary paths:
 
 ```bash
-poetry run python -m filesqueeze init-config
+filesqueeze init-config                      # installed copy
+poetry run python -m filesqueeze init-config # dev checkout
 ```
 
-This creates a `filesqueeze.toml` file with auto-detected binary paths.
+The output location depends on how FileSqueeze is running: an **installed copy** writes the user config at `~/.config/filesqueeze/config.toml` — the one location the service reads regardless of its working directory — while a **dev checkout** creates `./filesqueeze.toml` (the project config for that checkout). The system installer generates the user config for you on first install, so this command is only needed for manual setups.
 
 ### Key Configuration Options
 

@@ -15,7 +15,7 @@ set -e
 # Default values
 INSTALL_DIR="$HOME/FileSqueeze"
 BRANCH="main"
-REPO_URL="https://github.com/yourusername/filesqueeze.git"
+REPO_URL="https://github.com/NYJC-Edtech/filesqueeze.git"
 FORCE=false
 SKIP_DEPS=false
 
@@ -186,15 +186,24 @@ if ! poetry run python -m filesqueeze detect; then
     echo -e "  ${YELLOW}Some dependencies may be missing. Run 'filesqueeze doctor' after installation.${NC}"
 fi
 
-# Generate configuration
+# Generate configuration at the user config location — the only path the
+# service reads regardless of its working directory. A config written to
+# $INSTALL_DIR would never be consulted (the service runs with cwd in the
+# repo clone). An existing config is preserved, never overwritten.
+USER_CONFIG="$HOME/.config/filesqueeze/config.toml"
 status "Generating configuration file..."
-echo -e "  ${GRAY}Running: poetry run python -m filesqueeze init-config --output '$INSTALL_DIR/filesqueeze.toml'${NC}"
+mkdir -p "$(dirname "$USER_CONFIG")"
 
-if poetry run python -m filesqueeze init-config --output "$INSTALL_DIR/filesqueeze.toml"; then
-    echo -e "  ${GREEN}Configuration created: $INSTALL_DIR/filesqueeze.toml${NC}"
+if [ -f "$USER_CONFIG" ]; then
+    echo -e "  ${GREEN}Existing config preserved: $USER_CONFIG${NC}"
 else
-    warn "Config generation failed. You can create it manually:"
-    echo -e "  ${GRAY}poetry run python -m filesqueeze init-config --output '$INSTALL_DIR/filesqueeze.toml'${NC}"
+    echo -e "  ${GRAY}Running: poetry run python -m filesqueeze init-config --output '$USER_CONFIG' --user-config${NC}"
+    if poetry run python -m filesqueeze init-config --output "$USER_CONFIG" --user-config; then
+        echo -e "  ${GREEN}Configuration created: $USER_CONFIG${NC}"
+    else
+        warn "Config generation failed. You can create it manually:"
+        echo -e "  ${GRAY}poetry run python -m filesqueeze init-config --output '$USER_CONFIG' --user-config${NC}"
+    fi
 fi
 
 # Create start scripts
@@ -259,7 +268,7 @@ echo ""
 echo -e "${CYAN}Installation directory:${NC} $INSTALL_DIR"
 echo ""
 echo -e "${YELLOW}Quick Start:${NC}"
-echo "  1. Edit config: nano $INSTALL_DIR/filesqueeze.toml"
+echo "  1. Edit config: nano ~/.config/filesqueeze/config.toml"
 echo "  2. Start service: cd $INSTALL_DIR/repo && poetry run python -m filesqueeze service"
 echo "  3. Or use systemd: systemctl --user start filesqueeze.service"
 echo ""
@@ -270,7 +279,7 @@ echo "  Compress file:      poetry run python -m filesqueeze compress <file>"
 echo "  Batch process:      poetry run python -m filesqueeze scan"
 echo ""
 echo -e "${YELLOW}Configuration:${NC}"
-echo "  Edit: $INSTALL_DIR/filesqueeze.toml"
+echo "  Edit: ~/.config/filesqueeze/config.toml"
 echo "  Set input/output directories"
 echo "  Configure log location"
 echo ""

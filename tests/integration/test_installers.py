@@ -295,6 +295,20 @@ class TestInstallerBehavior:
             "Installer should generate configuration file"
         )
 
+    def test_install_config_generation_is_not_blocked(self, project_root):
+        """Installer must pass --user-config when targeting the user config.
+
+        init-config refuses --output ~/.config/filesqueeze/config.toml without
+        --user-config (guard against resetting user settings), so an installer
+        invocation missing the flag silently generates no config at all.
+        """
+        install_script = project_root / "install.ps1"
+        content = install_script.read_text()
+
+        assert "--user-config" in content, (
+            "Installer must pass --user-config when running init-config against the user config location"
+        )
+
     def test_installer_checks_python_version(self, project_root):
         """Installer should verify Python 3.11+ is installed."""
         install_script = project_root / "install.ps1"

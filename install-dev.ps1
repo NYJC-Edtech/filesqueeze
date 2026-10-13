@@ -8,7 +8,7 @@
 param(
     [string]$InstallDir = "$env:USERPROFILE\FileSqueeze",
     [string]$Branch = "main",
-    [string]$RepoUrl = "https://github.com/yourusername/filesqueeze.git",
+    [string]$RepoUrl = "https://github.com/NYJC-Edtech/filesqueeze.git",
     [switch]$Force,
     [switch]$SkipDeps
 )

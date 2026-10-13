@@ -247,7 +247,7 @@ try {
         if ($OverwriteConfig -eq "no") {
             Write-Host "  Existing config preserved: $ConfigPath" -ForegroundColor Gray
         } elseif ($OverwriteConfig -eq "yes") {
-            filesqueeze init-config --output $ConfigPath --force
+            filesqueeze init-config --output $ConfigPath --user-config --force
             Write-Host "  Configuration overwritten: $ConfigPath" -ForegroundColor Gray
         } else {
             # Default: prompt user
@@ -255,7 +255,7 @@ try {
             Write-Host "  Configuration file already exists: $ConfigPath" -ForegroundColor Yellow
             $overwrite = Read-Host "  Overwrite existing config? [y/N]"
             if ($overwrite -eq "Y" -or $overwrite -eq "y") {
-                filesqueeze init-config --output $ConfigPath --force
+                filesqueeze init-config --output $ConfigPath --user-config --force
                 Write-Host "  Configuration overwritten: $ConfigPath" -ForegroundColor Gray
             } else {
                 Write-Host "  Existing config preserved: $ConfigPath" -ForegroundColor Gray
@@ -263,7 +263,7 @@ try {
         }
     } else {
         # No existing config - create new one
-        filesqueeze init-config --output $ConfigPath --force
+        filesqueeze init-config --output $ConfigPath --user-config --force
         Write-Host "  Configuration created: $ConfigPath" -ForegroundColor Gray
     }
 } catch {
