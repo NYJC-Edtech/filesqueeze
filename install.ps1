@@ -118,7 +118,20 @@ try {
             throw "Poetry build failed"
         }
     } else {
-        Write-Host "  Poetry not found, using Python build module..." -ForegroundColor Gray
+        # Not every machine with Python has the build module — detect it and
+        # install on demand (pip falls back to a --user install by itself
+        # when site-packages is not writable, so no admin rights are needed).
+        & python -c "import build" 2>&1 | Out-Null
+        if ($LASTEXITCODE -ne 0) {
+            Write-Host "  Poetry not found and build module missing - installing build with pip..." -ForegroundColor Gray
+            & python -m pip install build
+            if ($LASTEXITCODE -ne 0) {
+                throw "Could not install the build module. Install it manually: python -m pip install build"
+            }
+        }
+        Write-Host "  Using Python build module..." -ForegroundColor Gray
+        # python -m build (not the pyproject-build.exe script) so this works
+        # even when Python's Scripts folder is not on PATH yet
         python -m build --quiet
         if ($LASTEXITCODE -ne 0) {
             throw "Python build failed. Install Poetry or build module: pip install build"
