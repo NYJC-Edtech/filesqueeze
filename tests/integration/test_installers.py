@@ -309,6 +309,22 @@ class TestInstallerBehavior:
             "Installer must pass --user-config when running init-config against the user config location"
         )
 
+    def test_installer_bootstraps_build_module_when_missing(self, project_root):
+        """Without Poetry, the installer must install the build module itself.
+
+        Machines with plain Python often lack the `build` module; the build
+        step used to fail there with "No module named build" until the user
+        installed it by hand (real-world report on Python 3.13, 2026-10-13).
+        """
+        install_script = project_root / "install.ps1"
+        content = install_script.read_text()
+
+        # Detection + on-demand install, and the module-form invocation that
+        # works even when Python's Scripts dir is not on PATH yet
+        assert 'python -c "import build"' in content, "Installer must detect the build module"
+        assert "python -m pip install build" in content, "Installer must JIT-install the build module when it is missing"
+        assert "python -m build" in content, "Installer must invoke build as a module"
+
     def test_installer_checks_python_version(self, project_root):
         """Installer should verify Python 3.11+ is installed."""
         install_script = project_root / "install.ps1"

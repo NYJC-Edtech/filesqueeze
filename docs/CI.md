@@ -11,6 +11,7 @@ Runs on every push to any branch:
 - **Smoke Tests**: Critical imports and basic functionality
 - **Unit Tests**: Fast, isolated component tests  
 - **System Tests**: Configuration, circular imports, logger tests
+- **GUI Widget Tests**: In-process tkinter tests for CompressDialog, run under xvfb (headless display); the tests skip cleanly where no display exists
 - **Code Quality**: Ruff formatting + linting + type checking
 
 ### 2. Integration Tests (PRs Only)
@@ -34,7 +35,9 @@ Runs on pull requests to main/develop branches:
 - `tests/regression/` - Behavioral baseline validation
 
 ### ❌ Skip in CI
-- GUI tests (require display server)
+- Legacy code-inspection GUI tests still run, but service tests and
+  code-inspection GUI tests are not exercised on CI beyond smoke level
+  (`tests/integration/test_gui_widgets.py` **does** run, under xvfb)
 - Service tests (require Windows services)
 - Installer tests (require system-level access)
 

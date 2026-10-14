@@ -80,6 +80,36 @@ jobs:
       - name: Run system tests
         run: poetry run pytest tests/system/ -v
 
+  gui-widget-tests:
+    name: GUI Widget Tests
+    runs-on: ubuntu-latest
+    env:
+      CI: true
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Poetry
+        run: pip install poetry
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'poetry'
+
+      - name: Install dependencies
+        run: poetry install --with dev
+
+      - name: Install xvfb (headless display for tkinter)
+        run: sudo apt-get update && sudo apt-get install -y xvfb
+
+      - name: Report tkinter availability
+        run: poetry run python -c "import tkinter; print('tkinter available')"
+
+      - name: Run GUI widget tests under xvfb
+        run: xvfb-run -a poetry run pytest tests/integration/test_gui_widgets.py -v
+
   code-quality:
     name: Code Quality (Ruff)
     runs-on: ubuntu-latest
