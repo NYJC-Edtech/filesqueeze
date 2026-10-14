@@ -42,10 +42,18 @@ filesqueeze/
 ├── logger.py                  # Logger setup (Logger.setup, setup_logging)
 ├── scanner.py                 # File scanner
 ├── ocr.py                     # OCR processing
-├── gui.py                     # GUI window
+├── gui.py                     # GUI status window
+├── gui_compress.py            # Standalone "Compress a File" dialog (tkinter)
+├── standalone.py              # Single-file compression logic (tkinter-free)
+├── update_banner.py           # Shared "Update available" banner widget
 ├── tray.py                    # System tray service
 ├── autostart.py               # Auto-startup configuration
+├── deps_setup.py              # External-dependency setup (detect + portable installs)
 ├── update_check.py            # GitHub release check (update notifications)
+├── updater.py                 # Release download/apply (wheel → pip → relaunch)
+├── features.py                # Feature flags and platform availability
+├── file_type_registry.py      # Extension → category mapping
+├── constants.py               # Shared constants
 ├── doctor.py                  # Diagnostic tool
 └── output.py                  # Output file organization
 ```
@@ -265,10 +273,11 @@ def compress(input_path, output_path, config=None):
 
 ## Configuration Cascade
 
-**Priority** (highest to lowest):
+**Priority** (highest to lowest — matches `Config._load_configs`, where
+later merges override earlier ones and env overrides apply last):
 1. Environment variables (`FILESQUEEZE_*`)
-2. User config (`~/.config/filesqueeze/config.toml`)
-3. Project config (`./filesqueeze.toml`)
+2. Project config (`./filesqueeze.toml`, working-directory-relative)
+3. User config (`~/.config/filesqueeze/config.toml`; skipped in dev mode)
 4. Default config (`filesqueeze/default.toml`)
 
 **Path Expansion**:

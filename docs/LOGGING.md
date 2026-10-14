@@ -4,7 +4,7 @@
 
 FileSqueeze uses **automatic, structured logging** that requires zero manual logger calls in handler code. Logging happens through:
 1. **State machine instrumentation** - Every transition automatically logged
-2. **Handler decorators** - Entry/exit logged via `@log_handler`
+2. **Handler decorators** - Entry/exit logged via `@trace_handler`
 3. **Trace context** - Unique ID follows each file through entire workflow
 4. **Structured output** - JSON format for production analysis
 
@@ -56,10 +56,10 @@ FileSqueeze uses **automatic, structured logging** that requires zero manual log
                           ↓
 ┌─────────────────────────────────────────────────────────────┐
 │  LAYER 2: Handler Decorator                                  │
-│  - @log_handler decorator on all handler functions           │
+│  - @trace_handler decorator on all handler functions         │
 │  - Automatic entry/exit logging with timing                  │
 │  - Exception capture with full context + traceback           │
-│  Location: logging_structured.py (log_handler)               │
+│  Location: system/logger.py (trace_handler)                   │
 └─────────────────────────────────────────────────────────────┘
                           ↓
 ┌─────────────────────────────────────────────────────────────┐
@@ -67,7 +67,7 @@ FileSqueeze uses **automatic, structured logging** that requires zero manual log
 │  - Fluent API for building log context                       │
 │  - Binds trace ID, file path, operation metadata             │
 │  - Outputs JSON for log aggregation                          │
-│  Location: logging_structured.py (FileSqueezeLogger)         │
+│  Location: system/logger.py (TraceContext, StructuredFormatter)│
 └─────────────────────────────────────────────────────────────┘
                           ↓
 ┌─────────────────────────────────────────────────────────────┐
@@ -75,7 +75,7 @@ FileSqueeze uses **automatic, structured logging** that requires zero manual log
 │  - Console: Human-readable during dev                        │
 │  - File: JSON for production analysis                        │
 │  - Rotate by size/time to prevent disk bloat                │
-│  Location: logging_structured.py (setup_structured_logging)  │
+│  Location: logger.py (setup_logging, Logger)                  │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -86,9 +86,9 @@ FileSqueeze uses **automatic, structured logging** that requires zero manual log
 ### 1. Basic Handler (Recommended)
 
 ```python
-from filesqueeze.logging_structured import log_handler
+from filesqueeze.system.logger import trace_handler
 
-@log_handler  # ← Only decorator needed, no logger calls
+@trace_handler  # ← Only decorator needed, no logger calls
 def compressVideo(state: State) -> Handler:
     state.status_compress()
     output_path = state.get_output_path()
@@ -116,13 +116,13 @@ def compressVideo(state: State) -> Handler:
 ### 2. Manual Logging with Context
 
 ```python
-from filesqueeze.logging_structured import log_context, get_logger
+from filesqueeze.system.logger import get_logger, trace_context
 
 logger = get_logger()
 
 def process_pdf(filepath: Path):
     # Automatically adds trace_id, file to all log entries
-    with log_context(state, workflow="watch"):
+    with trace_context(file_path=filepath, workflow="watch"):
         logger.info("Starting PDF processing")
 
         # Your custom logs get context automatically
@@ -145,18 +145,19 @@ def process_pdf(filepath: Path):
 ### 3. Service Mode with Trace Context
 
 ```python
-from filesqueeze.logging_structured import setup_structured_logging, log_context
+from filesqueeze.logger import setup_logging
+from filesqueeze.system.logger import register_logger, trace_context
 
 # In service.py
 class FileWatchService:
     def __init__(self, config: Config):
         self.config = config
-        setup_structured_logging(config, log_file=config.log_file)
+        register_logger(setup_logging(config))
 
     def process_file(self, filepath: Path):
         # Create trace context for entire workflow
-        with log_context(
-            state=state,
+        with trace_context(
+            file_path=filepath,
             workflow="watch",
             file_size=filepath.stat().st_size
         ):
@@ -281,14 +282,11 @@ Logged by StateMachine between handlers.
 ### Setup in Service Mode
 
 ```python
-from filesqueeze.logging_structured import setup_structured_logging
+from filesqueeze.logger import setup_logging
 
 # Automatic setup from config
-logger = setup_structured_logging(
+logger = setup_logging(
     config=config,
-    log_file="~/FileSqueeze/filesqueeze.log",
-    level="INFO",
-    console_format="human"  # or "json"
 )
 ```
 
@@ -296,7 +294,7 @@ logger = setup_structured_logging(
 
 ```toml
 [logging]
-file = "~/FileSqueeze/filesqueeze.log"
+file = "~/.config/filesqueeze/filesqueeze.log"
 level = "INFO"
 format = "detailed"
 max_bytes = 10485760  # 10MB
@@ -359,7 +357,7 @@ def compressVideo(state: State) -> Handler:
 ### After (Structured Logging)
 
 ```python
-@log_handler
+@trace_handler
 def compressVideo(state: State) -> Handler:
     try:
         success = video.compress(str(state.target), str(output_path), state.config)
@@ -380,9 +378,9 @@ def compressVideo(state: State) -> Handler:
 ```python
 def test_handler_logging(caplog):
     """Test that handler decorator logs entry/exit."""
-    from filesqueeze.logging_structured import log_handler, get_logger
+    from filesqueeze.system.logger import trace_handler, get_logger
 
-    @log_handler
+    @trace_handler
     def test_handler(state):
         return "next_handler"
 
@@ -402,8 +400,8 @@ def test_handler_logging(caplog):
 
 ### DO ✅
 
-1. **Use `@log_handler` decorator** on all handler functions
-2. **Use `log_context()`** for workflows outside handlers
+1. **Use `@trace_handler` decorator** on all handler functions
+2. **Use `trace_context()`** for workflows outside handlers
 3. **Log at appropriate levels** (INFO for normal, ERROR for failures)
 4. **Include `exc_info=True`** when logging exceptions
 5. **Add custom fields** to logs: `logger.info("Processing", page_count=10)`
@@ -413,7 +411,7 @@ def test_handler_logging(caplog):
 
 1. **Don't use bare `except:`** - loses traceback, makes debugging impossible
 2. **Don't forget to log** - the decorator does it for you
-3. **Don't log without context** - use `log_context()` to add trace_id
+3. **Don't log without context** - use `trace_context()` to add trace_id
 4. **Don't log sensitive data** - file paths are OK, passwords are not
 5. **Don't log in loops** - log summary instead: `logger.info("Processed 100 pages")`
 
@@ -425,11 +423,11 @@ def test_handler_logging(caplog):
 
 1. Check log level: Is it set to INFO or lower?
 2. Check log file: Does the directory exist? Is it writable?
-3. Check handler: Is `@log_handler` applied to the function?
+3. Check handler: Is `@trace_handler` applied to the function?
 
 ### Missing Trace ID
 
-1. Ensure `log_context()` is used before calling handlers
+1. Ensure `trace_context()` is used before calling handlers
 2. Check State object has `origin` attribute
 3. Verify `enable_logging=True` in StateMachine constructor
 
@@ -453,7 +451,7 @@ def test_handler_logging(caplog):
 
 ## References
 
-- **Implementation**: [filesqueeze/logging_structured.py](../filesqueeze/logging_structured.py)
+- **Implementation**: [filesqueeze/system/logger.py](../filesqueeze/system/logger.py)
 - **State Machine**: [filesqueeze/fsm/__init__.py](../filesqueeze/fsm/__init__.py)
 - **Config**: [filesqueeze/default.toml](../filesqueeze/default.toml)
 - **Examples**: [examples/logging_examples.py](../examples/logging_examples.py)

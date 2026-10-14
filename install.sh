@@ -1,7 +1,6 @@
 #!/bin/bash
 # FileSqueeze One-Click Installer for Linux
 # Run with: bash install.sh
-# Or download and run: curl -sSL https://nyjc.app/filesqueeze/install | bash
 #
 # This script follows FileSqueeze Installation Principles documented in docs/INSTALLATION_PRINCIPLES.md
 # Key features:

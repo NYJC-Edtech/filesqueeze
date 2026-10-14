@@ -30,8 +30,10 @@ Tests for system invariants, end-to-end behavior, and component integration.
 - `test_integration.py` - Integration tests with real files and binaries
 - `test_service.py` - Service module integration (StateProvider, DirectoryWatcher)
 - `test_handlers.py` - Handlers and state machine integration
-- `test_gui_behavior.py` - GUI behavioral tests at code level
+- `test_gui_behavior.py` - GUI behavioral tests at code level (source inspection)
+- `test_gui_widgets.py` - Real in-process tkinter widget tests for CompressDialog (skip without a display; CI runs them under xvfb)
 - `test_single_instance.py` - Single instance enforcement tests
+- `test_standalone.py` - Standalone compression logic tests
 - `test_installers.py` - Installation and uninstallation testing
 
 ### System Tests (`system/`)

@@ -33,6 +33,7 @@ filesqueeze/
 ├── standalone.py        # Single-file compression logic (tkinter-free)
 ├── tray.py              # System tray service
 ├── autostart.py         # Auto-startup configuration
+├── deps_setup.py        # External-dependency setup (detect + portable installs)
 ├── update_check.py      # GitHub release check for update notifications
 └── updater.py           # Release download/apply: wheel download, verify, pip install, relaunch
 ```
@@ -156,10 +157,11 @@ Tests automatically run in "dev mode" which provides complete isolation from pro
 Services (logger, binary finder) are registered at startup and accessed via `get_*()` functions throughout the codebase.
 
 ### Configuration Cascade
-Priority (highest to lowest):
+Priority (highest to lowest, matching `Config._load_configs` merge order —
+later merges override earlier ones, env vars applied last):
 1. Environment variables (`FILESQUEEZE_*`)
-2. User config (`~/.config/filesqueeze/config.toml`)
-3. Project config (`./filesqueeze.toml`)
+2. Project config (`./filesqueeze.toml`, working-directory-relative)
+3. User config (`~/.config/filesqueeze/config.toml`; skipped in dev mode)
 4. Default config (`filesqueeze/default.toml`)
 
 ### State Machine
@@ -184,7 +186,7 @@ File processing uses a state machine pattern defined in `fsm/` with handlers in 
 ### Test Failures
 - OCR tests will fail if Tesseract is not installed - this is expected
 - Use `pytest -k "not ocr"` to skip OCR tests
-- GUI/service tests may fail in headless environments - use `pytest --ignore=tests/integration/test_gui_behavior.py`
+- Widget tests (`tests/integration/test_gui_widgets.py`) skip themselves without a display; CI runs them under xvfb
 
 ### Path Handling
 - All paths with `~` are expanded once during config initialization

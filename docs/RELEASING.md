@@ -2,7 +2,7 @@
 
 Hard rules for versioning and releasing FileSqueeze. The one-line summary:
 **a published release is final — every shipped change bumps at least the
-patch version.**
+patch version, and every version bump ships with a documentation sweep.**
 
 ## 1. Published releases are final — no republishing
 
@@ -49,7 +49,11 @@ the latest version. Feature PRs target `main`.
 1. **Bump PR** into the target branch (the newest minor branch for patches;
    `main` for features) setting `version` in `pyproject.toml` — at least a
    patch above anything ever published (rule 1), and the same version is
-   never released twice.
+   never released twice. **The bump PR must include a documentation sweep**:
+   verify the README, `docs/`, and installer/test documentation against
+   everything shipping in this release, and fix stale or inaccurate content
+   in the same PR — what the docs say must match what the release ships
+   (compare claims against the code, not against memory).
 2. **Tag the merge commit** (`v<full-version>`, e.g. `v0.9.4`) — not the
    branch tip at large.
 3. **Build the wheel from that exact commit** and publish a **full

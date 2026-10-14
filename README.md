@@ -24,7 +24,7 @@ Utility package for compressing videos, PDFs, and images using FFmpeg, Ghostscri
 # System-wide installation (Windows) — from a release tag
 git clone https://github.com/NYJC-Edtech/filesqueeze.git
 cd filesqueeze
-git checkout v0.9.4                  # or the latest release tag
+git checkout vX.Y.Z                  # the release tag you want (see Releases)
 .\install.ps1
 
 # Linux equivalent:
@@ -81,7 +81,7 @@ The **canonical installation** is the installer script — `install.ps1` on Wind
 # Windows
 git clone https://github.com/NYJC-Edtech/filesqueeze.git
 cd filesqueeze
-git checkout v0.9.4        # or the latest release tag
+git checkout vX.Y.Z        # the release tag you want (see Releases)
 .\install.ps1              # reinstall over an existing install with -Force
 ```
 
@@ -89,7 +89,7 @@ git checkout v0.9.4        # or the latest release tag
 # Linux
 git clone https://github.com/NYJC-Edtech/filesqueeze.git
 cd filesqueeze
-git checkout v0.9.4        # or the latest release tag
+git checkout vX.Y.Z        # the release tag you want (see Releases)
 bash install.sh
 ```
 
@@ -417,11 +417,14 @@ export FILESQUEEZE_LOG_FILE="/path/to/filesqueeze.log"
 
 ### Configuration File Locations
 
-FileSqueeze looks for configuration files in this order:
+Settings from each source override the ones below it (highest priority first):
 
-1. **Project config**: `filesqueeze.toml` in your working directory
-2. **User config**: `~/.config/filesqueeze/config.toml`
-3. **Code defaults**: Built-in defaults
+1. **Environment variables**: `FILESQUEEZE_*` (see above)
+2. **Project config**: `filesqueeze.toml` in the working directory the app starts from
+3. **User config**: `~/.config/filesqueeze/config.toml` — the location the installer writes and the only one read regardless of working directory
+4. **Code defaults**: bundled `default.toml`
+
+> Because the project config is working-directory-relative, the user config is the dependable place for personal settings: it applies no matter where FileSqueeze starts from.
 
 ---
 
@@ -676,7 +679,7 @@ If you encounter problems during installation, our scripts provide detailed erro
 
 **Common installation issues:**
 - **"Command not found" errors**: Use `python -m filesqueeze` instead of `filesqueeze`
-- **Build tool missing**: Install Poetry (`pip install poetry`) or use the fallback build system
+- **Build tool missing**: The installer installs Poetry's alternative — the `build` module — automatically; if that step failed, run `python -m pip install build` and re-run the installer
 - **PATH not updated**: Restart your shell or use `python -m` syntax
 
 ### Application Issues
@@ -692,44 +695,38 @@ poetry run python -m filesqueeze doctor
 
 ## Uninstallation
 
-### Windows (System Installer)
+### Windows
+
+The easiest route is the **Uninstall FileSqueeze** shortcut the installer created in the Start Menu (FileSqueeze folder). It runs `uninstall.ps1`, which removes the package, auto-start, Start Menu / Send To shortcuts, and the default input/output directories — while **preserving your configuration** at `~/.config/filesqueeze/config.toml`.
+
+From a checkout you can run the same script directly:
 
 ```powershell
-# Uninstall auto-start
-poetry run python -m filesqueeze service uninstall
-
-# Remove installation directory
-Remove-Item -Recurse -Force "$env:USERPROFILE\FileSqueeze"
-
-# Remove desktop shortcut
-Remove-Item "$env:USERPROFILE\Desktop\FileSqueeze.lnk"
+.\uninstall.ps1 -Force
 ```
 
-### Linux (System Installer)
+To remove everything including settings:
+
+```powershell
+Remove-Item -Recurse -Force "$env:USERPROFILE\.config\filesqueeze"
+```
+
+### Linux
 
 ```bash
-# Stop and disable systemd service
+# Stop and disable the user service
 systemctl --user stop filesqueeze.service
 systemctl --user disable filesqueeze.service
+rm ~/.config/systemd/user/filesqueeze.service
 
-# Remove installation directory
+# Remove the installation directory (repo clone and generated scripts)
 rm -rf ~/FileSqueeze
 
-# Remove systemd service file
-rm ~/.config/systemd/user/filesqueeze.service
-```
+# Remove the Poetry environment used by the install
+poetry env remove --all
 
-### PyPI Package
-
-```bash
-# Uninstall auto-start (Windows)
-filesqueeze service uninstall
-
-# Uninstall package
-pip uninstall filesqueeze
-
-# Remove configuration (optional)
-rm filesqueeze.toml
+# Remove settings (optional)
+rm -rf ~/.config/filesqueeze
 ```
 
 ---
