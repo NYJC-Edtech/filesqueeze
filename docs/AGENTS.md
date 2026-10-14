@@ -119,8 +119,9 @@ taskkill /F /IM filesqueeze.exe
 
 **Don't use pip directly (use install/uninstall scripts):**
 ```powershell
-# BAD - Don't use pip directly
-pip install filesqueeze
+# BAD - Don't pip-install/uninstall manually (and note: FileSqueeze is not on
+# PyPI, so bare `pip install filesqueeze` cannot work at all)
+python -m pip install --force-reinstall "<wheel-url>"
 pip uninstall filesqueeze -y
 
 # GOOD - Use PowerShell scripts

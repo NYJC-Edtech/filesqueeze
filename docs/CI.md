@@ -6,24 +6,15 @@ This CI pipeline ensures code quality, test coverage, and integration testing fo
 
 ## Workflow Structure
 
-### 1. Quick Checks (Every Push)
-Runs on every push to any branch:
+All jobs run on every push to any branch (see `.github/workflows/ci.yml`
+for the source of truth):
+
 - **Smoke Tests**: Critical imports and basic functionality
-- **Unit Tests**: Fast, isolated component tests  
-- **System Tests**: Configuration, circular imports, logger tests
+- **Unit Tests**: Fast, isolated component tests
+- **System Tests**: Configuration, circular imports, logger tests (with FFmpeg/Ghostscript installed)
 - **GUI Widget Tests**: In-process tkinter tests for CompressDialog, run under xvfb (headless display); the tests skip cleanly where no display exists
-- **Code Quality**: Ruff formatting + linting + type checking
-
-### 2. Integration Tests (PRs Only)
-Runs on pull requests to main/develop branches:
-- **Integration Tests**: Real file compression with FFmpeg/Ghostscript
-- **Regression Tests**: Behavioral baseline checks
-- Platform: Linux only (GUI/service tests excluded)
-
-### 3. Coverage Report (PRs Only)
-Runs on pull requests to main/develop branches:
-- Generates coverage reports for unit/smoke/system tests
-- Uploads to Codecov for tracking
+- **Code Quality**: Ruff formatting + linting + type checking (on `filesqueeze/`)
+- **Coverage Report**: Coverage over unit/smoke/system tests, uploaded to Codecov
 
 ## Test Categories
 
@@ -31,15 +22,13 @@ Runs on pull requests to main/develop branches:
 - `tests/smoke/` - Critical functionality validation
 - `tests/unit/` - Component-level testing
 - `tests/system/` - Configuration and import testing
-- `tests/integration/` - Real binary testing (Linux only)
-- `tests/regression/` - Behavioral baseline validation
+- `tests/integration/test_gui_widgets.py` - Real tkinter widget tests (under xvfb)
 
-### ❌ Skip in CI
-- Legacy code-inspection GUI tests still run, but service tests and
-  code-inspection GUI tests are not exercised on CI beyond smoke level
-  (`tests/integration/test_gui_widgets.py` **does** run, under xvfb)
-- Service tests (require Windows services)
-- Installer tests (require system-level access)
+### ❌ Not in CI
+- `tests/integration/` (except the widget tests) and `tests/regression/` —
+  real-binary, service, installer, and single-instance tests; the
+  integration job exists in `ci.yml` but is commented out. Run the full
+  suite locally (`poetry run pytest`) or via the pre-push hook.
 
 ## Code Quality Tools
 

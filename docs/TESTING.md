@@ -122,6 +122,15 @@ class TestRealFileCompression:
         assert output_path.stat().st_size > 0
 ```
 
+### GUI Widget Tests
+
+Real tkinter widgets driven in-process (`tests/integration/test_gui_widgets.py`):
+
+- Each test builds its own dialog (own `tk.Tk()`) and destroys it afterwards; import `filesqueeze` inside the test functions per the usual suite rules
+- Drive widgets programmatically — `StringVar.set()` fires the dialog's own traces, `instate(["disabled"])` checks ttk button state — never real input events
+- The tests skip themselves when no display exists; the CI `gui-widget-tests` job runs them under `xvfb-run`
+- On Windows venvs, `Tk()` init can transiently fail with "Can't find a usable init.tcl/tk.tcl" under pytest — the fixture retries a few times before skipping
+
 ### Regression Tests
 
 Establish baseline behavior before refactoring, verify no regressions after:
