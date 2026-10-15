@@ -18,6 +18,21 @@ $ErrorActionPreference = "Stop"
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 $OutputEncoding = [System.Text.Encoding]::UTF8
 
+# Status helpers must be defined before the service-stop block below calls
+# them: with ErrorActionPreference = Stop, calling an undefined function
+# throws, the catch swallows it, and a running service would never be
+# stopped (exactly what once happened on a reinstall).
+function Write-Status {
+    param([string]$Message, [string]$Color = "Green")
+    Write-Host "==> $Message" -ForegroundColor $Color
+}
+
+function Write-Error-Status {
+    param([string]$Message)
+    Write-Host "==> ERROR: $Message" -ForegroundColor Red
+    exit 1
+}
+
 # Detect and stop a running FileSqueeze service (before reinstall).
 # A still-running old instance holds the single-instance mutex and keeps
 # serving old code, so the restart at the end of this script would silently
@@ -42,17 +57,6 @@ try {
     }
 } catch {
     # Ignore detection errors
-}
-
-function Write-Status {
-    param([string]$Message, [string]$Color = "Green")
-    Write-Host "==> $Message" -ForegroundColor $Color
-}
-
-function Write-Error-Status {
-    param([string]$Message)
-    Write-Host "==> ERROR: $Message" -ForegroundColor Red
-    exit 1
 }
 
 # Welcome message
@@ -166,6 +170,16 @@ Write-Host "  Installing from: $WheelPath" -ForegroundColor Gray
 # Temporarily set ErrorActionPreference to allow warnings
 $PrevErrorAction = $ErrorActionPreference
 $ErrorActionPreference = "Continue"
+
+# Remember whether auto-start shortcuts exist before anything is removed.
+# The uninstaller below deletes them unconditionally, so a -Force reinstall
+# that never re-offers auto-start would silently drop start-on-boot (this
+# happened once: autostart vanished in a reinstall and only surfaced at the
+# next reboot, three days later).
+$script:UserAutostartPath = "$env:APPDATA\Microsoft\Windows\Start Menu\Programs\Startup\FileSqueeze.lnk"
+$script:SystemAutostartPath = "$env:ProgramData\Microsoft\Windows\Start Menu\Programs\Startup\FileSqueeze.lnk"
+$script:UserAutostartExisted = Test-Path $script:UserAutostartPath
+$script:SystemAutostartExisted = Test-Path $script:SystemAutostartPath
 
 # Uninstall existing version if present (suppress error if not installed)
 try {
@@ -364,12 +378,12 @@ $Shortcut.WorkingDirectory = $env:USERPROFILE
 $Shortcut.Save()
 Write-Host "  Created: Uninstall FileSqueeze" -ForegroundColor Gray
 
-# Prompt for auto-start installation
-Write-Host ""
-Write-Status "Auto-start Configuration" "Cyan"
-$autostart = Read-Host "Enable FileSqueeze to start automatically on boot? [Y/n]"
-# Empty input (just Enter) defaults to Yes
-if ($autostart -eq "" -or $autostart -eq "Y" -or $autostart -eq "y") {
+# Install auto-start with an explicit scope flag (--system-wide or
+# --user-only). Watch directories come from the user config so the wrapper
+# matches what the service uses when launched manually.
+function Install-Autostart {
+    param([string]$ScopeFlag)
+
     Write-Host ""
     Write-Host "Installing auto-start..." -ForegroundColor Yellow
     try {
@@ -418,10 +432,8 @@ if ($autostart -eq "" -or $autostart -eq "Y" -or $autostart -eq "y") {
             Write-Host "  Note: Using default directories (config not found)" -ForegroundColor Yellow
         }
 
-        # Use filesqueeze service install command
-        # Default to system-wide installation (runs for all users)
-        # Use --system-wide which is the new default
-        $cmd = "filesqueeze service install --system-wide"
+        # Use filesqueeze service install command with the requested scope
+        $cmd = "filesqueeze service install $ScopeFlag"
         if ($inputDir) { $cmd += " --input `"$inputDir`"" }
         if ($outputDir) { $cmd += " --output `"$outputDir`"" }
 
@@ -471,9 +483,47 @@ if ($autostart -eq "" -or $autostart -eq "Y" -or $autostart -eq "y") {
         Write-Host "  You can enable auto-start later by running:" -ForegroundColor Yellow
         Write-Host "        filesqueeze service install" -ForegroundColor Gray
     }
+}
+
+# Decide what this install should do about auto-start:
+# - Fresh install: offer the default (system-wide).
+# - Reinstall whose uninstaller removed a previous shortcut: offer to
+#   restore the SAME scope, so the prompt can neither silently drop
+#   start-on-boot nor upgrade a user-level install to system-wide.
+# - Reinstall where the shortcut survived (removing the all-users shortcut
+#   without admin fails): leave it alone.
+$restoreScope = $null
+$existingIntact = $false
+if ($script:SystemAutostartExisted) {
+    if (Test-Path $script:SystemAutostartPath) { $existingIntact = $true } else { $restoreScope = "--system-wide" }
+} elseif ($script:UserAutostartExisted) {
+    if (Test-Path $script:UserAutostartPath) { $existingIntact = $true } else { $restoreScope = "--user-only" }
+}
+
+Write-Host ""
+Write-Status "Auto-start Configuration" "Cyan"
+
+if ($existingIntact) {
+    Write-Host "  Existing auto-start shortcut is still in place; leaving it as is." -ForegroundColor Gray
+} elseif ($restoreScope) {
+    $autostart = Read-Host "Restore auto-start on boot (it was configured before this reinstall)? [Y/n]"
+    # Empty input (just Enter) defaults to Yes
+    if ($autostart -eq "" -or $autostart -eq "Y" -or $autostart -eq "y") {
+        Install-Autostart -ScopeFlag $restoreScope
+    } else {
+        Write-Host "  The previous auto-start was removed by this reinstall and stays disabled." -ForegroundColor Yellow
+        Write-Host "  You can restore it later by running:" -ForegroundColor Gray
+        Write-Host "  filesqueeze service install $restoreScope" -ForegroundColor Gray
+    }
 } else {
-    Write-Host "  Skipped. You can enable auto-start later by running:" -ForegroundColor Gray
-    Write-Host "  filesqueeze service install" -ForegroundColor Gray
+    $autostart = Read-Host "Enable FileSqueeze to start automatically on boot? [Y/n]"
+    # Empty input (just Enter) defaults to Yes
+    if ($autostart -eq "" -or $autostart -eq "Y" -or $autostart -eq "y") {
+        Install-Autostart -ScopeFlag "--system-wide"
+    } else {
+        Write-Host "  Skipped. You can enable auto-start later by running:" -ForegroundColor Gray
+        Write-Host "  filesqueeze service install" -ForegroundColor Gray
+    }
 }
 
 # Restart service if it was running before reinstall

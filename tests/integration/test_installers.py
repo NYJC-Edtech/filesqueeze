@@ -457,5 +457,70 @@ class TestInstallerLaunchIsolation:
         )
 
 
+class TestInstallerPreservesAutostart:
+    """A -Force reinstall must not silently drop an existing auto-start.
+
+    uninstall.ps1 removes the Startup shortcut(s) unconditionally, so the
+    installer must remember whether auto-start existed and re-offer the SAME
+    scope afterwards: declining the prompt may be an informed choice, never
+    a silent loss, and a user-level install must not be upgraded to
+    system-wide by the reinstall. Production lost start-on-boot exactly this
+    way on 2026-10-12; it surfaced at the next reboot three days later.
+
+    CODE-LEVEL tests: verify the script logic by inspection, consistent with
+    the other installer tests in this module (running the installer here
+    would mutate the real installation).
+    """
+
+    @pytest.fixture
+    def project_root(self):
+        """Get project root directory."""
+        return Path(__file__).parent.parent.parent
+
+    def test_autostart_state_captured_before_uninstall(self, project_root):
+        """The existing shortcut state must be recorded before uninstall.ps1 runs."""
+        content = (project_root / "install.ps1").read_text()
+
+        capture = content.index("$script:UserAutostartExisted = Test-Path")
+        uninstall = content.index('uninstall.ps1" -Force')
+        assert capture < uninstall, "Auto-start state must be captured before the uninstaller removes the shortcuts"
+
+    def test_reinstall_reoffers_same_scope(self, project_root):
+        """A removed shortcut must be re-offered with its original scope."""
+        content = (project_root / "install.ps1").read_text()
+
+        assert '"--user-only"' in content, "Restore path must be able to reinstall a user-level shortcut"
+        assert "Restore auto-start on boot" in content, "Reinstall prompt must say it is restoring a previous setting"
+
+    def test_declining_restore_is_explicit_not_silent(self, project_root):
+        """Declining the restore must say auto-start stays disabled."""
+        content = (project_root / "install.ps1").read_text()
+
+        assert "stays disabled" in content, "Prompt decline must state the consequence explicitly"
+
+    def test_fresh_install_still_defaults_to_system_wide(self, project_root):
+        """Fresh installs keep offering the system-wide default."""
+        content = (project_root / "install.ps1").read_text()
+
+        assert 'Install-Autostart -ScopeFlag "--system-wide"' in content
+
+    def test_intact_shortcut_is_left_alone(self, project_root):
+        """A shortcut the uninstaller could not remove must not be reinstalled (that would exit 1)."""
+        content = (project_root / "install.ps1").read_text()
+
+        assert "leaving it as is" in content
+
+    def test_status_helpers_defined_before_first_use(self, project_root):
+        """Write-Status is called by the service-stop block; when the helper
+        was defined later in the script, that call threw under
+        ErrorActionPreference=Stop, the block's catch swallowed it, and a
+        running service was never stopped."""
+        content = (project_root / "install.ps1").read_text()
+
+        definition = content.index("function Write-Status")
+        first_use = content.index('Write-Status "Stopping running FileSqueeze service..."')
+        assert definition < first_use, "Define status helpers before the service-stop block that calls them"
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
