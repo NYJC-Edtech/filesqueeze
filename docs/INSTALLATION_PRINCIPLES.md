@@ -138,6 +138,24 @@ elseif ($configContent -match 'input\s*=\s*"([^"]+)"') {
 - **Include exit codes** when commands fail
 - **Provide environment context** (Python version, OS, etc.)
 
+### 7. Preserve User Settings Across Reinstalls
+
+**Problem**: The uninstaller removes the auto-start Startup shortcut(s) unconditionally, so a
+`-Force` reinstall that never re-offers auto-start silently drops start-on-boot. The loss is
+invisible until the next reboot — production ran three days without auto-start after a routine
+reinstall before anyone noticed (2026-10).
+
+**Solutions**:
+- **Capture the pre-install state** (which Startup shortcuts exist) before anything is removed
+- **Re-offer the SAME scope** on reinstall: declining the prompt may be an informed choice,
+  never a silent loss, and a user-level install must not be upgraded to system-wide by accident
+- **Leave surviving shortcuts alone**: removing the all-users shortcut without admin fails, so
+  a shortcut can still be there when the prompt runs — reinstalling over it exits with an error
+- **Make declines explicit**: when the user declines a restore, say that auto-start stays
+  disabled and print the exact command to re-enable it later
+- **Detect the failure mode**: `filesqueeze doctor` warns when auto-start is missing or points
+  at a missing script, so a lost shortcut is visible without waiting for a reboot
+
 ## Platform-Specific Considerations
 
 ### Windows (PowerShell)
@@ -167,6 +185,7 @@ Before releasing installation scripts, test:
 - [ ] PATH refresh in current shell session
 - [ ] Configuration file generation
 - [ ] Auto-start/shortcut creation
+- [ ] Auto-start survives a `-Force` reinstall (re-offered with the same scope)
 - [ ] Uninstallation removes all components
 - [ ] Error messages are clear and actionable
 
@@ -177,6 +196,11 @@ Before releasing installation scripts, test:
 3. **PATH timing issues**: Refresh PATH after package installations
 4. **Hard-coded paths**: Use environment variables and config files
 5. **Insufficient error context**: Always show what failed and why
+6. **Functions used before defined (PowerShell)**: Scripts run top-to-bottom; a helper called
+   above its definition throws, and inside a `try/catch` the throw is swallowed — the
+   service-stop block once stopped nothing this way. Define helpers before first use.
+7. **Uninstaller removes settings the installer doesn't restore**: Any state the uninstaller
+   clears (Startup shortcuts, config) must be captured first and re-offered by the installer
 
 ## Maintenance
 

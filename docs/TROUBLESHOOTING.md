@@ -16,6 +16,7 @@ This will check:
 - External binaries (FFmpeg, Ghostscript, Tesseract)
 - Configuration files
 - Directory permissions
+- Auto-start configuration (Windows)
 
 The doctor command provides specific fix suggestions for any issues found.
 
@@ -62,6 +63,28 @@ Keep `ffprobe.exe` in the same folder as `ffmpeg.exe` (it ships in every FFmpeg 
 [document]
 ghostscript_path = "C:/path/to/gswin64c.exe"
 ```
+
+### FileSqueeze Doesn't Start After Reboot
+
+**Check:** auto-start may not be installed. The installer's `-Force` reinstalls (before 0.9.7)
+could silently remove the Startup shortcut, and the loss only surfaces at the next reboot.
+
+**Diagnosis:**
+```bash
+filesqueeze service status    # says whether auto-start is installed
+filesqueeze doctor            # warns when auto-start is missing or points at a missing script
+```
+
+**Solution:**
+```bash
+# Current user only (no admin needed)
+filesqueeze service install --user-only
+
+# All users (requires an elevated prompt)
+filesqueeze service install --system-wide
+```
+
+Then reboot to confirm the tray icon comes back on its own.
 
 ### Files Not Being Processed
 

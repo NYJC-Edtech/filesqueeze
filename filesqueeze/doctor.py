@@ -309,6 +309,44 @@ class Doctor:
             self.issues.append(f"[FAIL] No write permissions: {e}")
             return False
 
+    def check_autostart(self) -> bool:
+        """Check that start-on-boot is configured (Windows only).
+
+        Auto-start is optional, so a missing shortcut is a warning rather
+        than a failure — but it must be visible: a lost shortcut fails
+        silently at every boot, which is how one install went three days
+        without noticing.
+
+        Returns:
+            True if auto-start is installed (or not applicable), False if
+            a warning was recorded.
+        """
+        if sys.platform != "win32":
+            return True
+
+        from .autostart import check_autostart_installed, get_stale_system_wide_shortcut
+
+        stale = get_stale_system_wide_shortcut()
+        if stale is not None:
+            self.warnings.append(f"[WARN] Stale system-wide auto-start shortcut (points at a missing script): {stale}")
+            self.warnings.append(
+                "[WARN] Auto-start is broken - FileSqueeze will not start on boot "
+                "(fix from an elevated prompt: filesqueeze service install --force --system-wide)"
+            )
+            return False
+
+        if check_autostart_installed(system_wide=True):
+            self.passed.append("[OK] Auto-start installed (system-wide)")
+            return True
+        if check_autostart_installed(system_wide=False):
+            self.passed.append("[OK] Auto-start installed (user)")
+            return True
+
+        self.warnings.append(
+            "[WARN] Auto-start not installed - FileSqueeze will not start on boot (run: filesqueeze service install)"
+        )
+        return False
+
     def run_all_checks(self) -> tuple[int, int, int]:
         """Run all diagnostic checks.
 
@@ -364,6 +402,9 @@ class Doctor:
 
         # Check permissions
         self.check_permissions()
+
+        # Check start-on-boot configuration (Windows only)
+        self.check_autostart()
 
         return len(self.issues), len(self.warnings), len(self.passed)
 
@@ -445,6 +486,10 @@ class Doctor:
                 print("• Install Tesseract OCR (for OCR features):")
                 print("  Windows: choco install tesseract")
                 print("  Linux: sudo apt-get install tesseract-ocr")
+
+            # Auto-start not configured
+            if any("Auto-start not installed" in warning for warning in self.warnings):
+                print("• Enable start-on-boot: filesqueeze service install")
 
         print()
 

@@ -587,8 +587,8 @@ def cmd_service_status(args: argparse.Namespace) -> None:
     elif user_specific_installed:
         print("Auto-start is installed (user-specific - for current user only)")
     else:
-        print("Auto-start is not installed")
-        print("To install, run: python -m filesqueeze service-install")
+        print("Auto-start is not installed - FileSqueeze will not start on boot")
+        print("To install, run: filesqueeze service install")
 
 
 def cmd_doctor(args: argparse.Namespace) -> None:
