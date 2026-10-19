@@ -19,6 +19,7 @@ This directory contains all tests for the FileSqueeze project, organized by test
 Tests for individual modules and components in isolation.
 - `test_document.py` - Document compression functionality
 - `test_video.py` - Video compression functionality
+- `test_audio.py` - Audio compression functionality (WAV → M4A)
 - `test_output.py` - Output path generation and metadata handling
 - `test_scanner.py` - File scanner functionality
 - `test_retention.py` - Retention manager functionality
