@@ -4,10 +4,10 @@ This is a navigation guide for Claude Code (or other AI assistants) working on t
 
 ## Project Overview
 
-FileSqueeze is a utility package for compressing videos, PDFs, and images using FFmpeg and Ghostscript. It provides real-time directory monitoring, OCR support for scanned PDFs, and runs as a background service with system tray integration.
+FileSqueeze is a utility package for compressing videos, audio, PDFs, and images using FFmpeg and Ghostscript. It provides real-time directory monitoring, OCR support for scanned PDFs, and runs as a background service with system tray integration.
 
 **Key Features:**
-- Video/PDF/image compression with quality controls
+- Video/audio/PDF/image compression with quality controls
 - OCR support for scanned PDFs using Tesseract
 - Real-time directory monitoring with watchdog
 - Background service with system tray (Windows)
@@ -19,7 +19,7 @@ FileSqueeze is a utility package for compressing videos, PDFs, and images using 
 filesqueeze/
 ├── system/              # Infrastructure services (logger, binaries, config adapters)
 ├── utils/               # Shared utilities (subprocess helpers)
-├── ops/                 # Business logic (video, PDF, image compression)
+├── ops/                 # Business logic (video, audio, PDF, image compression)
 ├── fsm/                 # State machine for file processing
 ├── handlers.py          # FSM handlers integrating operations
 ├── service.py           # Background service with directory watching

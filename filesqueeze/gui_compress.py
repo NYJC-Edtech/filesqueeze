@@ -492,7 +492,7 @@ class CompressDialog:
         if category is None:
             return (
                 None,
-                f"Unsupported file type '{path.suffix}'. Supported: videos, PDFs, and images.",
+                f"Unsupported file type '{path.suffix}'. Supported: videos, audio, PDFs, and images.",
                 "#B22222",
             )
         if category == "presentation":

@@ -58,6 +58,9 @@ class FileExtensions:
     # Video extensions
     VIDEO: ClassVar[list[str]] = ["mp4", "wmv", "avi", "mkv", "mov", "flv"]
 
+    # Audio extensions (accepted audio inputs; compressed to AAC in an .m4a container)
+    AUDIO: ClassVar[list[str]] = ["wav"]
+
     # Document extensions
     DOCUMENT: ClassVar[list[str]] = ["pdf"]
 
@@ -76,7 +79,7 @@ class FileExtensions:
     PRESENTATION: ClassVar[list[str]] = ["ppt", "pptx"]
 
     # All supported extensions
-    ALL_SUPPORTED: ClassVar[list[str]] = VIDEO + DOCUMENT + IMAGE + PRESENTATION
+    ALL_SUPPORTED: ClassVar[list[str]] = VIDEO + AUDIO + DOCUMENT + IMAGE + PRESENTATION
 
 
 class Features:

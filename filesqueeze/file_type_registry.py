@@ -21,6 +21,7 @@ class FileTypeRegistry:
     # File type mappings
     FILE_PROCESSORS: ClassVar[dict[str, list[str]]] = {
         "video": ["mp4", "wmv", "avi", "mkv", "mov", "flv"],
+        "audio": list(FileExtensions.AUDIO),
         "pdf": ["pdf"],
         "image": list(FileExtensions.IMAGE),
         "presentation": ["ppt", "pptx"],
@@ -119,9 +120,10 @@ def _initialize_registry(registry: FileTypeRegistry) -> None:
         This function is called once to register all processor functions.
         Import is done here to avoid circular imports.
     """
-    from . import make_image, make_pdf, make_presentation, make_video
+    from . import make_audio, make_image, make_pdf, make_presentation, make_video
 
     registry.register_processor("video", make_video, ["mp4", "wmv", "avi", "mkv", "mov", "flv"])
+    registry.register_processor("audio", make_audio, list(FileExtensions.AUDIO))
     registry.register_processor("pdf", make_pdf, ["pdf"])
     registry.register_processor("image", make_image, list(FileExtensions.IMAGE))
     registry.register_processor("presentation", make_presentation, ["ppt", "pptx"])

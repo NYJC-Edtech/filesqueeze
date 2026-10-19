@@ -33,6 +33,7 @@ class TestFileScanner:
         assert scanner.is_valid_extension(Path("test.jpg"))
         assert scanner.is_valid_extension(Path("test.jpeg"))
         assert scanner.is_valid_extension(Path("test.png"))
+        assert scanner.is_valid_extension(Path("test.wav"))
 
         # Invalid extensions
         assert not scanner.is_valid_extension(Path("test.txt"))

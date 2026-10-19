@@ -59,6 +59,19 @@ class TestOutputPathGeneration:
         # Verify the extension matches input
         assert result.suffix == input_path.suffix
 
+    def test_generate_output_path_by_type_audio(self, tmp_path):
+        """Test by_type structure for audio (WAV converts to M4A output)."""
+        input_path = Path("test.wav")
+        output_dir = tmp_path
+
+        result = generate_output_path(input_path, output_dir, structure="by_type", output_ext=".m4a")
+        # Verify output is in audio subdirectory
+        assert result.parent == output_dir / "audio"
+        # Verify the filename stem is derived from input
+        assert "test" in result.stem
+        # Verify audio converts to M4A output
+        assert result.suffix == ".m4a"
+
     def test_generate_output_path_by_type_image(self, tmp_path):
         """Test by_type structure for image."""
         input_path = Path("test.jpg")

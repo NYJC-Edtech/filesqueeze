@@ -20,6 +20,7 @@ from .output import generate_output_path, get_unique_output_path
 # (so a meaningful message can be shown) but not yet supported here.
 CATEGORY_LABELS: dict[str, str] = {
     "video": "Video",
+    "audio": "Audio",
     "pdf": "PDF",
     "image": "Image",
     "presentation": "PowerPoint",
@@ -39,12 +40,14 @@ def detect_category(extension: str) -> str | None:
         extension: Extension with or without a leading dot (case-insensitive).
 
     Returns:
-        One of "video", "pdf", "image", "presentation", or None if the
+        One of "video", "audio", "pdf", "image", "presentation", or None if the
         extension is not supported at all.
     """
     ext = extension.lstrip(".").lower()
     if ext in FileExtensions.VIDEO:
         return "video"
+    if ext in FileExtensions.AUDIO:
+        return "audio"
     if ext in FileExtensions.DOCUMENT:
         return "pdf"
     if ext in FileExtensions.IMAGE:
@@ -57,8 +60,9 @@ def detect_category(extension: str) -> str | None:
 def output_extension_for(input_path: Path) -> str:
     """Determine the output file extension for an input file.
 
-    Images that are not already JPG convert to JPG output; everything else
-    keeps its own extension (mirrors monitoring-mode behaviour).
+    Images that are not already JPG convert to JPG output and audio converts
+    to M4A output; everything else keeps its own extension (mirrors
+    monitoring-mode behaviour).
 
     Args:
         input_path: The file to be compressed.
@@ -69,6 +73,8 @@ def output_extension_for(input_path: Path) -> str:
     ext = input_path.suffix.lstrip(".").lower()
     if detect_category(ext) == "image" and ext not in FileExtensions.IMAGE_NATIVE_JPG:
         return ".jpg"
+    if detect_category(ext) == "audio":
+        return ".m4a"
     return input_path.suffix
 
 
@@ -124,15 +130,17 @@ def compress_file(input_path: Path, output_path: Path, config: Config) -> Path:
 
     Raises:
         UnsupportedFileTypeError: If the file type cannot be compressed here.
-        Exception: Pipeline errors propagate from make_video/make_pdf/make_image.
+        Exception: Pipeline errors propagate from make_video/make_audio/make_pdf/make_image.
     """
-    from filesqueeze import make_image, make_pdf, make_video
+    from filesqueeze import make_audio, make_image, make_pdf, make_video
 
     ext = input_path.suffix.lstrip(".").lower()
     category = detect_category(ext)
 
     if category == "video":
         result_path = make_video(str(input_path), config=config, output_path=str(output_path))
+    elif category == "audio":
+        result_path = make_audio(str(input_path), config=config, output_path=str(output_path))
     elif category == "pdf":
         result_path = make_pdf(str(input_path), config=config, output_path=str(output_path))
     elif category == "image":
@@ -192,7 +200,7 @@ def build_filetypes() -> list[tuple[str, str]]:
     Returns:
         List of (label, pattern) tuples for tkinter's askopenfilename.
     """
-    standalone_extensions = FileExtensions.VIDEO + FileExtensions.DOCUMENT + FileExtensions.IMAGE
+    standalone_extensions = FileExtensions.VIDEO + FileExtensions.AUDIO + FileExtensions.DOCUMENT + FileExtensions.IMAGE
 
     def patterns(extensions: list[str]) -> str:
         return " ".join(f"*.{ext}" for ext in extensions)
@@ -200,6 +208,7 @@ def build_filetypes() -> list[tuple[str, str]]:
     return [
         ("All supported", patterns(standalone_extensions)),
         ("Videos", patterns(FileExtensions.VIDEO)),
+        ("Audio", patterns(FileExtensions.AUDIO)),
         ("PDFs", patterns(FileExtensions.DOCUMENT)),
         ("Images", patterns(FileExtensions.IMAGE)),
         ("All files", "*.*"),

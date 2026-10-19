@@ -267,3 +267,42 @@ class PresentationConfig:
     def timeout(self) -> int:
         """Get timeout in seconds."""
         return int(self._config.get("processing.timeout_seconds", 1800))
+
+
+class AudioConfig:
+    """Adapter for audio operation configuration.
+
+    Provides validated access to audio-related config values. Audio shares
+    the FFmpeg section with video (``ffmpeg.audio_bitrate``, ``ffmpeg.threads``).
+    """
+
+    def __init__(self, config: "Config"):
+        """Initialize audio config adapter.
+
+        Args:
+            config: FileSqueeze configuration object
+
+        Raises:
+            ConfigValidationError: If config values are invalid
+        """
+        self._config = config
+
+    @property
+    def audio_bitrate(self) -> str:
+        """Get audio bitrate."""
+        return str(self._config.get("ffmpeg.audio_bitrate", "96k"))
+
+    @property
+    def threads(self) -> int:
+        """Get thread count."""
+        return int(self._config.get("ffmpeg.threads", 8))
+
+    @property
+    def timeout(self) -> int:
+        """Get timeout in seconds."""
+        return int(self._config.get("processing.timeout_seconds", 1800))
+
+    @property
+    def min_output_size_bytes(self) -> int:
+        """Get minimum output file size in bytes."""
+        return int(self._config.get("processing.min_output_size_bytes", 4096))

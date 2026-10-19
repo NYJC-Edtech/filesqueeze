@@ -210,7 +210,7 @@ def cmd_compress_gui(args: argparse.Namespace) -> None:
 
 def cmd_compress(args: argparse.Namespace) -> None:
     """Compress a single file."""
-    from filesqueeze import make_image, make_pdf, make_video
+    from filesqueeze import make_audio, make_image, make_pdf, make_video
     from filesqueeze.config import Config
     from filesqueeze.constants import FileExtensions
     from filesqueeze.logger import setup_logging
@@ -269,6 +269,9 @@ def cmd_compress(args: argparse.Namespace) -> None:
         if ext in FileExtensions.VIDEO:
             print("Compressing video...")
             result_path = make_video(str(input_file), config=config, output_path=str(output_path))
+        elif ext in FileExtensions.AUDIO:
+            print("Compressing audio...")
+            result_path = make_audio(str(input_file), config=config, output_path=str(output_path))
         elif ext == "pdf":
             print("Compressing PDF...")
             result_path = make_pdf(str(input_file), config=config, output_path=str(output_path))
@@ -307,7 +310,7 @@ def cmd_compress(args: argparse.Namespace) -> None:
 def cmd_scan(args: argparse.Namespace) -> None:
     """Scan input directory and process files."""
     # Import here to avoid issues if modules have errors
-    from filesqueeze import make_image, make_pdf, make_video
+    from filesqueeze import make_audio, make_image, make_pdf, make_video
     from filesqueeze.config import Config
     from filesqueeze.constants import FileExtensions
     from filesqueeze.logger import setup_logging
@@ -362,10 +365,13 @@ def cmd_scan(args: argparse.Namespace) -> None:
             # Determine file type
             ext = filepath.suffix.lstrip(".").lower()
 
-            # Image inputs convert to JPG output (JPGs keep their extension)
+            # Image inputs convert to JPG output (JPGs keep their extension),
+            # audio inputs convert to M4A output
             output_ext = None
             if ext in FileExtensions.IMAGE and ext not in FileExtensions.IMAGE_NATIVE_JPG:
                 output_ext = ".jpg"
+            elif ext in FileExtensions.AUDIO:
+                output_ext = ".m4a"
 
             # Generate output path
             output_path = generate_output_path(
@@ -388,6 +394,10 @@ def cmd_scan(args: argparse.Namespace) -> None:
                 print("  Type: Video")
                 print(f"  Output: {output_path}")
                 result_path = make_video(str(filepath), config=config, output_path=str(output_path))
+            elif ext in FileExtensions.AUDIO:
+                print("  Type: Audio")
+                print(f"  Output: {output_path}")
+                result_path = make_audio(str(filepath), config=config, output_path=str(output_path))
             elif ext == "pdf":
                 print("  Type: PDF")
                 print(f"  Output: {output_path}")
@@ -601,7 +611,7 @@ def cmd_doctor(args: argparse.Namespace) -> None:
 def main() -> None:
     """Main entry point for FileSqueeze CLI."""
     parser = argparse.ArgumentParser(
-        description="FileSqueeze - Compress videos, PDFs, and images",
+        description="FileSqueeze - Compress videos, audio, PDFs, and images",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:

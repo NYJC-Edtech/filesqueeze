@@ -55,8 +55,10 @@ def generate_output_path(
         ext = input_path.suffix.lstrip(".").lower()
 
         # Determine type directory
-        if ext in ["mp4", "wmv", "avi"]:
+        if ext in FileExtensions.VIDEO:
             type_dir = "video"
+        elif ext in FileExtensions.AUDIO:
+            type_dir = "audio"
         elif ext in ["pdf"]:
             type_dir = "document"
         elif ext in FileExtensions.IMAGE:

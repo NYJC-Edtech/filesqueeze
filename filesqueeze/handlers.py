@@ -4,8 +4,8 @@ from pathlib import Path
 from . import ocr
 from .constants import Features, FileExtensions
 from .fsm import Handler, State
-from .fsm.enums import Document, Enum, EnumValue, Format, Slideshow, Video
-from .ops import document, image, video
+from .fsm.enums import Audio, Document, Enum, EnumValue, Format, Slideshow, Video
+from .ops import audio, document, image, video
 from .ops import presentation as pptx
 from .system import logger
 
@@ -46,6 +46,23 @@ def analyzeVideo(state: State) -> Handler:
             state.metadata["width"], state.metadata["height"] = size
 
     return compressVideo
+
+
+def analyzeAudio(state: State) -> Handler:
+    """
+    Analyses an audio file and routes it to audio compression.
+    """
+    state.status_analyze()
+    try:
+        duration = video.duration(str(state.target))
+    except Exception:
+        state.error("Error during file analysis")
+        # No need to terminate; can still proceed without metadata
+    else:
+        if duration:
+            state.metadata["duration"] = duration
+
+    return compressAudio
 
 
 def analyzeSlideshow(state: State) -> Handler:
@@ -336,6 +353,39 @@ def compressVideo(state: State) -> Handler:
     return cleanupFiles
 
 
+def compressAudio(state: State) -> Handler:
+    """
+    Compresses an audio file (WAV input becomes AAC in an M4A container).
+    """
+    state.status_compress()
+
+    # Determine output path; audio always converts to .m4a
+    output_path = state.get_output_path()
+    if output_path:
+        outfile = output_path
+    else:
+        outfile = state.target.parent / f"compressed_{state.target.stem}.m4a"
+
+    try:
+        audio.compress(
+            str(state.target),
+            str(outfile),
+            config=state.config if hasattr(state, "config") else None,
+        )
+    except Exception:
+        # Clean up output file on failure
+        try:
+            Path(outfile).unlink(missing_ok=True)
+        except Exception:
+            pass
+        state.error("Error compressing audio")
+        return cleanupFiles  # Still go to cleanup, but status is ERROR
+    else:
+        state.set_target(outfile)
+
+    return cleanupFiles
+
+
 def selectAnalyzer(
     state: State,
     handler: dict[type[Enum] | EnumValue, Handler] | None = None,
@@ -347,6 +397,7 @@ def selectAnalyzer(
     if handler is None:
         handler = {
             Video: analyzeVideo,
+            Audio: analyzeAudio,
             Slideshow: analyzeSlideshow,
             Document: analyzeDocument,
         }
