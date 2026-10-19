@@ -78,6 +78,10 @@ class Video(Enum):
     FLV = "flv"
 
 
+class Audio(Enum):
+    WAV = "wav"
+
+
 class Slideshow(Enum):
     PPTX = "pptx"
 
@@ -97,6 +101,7 @@ class Document(Enum):
 
 class Format(Enum):
     Video = Video
+    Audio = Audio
     Slideshow = Slideshow
     Document = Document
 

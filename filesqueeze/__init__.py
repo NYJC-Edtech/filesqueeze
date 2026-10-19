@@ -14,7 +14,7 @@ from .config import Config
 from .fsm import StateMachine
 
 # Export ops modules
-from .ops import document, image, video
+from .ops import audio, document, image, video
 from .ops import presentation as pptx
 
 # Re-export commonly used items for convenience
@@ -114,6 +114,25 @@ def make_image(
     return _make_file(filepath, callback, config, output_path)
 
 
+def make_audio(
+    filepath: str, callback: Callable | None = None, config: Config | None = None, output_path: str | None = None
+) -> str:
+    """Entry point to the compression pipeline for audio files.
+
+    WAV inputs are compressed to AAC in an M4A container.
+
+    Args:
+        filepath: Path to the audio file to compress.
+        callback: Optional callback function for state updates.
+        config: Optional Config object for compression settings.
+        output_path: Optional output path for compressed file.
+
+    Returns:
+        Path to the final compressed file.
+    """
+    return _make_file(filepath, callback, config, output_path)
+
+
 def make_presentation(
     filepath: str, callback: Callable | None = None, config: Config | None = None, output_path: str | None = None
 ) -> str:
@@ -132,10 +151,12 @@ def make_presentation(
 
 
 __all__ = [
+    "audio",
     "binaries",
     "document",
     "image",
     "logger",
+    "make_audio",
     "make_image",
     "make_pdf",
     "make_presentation",

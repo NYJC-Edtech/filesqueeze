@@ -288,7 +288,8 @@ class CompressionHandler(FileSystemEventHandler):
 
             # Generate output path with compressed_ prefix
             # PowerPoint files produce MP4 output, images produce JPG output
-            # (JPGs keep their extension), other files keep their extension.
+            # (JPGs keep their extension), audio files produce M4A output,
+            # other files keep their extension.
             # The processor returns the actual result path, which may differ
             # from this planned name (e.g. an image whose original was kept).
             if ext == "pptx":
@@ -297,6 +298,9 @@ class CompressionHandler(FileSystemEventHandler):
             elif ext in FileExtensions.IMAGE and ext not in FileExtensions.IMAGE_NATIVE_JPG:
                 # Image files output as JPG
                 output_filename = f"compressed_{filepath.stem}.jpg"
+            elif ext in FileExtensions.AUDIO:
+                # Audio files output as M4A (AAC)
+                output_filename = f"compressed_{filepath.stem}.m4a"
             else:
                 # Other files preserve their original extension
                 stem = filepath.stem  # filename without extension

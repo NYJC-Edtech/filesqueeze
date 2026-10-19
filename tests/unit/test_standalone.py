@@ -208,3 +208,38 @@ class TestBuildFiletypes:
         labels = [label for label, _ in build_filetypes()]
 
         assert "All files" in labels
+
+
+class TestAudioSupport:
+    """WAV inputs are supported and convert to M4A output."""
+
+    def test_audio_extension_returns_audio(self):
+        assert detect_category("wav") == "audio"
+
+    def test_wav_converts_to_m4a(self, tmp_path):
+        assert output_extension_for(tmp_path / "song.wav") == ".m4a"
+
+    def test_wav_predicts_m4a_output(self, tmp_path):
+        input_path = tmp_path / "song.wav"
+        destination = tmp_path / "out"
+
+        predicted = predict_output_path(input_path, destination)
+
+        assert predicted == destination / "compressed_song.m4a"
+
+    def test_audio_dispatches_to_make_audio(self, tmp_path):
+        input_path = tmp_path / "song.wav"
+        output_path = tmp_path / "compressed_song.m4a"
+        config = Config({"directories": {"input": "/tmp", "output": "/tmp"}})
+
+        with patch("filesqueeze.make_audio", return_value=str(output_path)) as mock_make:
+            result = compress_file(input_path, output_path, config)
+
+        mock_make.assert_called_once_with(str(input_path), config=config, output_path=str(output_path))
+        assert result == Path(output_path)
+
+    def test_filetypes_include_audio_group(self):
+        filetypes = dict(build_filetypes())
+
+        assert filetypes["Audio"] == "*.wav"
+        assert "*.wav" in filetypes["All supported"]

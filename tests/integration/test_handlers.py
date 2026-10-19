@@ -2,7 +2,7 @@
 
 from filesqueeze import handlers
 from filesqueeze.fsm.default import State
-from filesqueeze.fsm.enums import Document, Video
+from filesqueeze.fsm.enums import Audio, Document, Video
 
 
 class TestStateClass:
@@ -203,6 +203,18 @@ class TestSelectAnalyzer:
         assert next_handler == handlers.analyzeVideo
         assert state.format == Video.MP4
 
+    def test_select_analyzer_wav(self, tmp_path):
+        """Test selectAnalyzer routes WAV to audio handler."""
+        test_file = tmp_path / "test.wav"
+        test_file.write_bytes(b"RIFFdummy")
+
+        state = State(str(test_file))
+        next_handler = handlers.selectAnalyzer(state)
+
+        # Should route to analyzeAudio
+        assert next_handler == handlers.analyzeAudio
+        assert state.format == Audio.WAV
+
     def test_select_analyzer_unsupported(self, tmp_path):
         """Test selectAnalyzer with unsupported file type."""
         test_file = tmp_path / "test.xyz"
@@ -253,3 +265,41 @@ class TestStateMachineIntegration:
 
         # Verify output path was used
         assert final_state.origin == test_file
+
+
+class TestCompressAudio:
+    """Test the compressAudio handler."""
+
+    def test_compress_audio_produces_m4a_output_name(self, tmp_path):
+        """Without a configured output path, audio outputs as compressed_<stem>.m4a."""
+        from unittest.mock import patch
+
+        test_file = tmp_path / "song.wav"
+        test_file.write_bytes(b"RIFFdummy")
+
+        state = State(str(test_file))
+
+        with patch("filesqueeze.ops.audio.compress") as mock_compress:
+            next_handler = handlers.compressAudio(state)
+
+        outfile = tmp_path / "compressed_song.m4a"
+        mock_compress.assert_called_once_with(str(test_file), str(outfile), config=None)
+        assert state.target == outfile
+        assert next_handler == handlers.cleanupFiles
+        assert str(state.status) == "Compress"
+
+    def test_compress_audio_failure_sets_error(self, tmp_path):
+        """A compression failure marks the state as ERROR and cleans up."""
+        from unittest.mock import patch
+
+        test_file = tmp_path / "song.wav"
+        test_file.write_bytes(b"RIFFdummy")
+
+        state = State(str(test_file))
+
+        with patch("filesqueeze.ops.audio.compress", side_effect=RuntimeError("boom")):
+            next_handler = handlers.compressAudio(state)
+
+        assert str(state.status) == "Error"
+        assert next_handler == handlers.cleanupFiles
+        assert not (tmp_path / "compressed_song.m4a").exists()

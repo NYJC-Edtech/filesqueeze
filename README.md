@@ -1,10 +1,11 @@
 # FileSqueeze
 
-Utility package for compressing videos, PDFs, and images using FFmpeg, Ghostscript, and Pillow.
+Utility package for compressing videos, audio, PDFs, and images using FFmpeg, Ghostscript, and Pillow.
 
 ## Features
 
 - **Video Compression**: FFmpeg-based with configurable quality (CRF), presets, and scaling
+- **Audio Compression**: FFmpeg-based WAV → AAC in an M4A container at a configurable bitrate
 - **PDF Compression**: Ghostscript-based with quality settings (screen, ebook, printer, prepress)
 - **Image Compression**: Pillow-based conversion to JPG (quality 88, interlaced/progressive, 4:2:2 chroma subsampling); supports JPG, PNG, BMP, TIFF, WebP, and HEIC input
 - **PPTX to Video**: Convert PowerPoint slideshows to MP4 (Windows + PowerPoint; feature-flagged, disables itself where unavailable)
@@ -437,6 +438,7 @@ import filesqueeze
 
 # Compress single files
 output_path = filesqueeze.make_video('input.mp4')
+output_path = filesqueeze.make_audio('input.wav')
 output_path = filesqueeze.make_pdf('input.pdf')
 output_path = filesqueeze.make_image('input.jpg')
 ```
@@ -468,6 +470,19 @@ the original extension.
 > HEIC support uses the bundled `pillow-heif` package — no extra install
 > needed. Set `convert_to_jpeg = false` to restore the legacy behaviour where
 > PNG files stay PNG (handled via FFmpeg).
+
+### Audio Compression
+
+Uncompressed audio is transcoded to AAC in an M4A container with FFmpeg
+(audio content is left otherwise untouched — no loudness normalization or
+resampling).
+
+**Accepted input formats:** `wav`
+
+Output is always `compressed_<name>.m4a` (e.g. `lecture.wav` →
+`compressed_lecture.m4a`). The bitrate comes from `ffmpeg.audio_bitrate`
+(default `96k`), the same setting videos use for their audio tracks — a 10
+minute 44.1 kHz stereo WAV (~100 MB) typically compresses to under 10 MB.
 
 ### CLI Commands
 
@@ -590,7 +605,7 @@ Before processing, files must meet these criteria:
 
 | Requirement | Default | Description |
 |-------------|---------|-------------|
-| **File Extension** | `mp4, wmv, avi, mkv, mov, flv, pdf, jpg, jpeg, png, bmp, tif, tiff, webp, heic, heif, pptx` | Only these file types are processed |
+| **File Extension** | `mp4, wmv, avi, mkv, mov, flv, wav, pdf, jpg, jpeg, png, bmp, tif, tiff, webp, heic, heif, pptx` | Only these file types are processed |
 | **Minimum Age** | 5 seconds | Files must be at least this old (prevents processing incomplete uploads) |
 | **Minimum Size** | 1 KB | Files smaller than this are skipped |
 | **File Stability** | 2 seconds unchanged | File size must remain stable for 2 seconds |
@@ -621,7 +636,7 @@ Edit your `filesqueeze.toml` to adjust detection behavior:
 ```toml
 [file_detection]
 # File extensions to process (add/remove as needed)
-extensions = ['mp4', 'wmv', 'avi', 'mkv', 'mov', 'flv', 'pdf', 'jpg', 'jpeg', 'png', 'bmp', 'tif', 'tiff', 'webp', 'heic', 'heif']
+extensions = ['mp4', 'wmv', 'avi', 'mkv', 'mov', 'flv', 'wav', 'pdf', 'jpg', 'jpeg', 'png', 'bmp', 'tif', 'tiff', 'webp', 'heic', 'heif']
 
 # Minimum file age in seconds (prevents processing incomplete uploads)
 min_age_seconds = 5

@@ -26,6 +26,7 @@ filesqueeze/
 ├── ops/                       # Business logic operations
 │   ├── __init__.py
 │   ├── video.py               # Video compression operations
+│   ├── audio.py               # Audio compression operations (WAV → AAC/M4A)
 │   ├── document.py            # PDF compression + image re-exports
 │   ├── image.py               # Image compression operations
 │   └── presentation.py        # PowerPoint conversion (pptx)
@@ -194,6 +195,12 @@ Business logic for file compression operations. These modules import from `syste
   - `get_ffmpeg_path()` - Get FFmpeg executable
   - `get_ffprobe_path()` - Get ffprobe executable
 - **Uses**: `VideoConfig`, `BinaryFinder`, `@trace_function`
+
+#### `audio.py` - Audio Compression
+- **Functions**:
+  - `compress(input, output, config, audio_bitrate, threads, ffmpeg_path)` - Compress audio (WAV → AAC in an M4A container)
+- **Behaviour**: transcodes faithfully — no loudness normalization, no resampling; output is always `.m4a`
+- **Uses**: `AudioConfig`, `ops.video.get_ffmpeg_path`, `BinaryFinder`, `@trace_function`
 
 #### `document.py` - PDF Compression
 - **Functions**:

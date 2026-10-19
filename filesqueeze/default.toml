@@ -22,7 +22,7 @@ pptx_to_video = true
 
 [file_detection]
 # File extensions to process (case-insensitive)
-extensions = ["mp4", "avi", "wmv", "mov", "mkv", "flv", "pptx", "pdf", "jpg", "jpeg", "png", "bmp", "tif", "tiff", "webp", "heic", "heif"]
+extensions = ["mp4", "avi", "wmv", "mov", "mkv", "flv", "wav", "pptx", "pdf", "jpg", "jpeg", "png", "bmp", "tif", "tiff", "webp", "heic", "heif"]
 # Minimum file age in seconds before processing (prevents processing incomplete files)
 min_age_seconds = 60
 # Minimum file size in bytes (files smaller than this are skipped)
@@ -39,7 +39,8 @@ threads = 8
 preset = "veryfast"
 # Maximum video height (videos taller than this will be downscaled)
 max_height = 720
-# Audio bitrate for compressed videos
+# Audio bitrate for compressed videos and audio files (WAV is compressed
+# to AAC in an M4A container at this bitrate)
 audio_bitrate = "96k"
 
 [document]
