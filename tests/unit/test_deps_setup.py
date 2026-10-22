@@ -401,7 +401,7 @@ class TestRunSetup:
         )
         assert report.installed == {}
         assert report.failed == {}
-        assert set(report.skipped) == {"ffmpeg", "ghostscript", "tesseract"}
+        assert set(report.skipped) == {"ffmpeg", "ghostscript", "tesseract", "stcc"}
 
     @windows_only
     def test_existing_binaries_are_wired_not_reinstalled(self, tmp_path, monkeypatch):
@@ -436,3 +436,83 @@ class TestRunSetup:
         report = run_setup(base_dir=base, requested={"none"}, config_path=tmp_path / "c.toml", assume_yes=True)
         lines = "\n".join(report.summary_lines())
         assert "not installed (skipped)" in lines or "not present" in lines
+
+
+# --------------------------------------------------------------------------
+# stcc speech-to-captions package
+
+
+class TestStccDependency:
+    def test_stcc_registered_with_expected_shape(self):
+        from filesqueeze.deps_setup import DEPS_BY_KEY
+
+        dep = DEPS_BY_KEY["stcc"]
+        assert dep.required is False
+        assert dep.windows_only is True
+        assert dep.exe_names == ("stcc.py",)
+        assert dep.exe_names_posix == ("stcc.py",)
+        assert (dep.config_section, dep.config_key) == ("transcription", "stcc_path")
+        assert dep.install_subdir == ""  # zip carries its own top-level stcc/ folder
+        assert dep.sha256 and len(dep.sha256) == 64
+        assert dep.portable_source and "filesqueeze-stcc/releases" in dep.portable_source
+
+    def _stcc_zip_bytes(self) -> bytes:
+        import io
+        import zipfile
+
+        buf = io.BytesIO()
+        with zipfile.ZipFile(buf, "w") as z:
+            z.writestr("stcc/stcc.py", "# stcc entry point\n")
+            z.writestr("stcc/VERSION", "0.1.0\n")
+        return buf.getvalue()
+
+    def test_install_portable_verifies_checksum(self, tmp_path, monkeypatch):
+        import dataclasses
+
+        from filesqueeze.deps_setup import DEPS_BY_KEY, SetupError, _install_portable
+
+        dep = DEPS_BY_KEY["stcc"]
+        payload = self._stcc_zip_bytes()
+
+        def fake_download(url, dest_dir, filename, progress=None):
+            dest = dest_dir / filename
+            dest.write_bytes(b"corrupted-payload")
+            return dest
+
+        monkeypatch.setattr("filesqueeze.deps_setup.download_file", fake_download)
+        with pytest.raises(SetupError, match="checksum mismatch"):
+            _install_portable(dataclasses.replace(dep, sha256="0" * 64), tmp_path)
+        # nothing unpacked on failure
+        assert not (tmp_path / "stcc").exists()
+
+    def test_install_portable_unpacks_stcc_layout(self, tmp_path, monkeypatch):
+        import dataclasses
+        import hashlib
+
+        from filesqueeze.deps_setup import DEPS_BY_KEY, _install_portable
+
+        dep = DEPS_BY_KEY["stcc"]
+        payload = self._stcc_zip_bytes()
+
+        def fake_download(url, dest_dir, filename, progress=None):
+            dest = dest_dir / filename
+            dest.write_bytes(payload)
+            return dest
+
+        monkeypatch.setattr("filesqueeze.deps_setup.download_file", fake_download)
+        pinned = dataclasses.replace(dep, sha256=hashlib.sha256(payload).hexdigest())
+        found, _notes = _install_portable(pinned, tmp_path)
+        assert found == tmp_path / "stcc" / "stcc.py"
+
+    def test_config_values_for_maps_stcc(self, tmp_path):
+        from filesqueeze.deps_setup import config_values_for
+
+        values = config_values_for({"stcc": tmp_path / "stcc" / "stcc.py"})
+        assert values == {("transcription", "stcc_path"): str(tmp_path / "stcc" / "stcc.py").replace("\\", "/")}
+
+    def test_stcc_default_toml_documents_transcription_section(self):
+        import tomllib
+        from pathlib import Path
+
+        data = tomllib.loads(Path("filesqueeze/default.toml").read_text(encoding="utf-8"))
+        assert data["transcription"]["stcc_path"] == ""

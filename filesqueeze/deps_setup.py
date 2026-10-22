@@ -1,4 +1,4 @@
-"""Interactive setup of external dependencies (FFmpeg, Ghostscript, Tesseract).
+"""Interactive setup of external dependencies (FFmpeg, Ghostscript, Tesseract, stcc).
 
 ``filesqueeze setup-deps`` walks the user through pointing FileSqueeze at
 their portable-binaries directory and, optionally, installing missing
@@ -16,8 +16,9 @@ Sources (Windows): FFmpeg unpacks directly from the official gyan.dev
 release zip. Ghostscript and Tesseract publish no official portable
 archives — their Inno Setup installers are extracted with 7-Zip when
 available (the same 7-Zip *Open archive* route documented in the README's
-Locked-Down Machines section). On Linux the flow detects and advises
-package-manager installs.
+Locked-Down Machines section). stcc (speech-to-captions) ships as a
+self-contained zip from the FileSqueeze project's own releases. On Linux
+the flow detects and advises package-manager installs.
 
 The orchestrator (:func:`run_setup`) is UI-free and network-injectable so
 the whole flow is testable headless; :class:`TkSetupUI` supplies the
@@ -25,6 +26,7 @@ native dialogs, and the CLI's ``--dir/--install/--yes`` flags drive the
 same flow without any GUI.
 """
 
+import hashlib
 import json
 import re
 import shutil
@@ -65,6 +67,11 @@ _SEVENZIPR_URL = "https://github.com/ip7z/7zip/releases/latest/download/7zr.exe"
 _SEVENZIP_LATEST_API = "https://api.github.com/repos/ip7z/7zip/releases/latest"
 _SEVENZIP_ASSET_RE = re.compile(r"^7z\d+-x64\.exe$")
 
+# stcc speech-to-captions package (our own release, checksum-pinned).
+# Bump both together when a new stcc release is validated.
+_STCC_RELEASE_URL = "https://github.com/NYJC-Edtech/filesqueeze-stcc/releases/download/v0.1.0/stcc-0.1.0-win-x64-cpu.zip"
+_STCC_SHA256 = "d419735a5aee4fc2a1d8e7121008713c75e5c33a7d9b618f1e7248656dfdb713"
+
 
 class SetupError(RuntimeError):
     """A dependency-setup step failed with a user-actionable message."""
@@ -104,6 +111,8 @@ class Dependency:
     linux_package: str
     portable_source: str | None = None  # direct URL (zip) when one exists
     resolved_source: object = None  # callable() -> (url, filename) for lookups
+    sha256: str | None = None  # expected digest of the downloaded archive, when pinned
+    windows_only: bool = False  # the portable build exists for Windows only
 
     @property
     def is_windows_portable(self) -> bool:
@@ -187,6 +196,20 @@ DEPENDENCIES: tuple[Dependency, ...] = (
         linux_package="tesseract-ocr",
         resolved_source=_resolve_tesseract_url,
     ),
+    Dependency(
+        key="stcc",
+        display="stcc speech-to-captions (optional)",
+        required=False,
+        exe_names=("stcc.py",),
+        exe_names_posix=("stcc.py",),
+        config_section="transcription",
+        config_key="stcc_path",
+        install_subdir="",  # the zip already contains a top-level stcc/ folder
+        linux_package="",
+        portable_source=_STCC_RELEASE_URL,
+        sha256=_STCC_SHA256,
+        windows_only=True,
+    ),
 )
 
 DEPS_BY_KEY = {dep.key: dep for dep in DEPENDENCIES}
@@ -194,6 +217,15 @@ DEPS_BY_KEY = {dep.key: dep for dep in DEPENDENCIES}
 
 # --------------------------------------------------------------------------
 # Detection
+
+
+def _sha256_of(path: Path) -> str:
+    """Stream a file through SHA256 (portable installs can be hundreds of MB)."""
+    digest = hashlib.sha256()
+    with open(path, "rb") as fh:
+        for chunk in iter(lambda: fh.read(1 << 20), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
 
 
 def find_in_dir(base: Path, exe_names: tuple[str, ...]) -> Path | None:
@@ -444,7 +476,7 @@ def _install_portable(
 ) -> tuple[Path | None, list[str]]:
     """Download and unpack one dependency; returns (executable, notes) or raises SetupError."""
     notes: list[str] = []
-    target = base / dep.install_subdir
+    target = base / dep.install_subdir if dep.install_subdir else Path(base)
     target.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix=f"filesqueeze-{dep.key}-") as tmp:
         if dep.portable_source is not None:
@@ -453,6 +485,11 @@ def _install_portable(
         else:
             url, filename = dep.resolved_source()
         archive = download_file(url, Path(tmp), filename, progress=progress)
+
+        if dep.sha256 is not None:
+            actual = _sha256_of(archive)
+            if actual != dep.sha256:
+                raise SetupError(f"checksum mismatch for {filename}: expected {dep.sha256}, got {actual}")
 
         if archive.suffix.lower() == ".zip":
             unpack_zip(archive, target)
@@ -510,9 +547,12 @@ def run_setup(
     # Platform without a portable build (Linux): advise the package manager
     for dep in missing:
         if dep not in installable:
-            report.notes.append(
-                f"{dep.display}: no portable build on this platform — install it via your package manager (e.g. '{dep.linux_package}')"
-            )
+            if dep.windows_only and not on_windows:
+                report.notes.append(f"{dep.display}: only distributed for Windows — skipped on this platform")
+            else:
+                report.notes.append(
+                    f"{dep.display}: no portable build on this platform — install it via your package manager (e.g. '{dep.linux_package}')"
+                )
 
     if requested is not None:
         if "none" in requested:

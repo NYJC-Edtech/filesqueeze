@@ -17,8 +17,7 @@ Utility package for compressing videos, audio, PDFs, and images using FFmpeg, Gh
 - **Auto-Start**: Start automatically at login (no admin required)
 - **One-Click Update**: Checks GitHub at startup (or via **Check for updates**) and notifies in the tray/GUI; one click downloads, installs via pip (no installer .exe, no admin), and restarts into the new version
 - **Batch Processing**: Process entire directories at once
-- **Binary Auto-Detection**: Automatically finds FFmpeg, Ghostscript, and Tesseract
-
+- **Binary Auto-Detection**: Automatically finds FFmpeg, Ghostscript, and Tesseract, plus the optional stcc captions package
 ## Quick Start
 
 ```bash
@@ -167,7 +166,7 @@ With a development install, prefix every command with `poetry run`, e.g. `poetry
 Both installers offer to run `filesqueeze setup-deps` after installation, and you can run it again any time. The flow:
 
 1. **Pick your binaries folder** — a native dialog asks for an *existing* directory (the one you keep portable tools in; the picker starts at `~/FileSqueeze/bin` when it exists). Nothing outside this folder is touched.
-2. **Detect** — FileSqueeze scans the folder (a few levels deep) for FFmpeg, Ghostscript, and Tesseract and reports what is already there.
+2. **Detect** — FileSqueeze scans the folder (a few levels deep) for FFmpeg, Ghostscript, Tesseract, and the stcc captions package and reports what is already there.
 3. **Choose what to install** — for the missing ones, a checklist offers any combination, including **Install none**. Required dependencies are pre-checked; Tesseract (optional) is not.
 4. **Portable install** — chosen dependencies are downloaded from the canonical sources listed under [External Dependencies](#external-dependencies) and unpacked into your folder. Ghostscript and Tesseract ship only as installer `.exe` files, so **7-Zip is downloaded too if it's missing** (into `<folder>/7-Zip`) to unpack them — no installers are ever run, and no admin rights are used.
 5. **Config wiring** — the located paths are written into `~/.config/filesqueeze/config.toml` (backed up first), so they take priority over PATH auto-detection.
@@ -338,6 +337,11 @@ sudo pacman -S tesseract-ocr
 **Purpose:** Convert PPTX slideshows to MP4 video (drives PowerPoint via COM automation)
 
 Only needed for PowerPoint files — no download here; PowerPoint must already be installed on the machine (e.g. via Microsoft 365). Where PowerPoint isn't available, the `pptx_to_video` feature disables itself automatically (see `[features]` under [Configuration](#configuration)), slideshow files are skipped, and `filesqueeze doctor` reports it.
+
+#### stcc speech-to-captions (Windows only)
+**Purpose:** Video transcription / SRT closed captions (via the [filesqueeze-stcc](https://github.com/NYJC-Edtech/filesqueeze-stcc) package: Fluid Speech Mini model + parakeet.cpp runtime)
+
+**Bundled but not yet used:** `setup-deps` can install stcc into your binaries folder (checksum-pinned zip from the FileSqueeze project's own releases, ~290 MB), but the processing pipeline does not generate captions yet — wiring lands in a future release. Installing it now just prepares the machine.
 
 ---
 
