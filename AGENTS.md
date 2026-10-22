@@ -34,6 +34,7 @@ filesqueeze/
 ├── tray.py              # System tray service
 ├── autostart.py         # Auto-startup configuration
 ├── deps_setup.py        # External-dependency setup (detect + portable installs)
+├── transcription.py     # stcc captions package status (startup check; wiring in future release)
 ├── update_check.py      # GitHub release check for update notifications
 └── updater.py           # Release download/apply: wheel download, verify, pip install, relaunch
 ```
@@ -176,6 +177,7 @@ File processing uses a state machine pattern defined in `fsm/` with handlers in 
 
 ### Optional
 - **Tesseract OCR** - OCR for scanned PDFs (tests will skip if not installed)
+- **stcc** - Speech-to-captions package (Fluid Speech Mini + parakeet.cpp), installed into the binaries folder via `setup-deps`; startup logs its presence but the pipeline does not use it yet
 
 ## Common Issues
 
