@@ -18,6 +18,7 @@ from watchdog.observers import Observer
 from .config import Config
 from .constants import FileExtensions
 from .logger import setup_logging  # This is the actual Logger.setup, not a wrapper
+from .transcription import log_stcc_status
 from .utils.google_drive import (
     cleanup_temp_file,
     create_temp_copy,
@@ -1022,6 +1023,9 @@ class DirectoryWatcher(StateProvider):
 
         register_logger(self.logger)
         register_binary_finder(BinaryFinder(self.config))
+
+        # Report the optional stcc captions package (logging only; not used yet)
+        log_stcc_status(self.config, self.logger)
 
         # Verify directories
         if not self.input_dir.exists():
