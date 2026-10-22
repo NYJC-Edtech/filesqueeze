@@ -79,7 +79,7 @@ class TestBuildCommand:
     def test_minimal(self, tmp_path):
         cmd = build_stcc_command(Path(_STCC), tmp_path / "a.mp4", tmp_path / "out", "compressed_a")
         assert cmd[0] != "" and cmd[1] == str(Path(_STCC)) and cmd[2] == "transcribe"
-        assert cmd[cmd.index("--formats") + 1] == "srt"
+        assert cmd[cmd.index("--formats") + 1] == "srt,vtt"
         assert cmd[cmd.index("--name") + 1] == "compressed_a"
         assert cmd[cmd.index("--output-dir") + 1] == str(tmp_path / "out")
         assert "--threads" not in cmd
