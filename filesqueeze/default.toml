@@ -155,3 +155,10 @@ min_age_hours = 1
 dry_run = false
 # Require confirmation for first cleanup run
 require_confirmation = true
+
+[transcription]
+# Speech-to-captions (stcc) — installed by `setup-deps` into the binaries
+# folder but NOT yet used by the processing pipeline; caption generation
+# lands in a future release. stcc_path is filled in automatically by
+# setup-deps; leave it empty otherwise.
+stcc_path = ""
