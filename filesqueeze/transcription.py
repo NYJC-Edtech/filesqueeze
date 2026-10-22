@@ -10,13 +10,15 @@ presence at service startup; caption generation itself lives in
 import logging
 from pathlib import Path
 
+from filesqueeze.config import Config
 
-def get_stcc_path(config) -> str:
+
+def get_stcc_path(config: Config) -> str:
     """Return the configured stcc.py path ('' when not configured)."""
     return str(config.get("transcription.stcc_path", "") or "")
 
 
-def log_stcc_status(config, logger: logging.Logger) -> None:
+def log_stcc_status(config: Config, logger: logging.Logger) -> None:
     """Log whether the optional stcc captions package is present.
 
     Called once at service startup so installations are visible in the log.
