@@ -102,6 +102,17 @@ Infrastructure services that support business logic. These are registered at sta
   - Cached path lookups
   - Platform-specific detection (Windows/Linux)
 
+#### `progress.py` - Progress Tracking
+- **Purpose**: Per-file completion percentages for long-running operations
+- **Key Functions**:
+  - `register_progress_tracker(tracker)` - Register at service startup
+  - `get_progress_tracker()` - Get registered tracker (no-op fallback)
+  - `ProgressTracker` class - Thread-safe `{path: percent}` registry with alias support
+- **Features**:
+  - Keys are the original input file paths (what the GUI displays)
+  - `alias(actual, display)` maps temp copies / intermediates (Google Drive workflow, PPTX→MP4) onto the displayed path
+  - Ops report via callbacks; without registration the `NullProgressTracker` keeps ops unchanged
+
 #### `platform.py` - Platform Services
 - **Purpose**: Platform detection and utilities
 - **Key Functions**:
@@ -144,6 +155,7 @@ Shared utility modules providing common functionality across the application. Th
 #### `subprocess_helper.py` - Subprocess Utilities
 - **Functions**:
   - `run_subprocess(cmd, timeout, tool_name, input_file, ...)` - Centralized subprocess execution
+  - `run_subprocess_with_progress(cmd, *, timeout, tool_name, input_file, on_stdout_line, ...)` - Streams stdout line-by-line to a callback (FFmpeg `-progress pipe:1`); stderr goes to a temp file, timeout enforced by a kill watchdog
   - `verify_output_file(output_path, min_size, ...)` - Standardized file verification
   - `get_windows_subprocess_config()` - Windows subprocess configuration
 
@@ -241,12 +253,13 @@ register_binary_finder(BinaryFinder(config))
 
 **Service Mode** (`service.py`):
 ```python
-from filesqueeze.system import register_logger, register_binary_finder
+from filesqueeze.system import register_logger, register_binary_finder, register_progress_tracker
 from filesqueeze.system.binaries import BinaryFinder
 
 logger = setup_logging(...)
 register_logger(logger)
 register_binary_finder(BinaryFinder(config))
+register_progress_tracker(ProgressTracker())  # FFmpeg progress for the GUI
 ```
 
 **Tray Service** (`tray.py`):

@@ -63,6 +63,9 @@ class ServiceState:
     failed_count: int = 0
     uptime: timedelta = field(default_factory=timedelta)
     cleanup_stats: CleanupStats = field(default_factory=CleanupStats)
+    # Completion percentage per processing file path (FFmpeg video/audio
+    # jobs only, while an encode is running); empty when none apply
+    file_progress: dict[str, int] = field(default_factory=dict)
 
 
 class StateProvider:
@@ -343,6 +346,10 @@ class CompressionHandler(FileSystemEventHandler):
                         # Step 1: Copy to temp directory
                         temp_input = create_temp_copy(filepath)
 
+                        # Attribute progress reported from the temp copy to
+                        # the watched file so the GUI shows it under its name
+                        self._watcher._progress_tracker.alias(str(temp_input), str(filepath.absolute()))
+
                         # Step 2: Process from temp directory
                         # Create temp output path
                         temp_output_dir = Path(temp_input).parent / "output"
@@ -446,9 +453,10 @@ class CompressionHandler(FileSystemEventHandler):
                 return  # Stop processing - don't continue to success path
 
         finally:
-            # Remove from processing set
+            # Remove from processing set and drop this file's progress entry
             with self._lock:
                 self._processing.discard(str(filepath.absolute()))
+            self._watcher._progress_tracker.clear(str(filepath.absolute()))
 
     def _wait_for_file_stability(self, filepath: Path, timeout: int = 30) -> bool:
         """Wait for file to be stable (not being written to).
@@ -1018,11 +1026,15 @@ class DirectoryWatcher(StateProvider):
         self.logger = setup_logging(self.config)
 
         # Register logger with system for consistent logging across all modules
-        from .system import register_binary_finder, register_logger
+        from .system import ProgressTracker, register_binary_finder, register_logger, register_progress_tracker
         from .system.binaries import BinaryFinder
 
         register_logger(self.logger)
         register_binary_finder(BinaryFinder(self.config))
+
+        # Per-file FFmpeg progress registry, read by get_state() for the GUI
+        self._progress_tracker = ProgressTracker()
+        register_progress_tracker(self._progress_tracker)
 
         # Report the optional stcc captions package (logging only; not used yet)
         log_stcc_status(self.config, self.logger)
@@ -1113,6 +1125,7 @@ class DirectoryWatcher(StateProvider):
                 failed_count=self._failed_count,
                 uptime=uptime,
                 cleanup_stats=cleanup_stats,
+                file_progress=self._progress_tracker.snapshot(),
             )
 
     def start(self) -> None:

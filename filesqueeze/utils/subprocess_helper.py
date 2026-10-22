@@ -9,7 +9,10 @@ This module provides centralized subprocess execution with:
 import logging
 import os
 import subprocess
+import tempfile
+import threading
 from pathlib import Path
+from typing import Callable
 
 logger = logging.getLogger(__name__)
 
@@ -99,6 +102,103 @@ def run_subprocess(
 
     except subprocess.TimeoutExpired:
         raise SubprocessTimeout(f"{tool_name} timeout processing: {input_file}") from None
+
+
+def run_subprocess_with_progress(
+    cmd: list[str],
+    *,
+    timeout: int,
+    tool_name: str,
+    input_file: str,
+    on_stdout_line: Callable[[str], None],
+    check: bool = True,
+) -> subprocess.CompletedProcess:
+    """Run subprocess, streaming stdout line-by-line to a callback.
+
+    Used for tools that report progress on stdout (e.g. FFmpeg's
+    ``-progress pipe:1`` output). stderr goes to a temp file so the pipe
+    can never deadlock; it is surfaced on SubprocessError like
+    run_subprocess does.
+
+    Callback exceptions are logged and swallowed - progress reporting
+    must never break the operation itself.
+
+    Args:
+        cmd: Command list to execute
+        timeout: Timeout in seconds (process is killed on expiry)
+        tool_name: Name of tool (for error messages)
+        input_file: Input file path (for error messages)
+        on_stdout_line: Called with each stdout line (text, newline included)
+        check: Whether to raise error on non-zero exit
+
+    Returns:
+        CompletedProcess with stderr populated from the temp file
+
+    Raises:
+        SubprocessTimeout: If command times out
+        SubprocessError: If command fails with non-zero exit
+    """
+    cmd_display = [tool_name] + (["..."] if len(cmd) > 1 else [])
+    logger.debug(f"Running: {' '.join(cmd_display)}")
+
+    popen_kwargs: dict = {
+        "stdout": subprocess.PIPE,
+        "text": True,
+        "bufsize": 1,
+        "errors": "replace",
+    }
+    if os.name == "nt":
+        startupinfo = subprocess.STARTUPINFO()
+        startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+        startupinfo.wShowWindow = subprocess.SW_HIDE
+        popen_kwargs["startupinfo"] = startupinfo
+
+    timed_out = False
+    errfile = tempfile.TemporaryFile(mode="w+", encoding="utf-8", errors="replace")
+    try:
+        popen_kwargs["stderr"] = errfile
+        proc = subprocess.Popen(cmd, **popen_kwargs)
+
+        def _kill_on_timeout() -> None:
+            nonlocal timed_out
+            timed_out = True
+            try:
+                proc.kill()
+            except OSError:
+                pass
+
+        # Watchdog: killing the process closes the stdout pipe, which
+        # unblocks the readline loop even if the tool stops emitting lines
+        timer = threading.Timer(timeout, _kill_on_timeout)
+        timer.daemon = True
+        timer.start()
+        try:
+            assert proc.stdout is not None
+            for line in proc.stdout:
+                try:
+                    on_stdout_line(line)
+                except Exception:
+                    logger.debug("Progress callback error (ignored)", exc_info=True)
+            proc.stdout.close()
+            returncode = proc.wait()
+        finally:
+            timer.cancel()
+
+        errfile.seek(0)
+        stderr_text = errfile.read()
+
+        if timed_out:
+            raise SubprocessTimeout(f"{tool_name} timeout processing: {input_file}")
+
+        if check and returncode != 0:
+            error_msg = f"{tool_name} failed with return code {returncode}: {input_file}"
+            if stderr_text:
+                error_msg += f"\nstderr: {stderr_text.strip()}"
+            raise SubprocessError(error_msg, return_code=returncode, stderr=stderr_text)
+
+        return subprocess.CompletedProcess(cmd, returncode, stdout=None, stderr=stderr_text)
+    finally:
+        errfile.close()
 
 
 def verify_output_file(

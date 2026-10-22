@@ -8,13 +8,20 @@ It uses the system package for binary detection and logging.
 
 import subprocess
 from pathlib import Path
+from typing import Callable
 
 # Import from system package
 from filesqueeze.config import Config
 from filesqueeze.system import get_binary_finder
 
 # Import subprocess utilities
-from filesqueeze.utils.subprocess_helper import SubprocessError, SubprocessTimeout, run_subprocess, verify_output_file
+from filesqueeze.utils.subprocess_helper import (
+    SubprocessError,
+    SubprocessTimeout,
+    run_subprocess,
+    run_subprocess_with_progress,
+    verify_output_file,
+)
 
 
 def get_ffmpeg_path(config_path: str = "") -> Path:
@@ -162,6 +169,47 @@ def duration(infile: str, ffmpeg_path: str = "") -> float | None:
     return _duration(infile, ffmpeg_path)
 
 
+def ffmpeg_progress_handler(
+    total_duration: float | None,
+    report: Callable[[int], None],
+) -> Callable[[str], None]:
+    """Build an stdout-line handler for FFmpeg ``-progress pipe:1`` output.
+
+    Args:
+        total_duration: Total media duration in seconds. When None or
+            non-positive, no percentages are reported.
+        report: Callback invoked with each new percentage (monotonically
+            increasing, clamped to 0-99 until the run actually finishes).
+
+    Returns:
+        Handler suitable as ``on_stdout_line`` for run_subprocess_with_progress.
+    """
+    last_percent = -1
+
+    def handle(line: str) -> None:
+        nonlocal last_percent
+        line = line.strip()
+        # Both out_time_us and out_time_ms carry microseconds (the latter
+        # is misnamed in FFmpeg); out_time_us is the modern spelling
+        for key in ("out_time_us", "out_time_ms"):
+            if line.startswith(key + "="):
+                raw = line.split("=", 1)[1]
+                try:
+                    out_micros = float(raw)
+                except ValueError:
+                    return  # "N/A" and other non-numeric values
+                if not total_duration or total_duration <= 0:
+                    return
+                percent = int(out_micros / 1_000_000 / total_duration * 100)
+                percent = max(0, min(99, percent))
+                if percent > last_percent:
+                    last_percent = percent
+                    report(percent)
+                return
+
+    return handle
+
+
 def compress(
     infile: str,
     outfile: str,
@@ -174,6 +222,7 @@ def compress(
     max_height: int | None = None,
     audio_bitrate: str | None = None,
     ffmpeg_path: str | None = None,
+    progress_cb: Callable[[int], None] | None = None,
 ) -> None:
     """Compress a video file using FFmpeg.
 
@@ -188,6 +237,9 @@ def compress(
         max_height: Maximum height for downscaling.
         audio_bitrate: Audio bitrate (e.g., '96k').
         ffmpeg_path: Optional path to FFmpeg executable.
+        progress_cb: Optional callback receiving completion percentage
+            (0-99) during the encode. Best-effort: silently omitted when
+            the input duration cannot be probed.
 
     Raises:
         FileNotFoundError: If output file is not created.
@@ -209,6 +261,7 @@ def compress(
         max_height: int | None = None,
         audio_bitrate: str | None = None,
         ffmpeg_path: str | None = None,
+        progress_cb: Callable[[int], None] | None = None,
     ) -> None:
         # Use config adapter if config provided
         if config:
@@ -233,6 +286,18 @@ def compress(
 
         ffmpeg = get_ffmpeg_path(ffmpeg_path or "")
 
+        # Progress reporting is best-effort: it needs the input duration,
+        # and a failed probe just means no percentages (compression itself
+        # is unaffected)
+        on_stdout_line = None
+        if progress_cb is not None:
+            try:
+                total_duration = duration(infile, str(ffmpeg))
+            except Exception:
+                total_duration = None
+            if total_duration and total_duration > 0:
+                on_stdout_line = ffmpeg_progress_handler(total_duration, progress_cb)
+
         # Build FFmpeg command
         cmd = [
             ffmpeg,
@@ -242,6 +307,11 @@ def compress(
             "-hide_banner",
             "-loglevel",
             "panic",
+        ]
+        if on_stdout_line is not None:
+            # Machine-readable progress on stdout, ~every 0.5s
+            cmd += ["-progress", "pipe:1", "-nostats"]
+        cmd += [
             "-i",
             infile,
             "-crf",
@@ -282,9 +352,24 @@ def compress(
         )
 
         try:
-            run_subprocess(
-                cmd, timeout=timeout, tool_name="FFmpeg", input_file=infile, capture_output=True, text_mode=True, check=True
-            )
+            if on_stdout_line is not None:
+                run_subprocess_with_progress(
+                    cmd,
+                    timeout=timeout,
+                    tool_name="FFmpeg",
+                    input_file=infile,
+                    on_stdout_line=on_stdout_line,
+                )
+            else:
+                run_subprocess(
+                    cmd,
+                    timeout=timeout,
+                    tool_name="FFmpeg",
+                    input_file=infile,
+                    capture_output=True,
+                    text_mode=True,
+                    check=True,
+                )
         except SubprocessTimeout:
             raise RuntimeError(f"FFmpeg timeout compressing video: {infile}") from None
         except SubprocessError as e:
@@ -313,4 +398,5 @@ def compress(
         max_height=max_height,
         audio_bitrate=audio_bitrate,
         ffmpeg_path=ffmpeg_path,
+        progress_cb=progress_cb,
     )

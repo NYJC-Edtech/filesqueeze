@@ -272,7 +272,7 @@ class TestCompressAudio:
 
     def test_compress_audio_produces_m4a_output_name(self, tmp_path):
         """Without a configured output path, audio outputs as compressed_<stem>.m4a."""
-        from unittest.mock import patch
+        from unittest.mock import ANY, patch
 
         test_file = tmp_path / "song.wav"
         test_file.write_bytes(b"RIFFdummy")
@@ -283,7 +283,7 @@ class TestCompressAudio:
             next_handler = handlers.compressAudio(state)
 
         outfile = tmp_path / "compressed_song.m4a"
-        mock_compress.assert_called_once_with(str(test_file), str(outfile), config=None)
+        mock_compress.assert_called_once_with(str(test_file), str(outfile), config=None, progress_cb=ANY)
         assert state.target == outfile
         assert next_handler == handlers.cleanupFiles
         assert str(state.status) == "Compress"
@@ -303,3 +303,75 @@ class TestCompressAudio:
         assert str(state.status) == "Error"
         assert next_handler == handlers.cleanupFiles
         assert not (tmp_path / "compressed_song.m4a").exists()
+
+
+class TestHandlerProgressReporting:
+    """FFmpeg progress callbacks must report under the original file path."""
+
+    def test_compress_video_reports_progress_under_origin(self, tmp_path):
+        """Video progress lands in the tracker keyed by state.origin."""
+        from unittest.mock import patch
+
+        from filesqueeze.system.progress import NullProgressTracker, ProgressTracker, register_progress_tracker
+
+        test_file = tmp_path / "clip.mp4"
+        test_file.write_bytes(b"dummy")
+
+        tracker = ProgressTracker()
+        register_progress_tracker(tracker)
+        try:
+            state = State(str(test_file))
+
+            def fake_compress(infile, outfile, *, config=None, downscale=False, progress_cb=None):
+                progress_cb(37)
+
+            with patch("filesqueeze.ops.video.compress", side_effect=fake_compress):
+                handlers.compressVideo(state)
+
+            assert tracker.snapshot() == {str(test_file): 37}
+        finally:
+            register_progress_tracker(NullProgressTracker())
+
+    def test_compress_audio_reports_progress_under_origin(self, tmp_path):
+        """Audio progress lands in the tracker keyed by state.origin."""
+        from unittest.mock import patch
+
+        from filesqueeze.system.progress import NullProgressTracker, ProgressTracker, register_progress_tracker
+
+        test_file = tmp_path / "song.wav"
+        test_file.write_bytes(b"RIFFdummy")
+
+        tracker = ProgressTracker()
+        register_progress_tracker(tracker)
+        try:
+            state = State(str(test_file))
+
+            def fake_compress(infile, outfile, *, config=None, progress_cb=None):
+                progress_cb(64)
+
+            with patch("filesqueeze.ops.audio.compress", side_effect=fake_compress):
+                handlers.compressAudio(state)
+
+            assert tracker.snapshot() == {str(test_file): 64}
+        finally:
+            register_progress_tracker(NullProgressTracker())
+
+    def test_no_tracker_registered_still_compresses(self, tmp_path):
+        """Without a registered tracker the callback is a harmless no-op."""
+        from unittest.mock import patch
+
+        from filesqueeze.system.progress import NullProgressTracker, register_progress_tracker
+
+        register_progress_tracker(NullProgressTracker())
+
+        test_file = tmp_path / "clip.mp4"
+        test_file.write_bytes(b"dummy")
+        state = State(str(test_file))
+
+        with patch("filesqueeze.ops.video.compress") as mock_compress:
+            handlers.compressVideo(state)
+
+        mock_compress.assert_called_once()
+        # progress_cb was supplied and is callable
+        progress_cb = mock_compress.call_args.kwargs["progress_cb"]
+        progress_cb(50)  # Must not raise even with the no-op tracker
