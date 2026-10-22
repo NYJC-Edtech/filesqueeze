@@ -157,8 +157,12 @@ dry_run = false
 require_confirmation = true
 
 [transcription]
-# Speech-to-captions (stcc) — installed by `setup-deps` into the binaries
-# folder but NOT yet used by the processing pipeline; caption generation
-# lands in a future release. stcc_path is filled in automatically by
-# setup-deps; leave it empty otherwise.
+# Speech-to-captions (stcc) — adds closed captions to compressed videos.
+# Requires the stcc package (installed into the binaries folder by
+# `setup-deps`, which also fills in stcc_path). Disabled by default;
+# a missing or broken stcc install is logged and skipped, never a
+# compression failure.
+enabled = false
+# stcc runtime threads (0 = let stcc decide: min(8, CPU cores))
+threads = 0
 stcc_path = ""

@@ -341,7 +341,7 @@ Only needed for PowerPoint files — no download here; PowerPoint must already b
 #### stcc speech-to-captions (Windows only)
 **Purpose:** Video transcription / SRT closed captions (via the [filesqueeze-stcc](https://github.com/NYJC-Edtech/filesqueeze-stcc) package: Fluid Speech Mini model + parakeet.cpp runtime)
 
-**Bundled but not yet used:** `setup-deps` can install stcc into your binaries folder (checksum-pinned zip from the FileSqueeze project's own releases, ~290 MB), but the processing pipeline does not generate captions yet — wiring lands in a future release. Installing it now just prepares the machine.
+**Setup:** `setup-deps` installs stcc into your binaries folder (checksum-pinned zip from the FileSqueeze project's own releases, ~290 MB) and fills in `stcc_path`. Caption generation is **off by default** — set `[transcription] enabled = true` in your config; compressed videos then get a sidecar `.srt` next to the output (and the SRT embedded as a toggleable soft subtitle track for MP4 outputs). Transcription runs on the original video after compression succeeds; if stcc is missing or fails, a warning is logged and the compressed video is unaffected. English audio only.
 
 ---
 
