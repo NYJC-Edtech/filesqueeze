@@ -51,6 +51,7 @@ class TestServiceState:
         assert state.completed_count == 0
         assert state.failed_count == 0
         assert state.uptime == timedelta()
+        assert state.file_progress == {}
 
 
 class TestCompressionHandlerTracking:
@@ -190,6 +191,24 @@ class TestDirectoryWatcherState:
             assert len(state.processing_files) == 2
             assert any("file1.mp4" in f for f in state.processing_files)
             assert any("file2.pdf" in f for f in state.processing_files)
+
+    def test_watcher_state_exposes_file_progress(self):
+        """Progress reported to the tracker surfaces in get_state()."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            input_dir = Path(tmpdir) / "input"
+            input_dir.mkdir()
+
+            watcher = DirectoryWatcher(input_dir, Path(tmpdir) / "output")
+
+            # Simulate an encode reporting progress for a watched file,
+            # including a temp-copy alias mapping onto the same display key
+            key = str(input_dir / "file1.mp4")
+            watcher._progress_tracker.alias(str(Path(tmpdir) / "copy.mp4"), key)
+            watcher._progress_tracker.report(str(Path(tmpdir) / "copy.mp4"), 42)
+
+            state = watcher.get_state()
+
+            assert state.file_progress == {key: 42}
 
     def test_watcher_state_thread_safety(self):
         """Test state queries are thread-safe."""

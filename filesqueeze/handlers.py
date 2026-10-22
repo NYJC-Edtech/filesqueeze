@@ -8,7 +8,7 @@ from .fsm.enums import Audio, Document, Enum, EnumValue, Format, Slideshow, Vide
 from .ops import audio, document, image, video
 from .ops import presentation as pptx
 from .ops.transcription import transcribe_after_compress
-from .system import logger
+from .system import get_progress_tracker, logger
 
 # Dotted image extensions (".jpg", ".png", ...) from the undotted constants list
 _IMAGE_EXTENSIONS = {f".{ext}" for ext in FileExtensions.IMAGE}
@@ -306,6 +306,24 @@ def pptxToVideo(state: State) -> Handler:
     return cleanupFiles
 
 
+def _progress_cb_for(state: State):
+    """Build a progress callback reporting under the original input path.
+
+    FFmpeg reports encode percentages; the tracker keys them by
+    ``state.origin`` so the service GUI can join them against its own
+    processing-file keys (the service aliases temp/intermediate paths
+    onto the same key). Without a registered tracker this is a cheap no-op.
+    """
+
+    tracker = get_progress_tracker()
+    origin_key = str(state.origin)
+
+    def report(percent: int) -> None:
+        tracker.report(origin_key, percent)
+
+    return report
+
+
 def compressVideo(state: State) -> Handler:
     """
     Compresses a video file.
@@ -325,6 +343,7 @@ def compressVideo(state: State) -> Handler:
             str(outfile),
             config=state.config if hasattr(state, "config") else None,
             downscale=(True if state.metadata.get("height", 0) > 720 else False),
+            progress_cb=_progress_cb_for(state),
         )
     except Exception:
         # Clean up output file on failure
@@ -375,6 +394,7 @@ def compressAudio(state: State) -> Handler:
             str(state.target),
             str(outfile),
             config=state.config if hasattr(state, "config") else None,
+            progress_cb=_progress_cb_for(state),
         )
     except Exception:
         # Clean up output file on failure

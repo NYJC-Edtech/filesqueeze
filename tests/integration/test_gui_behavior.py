@@ -714,5 +714,68 @@ class TestUpdateBanner:
         assert "destroy" in poll_source, "Notice must close itself once the update leaves waiting"
 
 
+class TestProcessingFileProgressDisplay:
+    """'Currently Processing' shows a text-only percentage when available.
+
+    Uses the real StatusWindow method on a stubbed label, so no Tk window
+    or display is needed (the display itself is a single ttk.Label).
+    """
+
+    class _FakeLabel:
+        def __init__(self):
+            self.text = None
+
+        def config(self, **kwargs):
+            self.text = kwargs.get("text", self.text)
+
+    @staticmethod
+    def _make_window():
+        from filesqueeze.gui import StatusWindow
+
+        window = StatusWindow.__new__(StatusWindow)
+        window.processing_value = TestProcessingFileProgressDisplay._FakeLabel()
+        return window
+
+    @staticmethod
+    def _state(**kwargs):
+        from filesqueeze.service import ServiceState
+
+        return ServiceState(running=True, input_dir=Path("input"), output_dir=Path("output"), **kwargs)
+
+    def test_no_files_processing(self):
+        window = self._make_window()
+        window._update_processing_file(self._state())
+        assert window.processing_value.text == "No files currently processing."
+
+    def test_file_without_progress_shows_plain_name(self):
+        window = self._make_window()
+        window._update_processing_file(self._state(processing_files=[r"C:\watch\lesson.mp4"]))
+        assert window.processing_value.text == "lesson.mp4"
+
+    def test_file_with_progress_appends_percentage(self):
+        window = self._make_window()
+        window._update_processing_file(
+            self._state(processing_files=[r"C:\watch\lesson.mp4"], file_progress={r"C:\watch\lesson.mp4": 42})
+        )
+        assert window.processing_value.text == "lesson.mp4 (42%)"
+
+    def test_progress_key_spelling_fallback(self):
+        """A differently-spelled progress key still matches after Path normalisation."""
+        window = self._make_window()
+        normalised_key = str(Path("watch") / "lesson.mp4")
+        window._update_processing_file(self._state(processing_files=["watch//lesson.mp4"], file_progress={normalised_key: 7}))
+        assert window.processing_value.text == "lesson.mp4 (7%)"
+
+    def test_more_files_indicator_keeps_percentage(self):
+        window = self._make_window()
+        window._update_processing_file(
+            self._state(
+                processing_files=[r"C:\watch\lesson.mp4", r"C:\watch\talk.mp4"],
+                file_progress={r"C:\watch\lesson.mp4": 42},
+            )
+        )
+        assert window.processing_value.text == "lesson.mp4 (42%) (+1 more)"
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

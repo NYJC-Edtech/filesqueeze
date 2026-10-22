@@ -26,17 +26,26 @@ from .logger import (
     trace_handler,
 )
 from .platform import get_platform, is_linux, is_mac, is_windows
+from .progress import (
+    NullProgressTracker,
+    ProgressTracker,
+    get_progress_tracker,
+    register_progress_tracker,
+)
 
 __all__ = [
     "DocumentConfig",
     "ImageConfig",
+    "NullProgressTracker",
     "PresentationConfig",
+    "ProgressTracker",
     "StructuredFormatter",
     "TraceContext",
     "VideoConfig",
     "get_binary_finder",
     "get_logger",
     "get_platform",
+    "get_progress_tracker",
     "get_trace_context",
     "is_linux",
     "is_mac",
@@ -45,6 +54,7 @@ __all__ = [
     "logger",
     "register_binary_finder",
     "register_logger",
+    "register_progress_tracker",
     "trace_context",
     "trace_function",
     "trace_handler",

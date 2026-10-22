@@ -338,6 +338,9 @@ class StatusWindow:
     def _update_processing_file(self, state: ServiceState):
         """Update currently processing file display (single line).
 
+        FFmpeg jobs (video/audio) also report a completion percentage,
+        shown as plain text next to the filename when available.
+
         Args:
             state: Current service state.
         """
@@ -347,11 +350,20 @@ class StatusWindow:
             # Show only the first file (should typically be only one anyway)
             filepath = state.processing_files[0]
             filename = Path(filepath).name
-            self.processing_value.config(text=filename)
+
+            # Text-only progress (no progress bar); fall back to the
+            # Path-normalised spelling of the key for separator mismatches
+            percent = state.file_progress.get(filepath)
+            if percent is None:
+                percent = state.file_progress.get(str(Path(filepath)))
+            if percent is not None:
+                filename = f"{filename} ({percent}%)"
 
             # If there are more files, indicate it
             if len(state.processing_files) > 1:
-                self.processing_value.config(text=f"{filename} (+{len(state.processing_files) - 1} more)")
+                filename = f"{filename} (+{len(state.processing_files) - 1} more)"
+
+            self.processing_value.config(text=filename)
 
     def _update_processed_files(self, state: ServiceState):
         """Update processed files list with timestamps.
