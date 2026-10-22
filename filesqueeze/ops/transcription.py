@@ -51,7 +51,7 @@ def build_stcc_command(stcc_path: Path, video: Path, output_dir: Path, name: str
         str(stcc_path),
         "transcribe",
         "--formats",
-        "srt",
+        "srt,vtt",
         "--name",
         name,
         "--output-dir",
@@ -112,9 +112,10 @@ def transcribe_after_compress(original: Path, compressed: Path, config: Config) 
     """Produce captions for a freshly compressed video. Never raises.
 
     Transcribes the ORIGINAL video (better source audio), writes
-    ``<compressed-stem>.srt`` next to the compressed output and, for MP4
-    outputs, embeds it as a soft mov_text track. Returns the SRT path, or
-    None when disabled/skipped/failed (reason logged).
+    ``<compressed-stem>.srt`` and ``<compressed-stem>.vtt`` next to the
+    compressed output and, for MP4 outputs, embeds the SRT as a soft
+    mov_text track. Returns the SRT path, or None when
+    disabled/skipped/failed (reason logged).
     """
     logger: logging.Logger = get_logger()
     original_name = getattr(original, "name", str(original))

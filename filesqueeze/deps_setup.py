@@ -69,8 +69,8 @@ _SEVENZIP_ASSET_RE = re.compile(r"^7z\d+-x64\.exe$")
 
 # stcc speech-to-captions package (our own release, checksum-pinned).
 # Bump both together when a new stcc release is validated.
-_STCC_RELEASE_URL = "https://github.com/NYJC-Edtech/filesqueeze-stcc/releases/download/v0.1.0/stcc-0.1.0-win-x64-cpu.zip"
-_STCC_SHA256 = "d419735a5aee4fc2a1d8e7121008713c75e5c33a7d9b618f1e7248656dfdb713"
+_STCC_RELEASE_URL = "https://github.com/NYJC-Edtech/filesqueeze-stcc/releases/download/v0.2.0/stcc-0.2.0-win-x64-cpu.zip"
+_STCC_SHA256 = "e7681616d2109f8143555d0b88fc4c3bf2943a78a5d00758f830d9a9b3b95adb"
 
 
 class SetupError(RuntimeError):
