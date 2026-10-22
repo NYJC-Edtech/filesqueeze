@@ -34,7 +34,7 @@ filesqueeze/
 ├── tray.py              # System tray service
 ├── autostart.py         # Auto-startup configuration
 ├── deps_setup.py        # External-dependency setup (detect + portable installs)
-├── transcription.py     # stcc captions package status (startup check; wiring in future release)
+├── transcription.py     # stcc captions package status (startup check; pipeline in ops/transcription.py)
 ├── update_check.py      # GitHub release check for update notifications
 └── updater.py           # Release download/apply: wheel download, verify, pip install, relaunch
 ```
