@@ -7,6 +7,7 @@ from .fsm import Handler, State
 from .fsm.enums import Audio, Document, Enum, EnumValue, Format, Slideshow, Video
 from .ops import audio, document, image, video
 from .ops import presentation as pptx
+from .ops.transcription import transcribe_after_compress
 from .system import logger
 
 # Dotted image extensions (".jpg", ".png", ...) from the undotted constants list
@@ -341,6 +342,7 @@ def compressVideo(state: State) -> Handler:
         state.error("Error compressing MP4 video")
         return cleanupFiles  # Still go to cleanup, but status is ERROR
     else:
+        original = Path(state.target)
         state.set_target(outfile)
         # Clean up intermediate PowerPoint file on successful compression
         intermediate_file = state.metadata.get("intermediate_powerpoint_file")
@@ -349,6 +351,8 @@ def compressVideo(state: State) -> Handler:
                 Path(intermediate_file).unlink(missing_ok=True)
             except Exception:
                 pass
+        # Best-effort captions (config-gated, default off; never affects the task)
+        transcribe_after_compress(original, Path(outfile), getattr(state, "config", None))
 
     return cleanupFiles
 

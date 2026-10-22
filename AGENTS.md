@@ -177,7 +177,7 @@ File processing uses a state machine pattern defined in `fsm/` with handlers in 
 
 ### Optional
 - **Tesseract OCR** - OCR for scanned PDFs (tests will skip if not installed)
-- **stcc** - Speech-to-captions package (Fluid Speech Mini + parakeet.cpp), installed into the binaries folder via `setup-deps`; startup logs its presence but the pipeline does not use it yet
+- **stcc** - Speech-to-captions package (Fluid Speech Mini + parakeet.cpp), installed into the binaries folder via `setup-deps`; when `[transcription] enabled = true`, compressed videos get SRT captions (default off; `ops/transcription.py` invokes stcc post-compress)
 
 ## Common Issues
 
