@@ -7,12 +7,15 @@ import tkinter as tk
 from datetime import datetime, timedelta
 from pathlib import Path
 from tkinter import scrolledtext, ttk
-from typing import Callable
+from typing import TYPE_CHECKING, Callable
 
 from .service import ServiceState, StateProvider
 from .update_banner import AboutTab
 from .update_check import UpdateInfo
 from .updater import UpdateController
+
+if TYPE_CHECKING:
+    from .config import Config
 
 
 class StatusWindow:
@@ -40,6 +43,7 @@ class StatusWindow:
         update_controller: UpdateController | None = None,
         on_update_applied: Callable[[], None] | None = None,
         on_update_found: Callable[[UpdateInfo], None] | None = None,
+        config: "Config | None" = None,
     ):
         """Initialize the status window.
 
@@ -59,6 +63,8 @@ class StatusWindow:
             on_update_found: Called with an UpdateInfo when the About tab's
                         manual "Check for updates" finds a newer release (the
                         tray service uses it to arm its own menu item).
+            config: Config whose detected sources are shown in the top cluster;
+                        a fresh Config is built when omitted (tests, standalone).
         """
         self.state_provider = state_provider
         self.refresh_interval = refresh_interval
@@ -71,7 +77,7 @@ class StatusWindow:
         # Cache config and log file path (avoid creating new Config every refresh)
         from .config import Config
 
-        self._config = Config()
+        self._config = config or Config()
         self._log_file = self._config.log_file
         self._update_controller = update_controller or UpdateController(config=self._config)
 
@@ -118,7 +124,7 @@ class StatusWindow:
 
         # Configure grid weights
         status_tab.columnconfigure(0, weight=1)
-        status_tab.rowconfigure(5, weight=1)  # Processed files expands
+        status_tab.rowconfigure(6, weight=1)  # Processed files expands
 
         # Service status section
         status_frame = ttk.LabelFrame(status_tab, text="Service Status", padding="5")
@@ -175,9 +181,29 @@ class StatusWindow:
         self.space_freed_value = ttk.Label(cleanup_frame, text="", font=("Helvetica", 9))
         self.space_freed_value.grid(row=3, column=1, sticky=tk.W)
 
+        # Configuration section — which config file FileSqueeze is running with
+        config_frame = ttk.LabelFrame(status_tab, text="Configuration", padding="5")
+        config_frame.grid(row=3, column=0, sticky=(tk.W, tk.E), pady=(0, 10))  # type: ignore[arg-type]
+        config_frame.columnconfigure(1, weight=1)
+
+        sources = list(getattr(self._config, "sources", []))
+        if sources:
+            config_text = str(sources[0])
+        else:
+            config_text = "None detected (using built-in defaults)"
+        ttk.Label(config_frame, text="Config file:").grid(row=0, column=0, sticky=tk.NW, padx=(0, 5))
+        self.config_value = ttk.Label(config_frame, text=config_text, wraplength=600)
+        self.config_value.grid(row=0, column=1, sticky=tk.W)
+
+        if len(sources) > 1:
+            # A project config is layered on top of the user config
+            ttk.Label(config_frame, text="Project override:").grid(row=1, column=0, sticky=tk.NW, padx=(0, 5))
+            self.project_override_value = ttk.Label(config_frame, text=str(sources[1]), wraplength=600)
+            self.project_override_value.grid(row=1, column=1, sticky=tk.W)
+
         # Directories section
         dirs_frame = ttk.LabelFrame(status_tab, text="Directories", padding="5")
-        dirs_frame.grid(row=3, column=0, sticky=(tk.W, tk.E), pady=(0, 10))  # type: ignore[arg-type]
+        dirs_frame.grid(row=4, column=0, sticky=(tk.W, tk.E), pady=(0, 10))  # type: ignore[arg-type]
         dirs_frame.columnconfigure(1, weight=1)
 
         # Input directory
@@ -192,7 +218,7 @@ class StatusWindow:
 
         # Currently processing (single line)
         processing_frame = ttk.LabelFrame(status_tab, text="Currently Processing", padding="5")
-        processing_frame.grid(row=4, column=0, sticky=(tk.W, tk.E), pady=(0, 10))  # type: ignore[arg-type]
+        processing_frame.grid(row=5, column=0, sticky=(tk.W, tk.E), pady=(0, 10))  # type: ignore[arg-type]
         processing_frame.columnconfigure(0, weight=1)
 
         self.processing_value = ttk.Label(processing_frame, text="", font=("Helvetica", 9), anchor=tk.W)
@@ -200,7 +226,7 @@ class StatusWindow:
 
         # Processed files section (scrollable)
         processed_frame = ttk.LabelFrame(status_tab, text="Processed Files", padding="5")
-        processed_frame.grid(row=5, column=0, sticky=(tk.W, tk.E, tk.N, tk.S), pady=(0, 10))  # type: ignore[arg-type]
+        processed_frame.grid(row=6, column=0, sticky=(tk.W, tk.E, tk.N, tk.S), pady=(0, 10))  # type: ignore[arg-type]
         processed_frame.columnconfigure(0, weight=1)
         processed_frame.rowconfigure(0, weight=1)
 
@@ -212,7 +238,7 @@ class StatusWindow:
 
         # Close button
         close_button = ttk.Button(status_tab, text="Close", command=self.close)
-        close_button.grid(row=6, column=0, pady=(10, 0))
+        close_button.grid(row=7, column=0, pady=(10, 0))
 
     def _create_logs_tab(self):
         """Create the Logs tab with log file content."""

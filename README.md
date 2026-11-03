@@ -216,7 +216,9 @@ path = "C:/Users/you/FileSqueeze/bin/ffmpeg/bin/ffmpeg.exe"  # keep ffprobe.exe 
 ghostscript_path = "C:/Users/you/FileSqueeze/bin/gs/bin/gswin64c.exe"
 ```
 
-Verify with `python -m filesqueeze detect` (where each binary was found) and `python -m filesqueeze doctor` (full diagnostic, including feature availability).
+Verify with `python -m filesqueeze doctor` (full diagnostic — it reads your config, so a path set under `[ffmpeg]` is validated exactly like at compression time, and `[OK]` lines say whether a binary came from config or auto-detection) and `python -m filesqueeze detect` (raw PATH/common-location scan, ignores config).
+
+When compression fails because a binary is missing, the log carries a single parseable line instead of a traceback — grep for `binary_not_found:` — and the Compress dialog shows the same reason. Note that `path` must point at the executable itself (`ffmpeg.exe`), not its folder.
 
 > If policy blocks *running* any .exe from user-writable folders (AppLocker default rules do), portable binaries won't start either — ask IT to install or whitelist `python.exe`, `ffmpeg.exe`, and `gswin64c.exe` rather than working around it.
 

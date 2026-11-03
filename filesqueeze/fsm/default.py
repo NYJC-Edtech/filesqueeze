@@ -41,6 +41,7 @@ class State:
             "metadata": {},
             "output_path": Path(output_path) if output_path else None,
             "config": config,
+            "error_message": None,
         }
 
     def __setattr__(self, name: str, value: object) -> None:
@@ -116,12 +117,15 @@ class State:
         self.__data["status"] = Status.COMPLETE
 
     def error(self, msg: str) -> None:
-        """Set status to ERROR.
+        """Set status to ERROR and record the reason.
 
         Args:
-            msg: Error message (currently not stored, but provided for API consistency)
+            msg: Error message; stored so the pipeline entry point can surface
+                the underlying cause (e.g. ``binary_not_found: ffmpeg ...``)
+                instead of a bare "File processing failed".
         """
         self.__data["status"] = Status.ERROR
+        self.__data["error_message"] = msg
 
     def as_dict(self) -> dict[str, Any]:
         """Convert state to dictionary representation.
@@ -137,6 +141,7 @@ class State:
             "format": str(self.format),
             "target": str(self.target),
             "metadata": self.metadata.copy(),
+            "error_message": self.__data.get("error_message"),
         }
 
     def __repr__(self) -> str:

@@ -58,6 +58,11 @@ def _make_file(
 
     # Check if state machine completed with ERROR status
     if final.status == Status.ERROR:
+        # Surface the recorded reason (e.g. "binary_not_found: ffmpeg ...")
+        # so callers and users see the actionable cause, not just the path.
+        reason = final.error_message
+        if reason:
+            raise RuntimeError(f"File processing failed: {filepath} ({reason})")
         raise RuntimeError(f"File processing failed: {filepath}")
 
     return final.target

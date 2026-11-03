@@ -197,21 +197,35 @@ fi
 # Generate configuration at the user config location — the only path the
 # service reads regardless of its working directory. A config written to
 # $INSTALL_DIR would never be consulted (the service runs with cwd in the
-# repo clone). An existing config is preserved, never overwritten.
+# repo clone). An existing config is kept unless the user opts in to
+# overwriting, matching install.ps1.
 USER_CONFIG="$HOME/.config/filesqueeze/config.toml"
 status "Generating configuration file..."
 mkdir -p "$(dirname "$USER_CONFIG")"
 
 if [ -f "$USER_CONFIG" ]; then
-    echo -e "  ${GREEN}Existing config preserved: $USER_CONFIG${NC}"
-else
-    echo -e "  ${GRAY}Running: poetry run python -m filesqueeze init-config --output '$USER_CONFIG' --user-config${NC}"
-    if poetry run python -m filesqueeze init-config --output "$USER_CONFIG" --user-config; then
-        echo -e "  ${GREEN}Configuration created: $USER_CONFIG${NC}"
+    echo ""
+    echo -e "  ${YELLOW}Configuration file already exists: $USER_CONFIG${NC}"
+    read -r -p "  Overwrite existing config? [y/N] " overwrite
+    if [[ $overwrite =~ ^[Yy]$ ]]; then
+        if poetry run python -m filesqueeze init-config --output "$USER_CONFIG" --user-config --force; then
+            echo -e "  ${GREEN}Configuration overwritten: $USER_CONFIG${NC}"
+        else
+            warn "Config regeneration failed; existing config preserved"
+        fi
     else
-        warn "Config generation failed. You can create it manually:"
-        echo -e "  ${GRAY}poetry run python -m filesqueeze init-config --output '$USER_CONFIG' --user-config${NC}"
+        echo -e "  ${GREEN}Existing config preserved: $USER_CONFIG${NC}"
     fi
+else
+    # Empty stub config: effective settings stay with the bundled defaults of
+    # the installed version (a full default.toml copy would shadow later
+    # default changes). `init-config` generates a fully populated config.
+    cat > "$USER_CONFIG" << 'EOF'
+# FileSqueeze user config - settings here override the bundled defaults.
+# Intentionally empty: anything not set falls back to the installed defaults.
+# Generate a fully populated config with: python -m filesqueeze init-config --force
+EOF
+    echo -e "  ${GREEN}Configuration created: $USER_CONFIG${NC}"
 fi
 
 # Create start scripts

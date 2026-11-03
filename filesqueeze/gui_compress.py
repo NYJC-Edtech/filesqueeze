@@ -540,9 +540,15 @@ class CompressDialog:
 
         Touches no tkinter objects — only plain values in ``self._result``.
         """
+        from .system.binaries import BinaryNotFoundError
+
         try:
             result_path = compress_file(input_path, output_path, self.config)
             self._result = ("ok", result_path, input_path)
+        except BinaryNotFoundError as e:
+            # Expected, actionable failure: single parseable line, no traceback.
+            self.logger.error("Standalone compression of %s failed: %s", input_path, e)
+            self._result = ("error", str(e))
         except Exception as e:
             self.logger.error("Standalone compression of %s failed: %s", input_path, e, exc_info=True)
             self._result = ("error", str(e))

@@ -12,15 +12,14 @@ class TestVideoHelpers:
 
     @pytest.mark.skipif(os.environ.get("CI") == "true", reason="FFmpeg is installed in CI environment")
     def test_get_ffmpeg_path_not_found(self):
-        """Test that get_ffmpeg_path raises error when not found."""
-        # Should raise RuntimeError when FFmpeg is not found
-        with pytest.raises(RuntimeError, match="FFmpeg not found"):
+        """Test that get_ffmpeg_path raises a parseable error when not found."""
+        with pytest.raises(RuntimeError, match="binary_not_found: ffmpeg"):
             get_ffmpeg_path(config_path="")
 
     def test_get_ffprobe_path_not_found(self):
-        """Test that get_ffprobe_path raises error when not found."""
+        """Test that get_ffprobe_path raises a parseable error when not found."""
         # Should raise RuntimeError when ffprobe is not found
-        with pytest.raises(RuntimeError, match="ffprobe not found"):
+        with pytest.raises(RuntimeError, match="binary_not_found: ffprobe"):
             get_ffprobe_path(ffmpeg_path="")
 
     def test_get_ffmpeg_path_with_invalid_config(self, tmp_path):
@@ -45,8 +44,8 @@ class TestVideoAnalysis:
         infile = tmp_path / "test.mp4"
         infile.write_bytes(b"dummy video content")
 
-        # Should raise RuntimeError when ffprobe is not found
-        with pytest.raises(RuntimeError, match="ffprobe not found"):
+        # Should raise a parseable RuntimeError when ffprobe is not found
+        with pytest.raises(RuntimeError, match="binary_not_found: ffprobe"):
             width_height(str(infile))
 
     def test_duration_without_ffprobe(self, tmp_path):
@@ -55,8 +54,8 @@ class TestVideoAnalysis:
         infile = tmp_path / "test.mp4"
         infile.write_bytes(b"dummy video content")
 
-        # Should raise RuntimeError when ffprobe is not found
-        with pytest.raises(RuntimeError, match="ffprobe not found"):
+        # Should raise a parseable RuntimeError when ffprobe is not found
+        with pytest.raises(RuntimeError, match="binary_not_found: ffprobe"):
             duration(str(infile))
 
 
@@ -72,7 +71,7 @@ class TestVideoCompression:
         outfile = tmp_path / "output.mp4"
 
         # Should raise RuntimeError when FFmpeg is not found
-        with pytest.raises(RuntimeError, match="FFmpeg not found"):
+        with pytest.raises(RuntimeError, match="binary_not_found: ffmpeg"):
             compress(str(infile), str(outfile))
 
     @pytest.mark.skipif(os.environ.get("CI") == "true", reason="FFmpeg is installed in CI environment")
@@ -89,7 +88,7 @@ class TestVideoCompression:
         config = Config()
 
         # Should raise RuntimeError when FFmpeg is not found
-        with pytest.raises(RuntimeError, match="FFmpeg not found"):
+        with pytest.raises(RuntimeError, match="binary_not_found: ffmpeg"):
             compress(str(infile), str(outfile), config=config)
 
     @pytest.mark.skipif(os.environ.get("CI") == "true", reason="FFmpeg is installed in CI environment")
@@ -101,7 +100,7 @@ class TestVideoCompression:
         outfile = tmp_path / "output.mp4"
 
         # Should raise RuntimeError when FFmpeg is not found
-        with pytest.raises(RuntimeError, match="FFmpeg not found"):
+        with pytest.raises(RuntimeError, match="binary_not_found: ffmpeg"):
             compress(str(infile), str(outfile), crf=23, threads=4, preset="medium", max_height=1080, audio_bitrate="128k")
 
 

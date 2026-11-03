@@ -37,8 +37,8 @@ def analyzeVideo(state: State) -> Handler:
     try:
         duration = video.duration(str(state.target))
         size = video.width_height(str(state.target))
-    except Exception:
-        state.error("Error during file analysis")
+    except Exception as e:
+        state.error(f"Error during file analysis: {e}")
         # No need to terminate; can still proceed without metadata
     else:
         if duration:
@@ -56,8 +56,8 @@ def analyzeAudio(state: State) -> Handler:
     state.status_analyze()
     try:
         duration = video.duration(str(state.target))
-    except Exception:
-        state.error("Error during file analysis")
+    except Exception as e:
+        state.error(f"Error during file analysis: {e}")
         # No need to terminate; can still proceed without metadata
     else:
         if duration:
@@ -291,8 +291,8 @@ def pptxToVideo(state: State) -> Handler:
 
     try:
         pptx.to_mp4(str(state.target), outfile)
-    except Exception:
-        state.error("Error converting PPTX file")
+    except Exception as e:
+        state.error(f"Error converting PPTX file: {e}")
         # Clean up intermediate MP4 file on failure
         try:
             Path(outfile).unlink(missing_ok=True)
@@ -345,7 +345,7 @@ def compressVideo(state: State) -> Handler:
             downscale=(True if state.metadata.get("height", 0) > 720 else False),
             progress_cb=_progress_cb_for(state),
         )
-    except Exception:
+    except Exception as e:
         # Clean up output file on failure
         try:
             Path(outfile).unlink(missing_ok=True)
@@ -358,7 +358,7 @@ def compressVideo(state: State) -> Handler:
                 Path(intermediate_file).unlink(missing_ok=True)
             except Exception:
                 pass
-        state.error("Error compressing MP4 video")
+        state.error(f"Error compressing MP4 video: {e}")
         return cleanupFiles  # Still go to cleanup, but status is ERROR
     else:
         original = Path(state.target)
@@ -396,13 +396,13 @@ def compressAudio(state: State) -> Handler:
             config=state.config if hasattr(state, "config") else None,
             progress_cb=_progress_cb_for(state),
         )
-    except Exception:
+    except Exception as e:
         # Clean up output file on failure
         try:
             Path(outfile).unlink(missing_ok=True)
         except Exception:
             pass
-        state.error("Error compressing audio")
+        state.error(f"Error compressing audio: {e}")
         return cleanupFiles  # Still go to cleanup, but status is ERROR
     else:
         state.set_target(outfile)

@@ -1,10 +1,10 @@
 """Unit tests for init-config output-path resolution and safeguards.
 
-init-config picks its default output by install context: a dev checkout
-writes ./filesqueeze.toml (project config), an installed copy writes the
-user config (~/.config/filesqueeze/config.toml), the only location the
-app reads regardless of working directory. Explicitly pointing --output
-at the user config still requires --user-config.
+init-config always defaults to the user config (~/.config/filesqueeze/
+config.toml) — the only location the app reads regardless of working
+directory, and the only one a source-zip "install" can rely on. Devs who
+want a project config pass --output explicitly. Explicitly pointing
+--output at the user config still requires --user-config.
 """
 
 import argparse
@@ -17,27 +17,13 @@ def _fake_home(monkeypatch, tmp_path):
     return tmp_path / ".config" / "filesqueeze" / "config.toml"
 
 
-def test_installed_copy_defaults_to_user_config(monkeypatch, tmp_path):
-    """Outside a dev checkout, the default output is the user config."""
-    import filesqueeze.update_check as update_check
+def test_default_output_is_user_config(monkeypatch, tmp_path):
+    """The default output is the user config, everywhere."""
     from filesqueeze.cli import default_config_output
 
     fake_user_config = _fake_home(monkeypatch, tmp_path)
-    monkeypatch.setattr(update_check, "is_dev_checkout", lambda: False)
 
     assert default_config_output() == fake_user_config
-
-
-def test_dev_checkout_defaults_to_project_config(monkeypatch, tmp_path):
-    """In a dev checkout, the default output is ./filesqueeze.toml."""
-    import filesqueeze.update_check as update_check
-    from filesqueeze.cli import default_config_output
-
-    _fake_home(monkeypatch, tmp_path)
-    monkeypatch.chdir(tmp_path)
-    monkeypatch.setattr(update_check, "is_dev_checkout", lambda: True)
-
-    assert default_config_output() == tmp_path / "filesqueeze.toml"
 
 
 def test_explicit_user_config_output_requires_flag(monkeypatch, tmp_path):
@@ -59,20 +45,18 @@ def test_explicit_user_config_output_requires_flag(monkeypatch, tmp_path):
     assert fake_user_config.read_text() == "# existing user settings\n"
 
 
-def test_installed_default_targets_user_config_with_flag_semantics(monkeypatch, tmp_path):
-    """Installed-copy default (no --output) may write the user config.
+def test_default_targets_user_config_and_requires_force_when_existing(monkeypatch, tmp_path):
+    """The default (no --output) may write the user config.
 
     The --user-config safeguard only guards explicit --output paths; the
-    installed default targets the user config deliberately, while an
-    existing file there still requires --force.
+    default targets the user config deliberately, while an existing file
+    there still requires --force.
     """
-    import filesqueeze.update_check as update_check
+    import pytest
+
     from filesqueeze.cli import cmd_init_config
 
     fake_user_config = _fake_home(monkeypatch, tmp_path)
-    # Simulate an installed copy: under pytest we are in a dev checkout,
-    # whose default would be ./filesqueeze.toml (a protected path).
-    monkeypatch.setattr(update_check, "is_dev_checkout", lambda: False)
 
     args = argparse.Namespace(output=None, force=False, user_config=False)
 
@@ -80,8 +64,6 @@ def test_installed_default_targets_user_config_with_flag_semantics(monkeypatch, 
     assert fake_user_config.exists()
 
     # Existing user config is protected: without --force, init-config refuses
-    import pytest
-
     args = argparse.Namespace(output=None, force=False, user_config=False)
     with pytest.raises(SystemExit) as excinfo:
         cmd_init_config(args)

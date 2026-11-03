@@ -50,6 +50,13 @@ class Config:
                         If not provided, will search for config files.
         """
         self._config = {}
+        # Files actually merged into this config, in cascade order (user → project).
+        # Lets the GUI/doctor report which config FileSqueeze is really running.
+        self.sources: list[Path] = []
+        # Candidate config locations; None means "not considered at all"
+        # (e.g. the user config is skipped in dev mode).
+        self.user_config_path: Path | None = None
+        self.project_config_path: Path | None = None
         self._load_configs(config_path)
 
     def _load_configs(self, config_path: str | Path | dict | None) -> None:
@@ -88,9 +95,11 @@ class Config:
         if not is_dev_mode:
             # Load user config (optional - skip if not found)
             user_config_path = Path.home() / ".config" / "filesqueeze" / "config.toml"
+            self.user_config_path = user_config_path
             if user_config_path.exists():
                 try:
                     self._merge_toml(user_config_path)
+                    self.sources.append(user_config_path)
                 except ConfigFileNotFoundError:
                     # File not found is OK - continue with defaults
                     pass
@@ -108,9 +117,11 @@ class Config:
             else:
                 project_config = Path.cwd() / "filesqueeze.toml"
 
+        self.project_config_path = project_config
         if project_config.exists():
             try:
                 self._merge_toml(project_config)
+                self.sources.append(project_config)
             except ConfigFileNotFoundError:
                 # File not found is OK - continue with defaults
                 pass
