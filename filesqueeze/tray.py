@@ -293,6 +293,7 @@ class TrayService:
                 update_controller=self._update_controller,
                 on_update_applied=self._quit_for_update,
                 on_update_found=self._on_update_found,
+                config=self.config,
             )
             self._status_window.show()
 

@@ -17,7 +17,7 @@ class TestDocumentCompression:
         from filesqueeze.ops.document import get_ghostscript_path
 
         # Should raise RuntimeError when Ghostscript is not found
-        with pytest.raises(RuntimeError, match="Ghostscript not found"):
+        with pytest.raises(RuntimeError, match="binary_not_found: ghostscript"):
             get_ghostscript_path(config_path="")
 
     @pytest.mark.skipif(os.environ.get("CI") == "true", reason="FFmpeg is installed in CI environment")
@@ -26,7 +26,7 @@ class TestDocumentCompression:
         from filesqueeze.ops.image import get_ffmpeg_path
 
         # Should raise RuntimeError when FFmpeg is not found
-        with pytest.raises(RuntimeError, match="FFmpeg not found"):
+        with pytest.raises(RuntimeError, match="binary_not_found: ffmpeg"):
             get_ffmpeg_path(config_path="")
 
     def test_compress_pdf_invalid_quality(self, tmp_path):
@@ -49,7 +49,7 @@ class TestDocumentCompression:
         outfile = tmp_path / "output.jpg"
 
         # Should raise RuntimeError when FFmpeg is not found
-        with pytest.raises(RuntimeError, match="FFmpeg not found"):
+        with pytest.raises(RuntimeError, match="binary_not_found: ffmpeg"):
             compress_image(str(infile), str(outfile))
 
     def test_get_image_size_without_ffprobe(self, tmp_path):

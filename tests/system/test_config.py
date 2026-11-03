@@ -67,6 +67,59 @@ def test_config_cascade():
         assert config.get("ffmpeg.crf") == 23
 
 
+def test_config_sources_tracks_project_file_only_in_dev_mode():
+    """Under pytest (dev mode) the user config is skipped: sources = [project]."""
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".toml", delete=False) as f:
+        f.write("[ffmpeg]\ncrf = 23\n")
+        temp_config_path = f.name
+
+    try:
+        config = Config(config_path=temp_config_path)
+        assert config.sources == [Path(temp_config_path)]
+        assert config.project_config_path == Path(temp_config_path)
+        # Dev mode never considers the user config
+        assert config.user_config_path is None
+    finally:
+        Path(temp_config_path).unlink()
+
+
+def test_config_sources_tracks_user_then_project(monkeypatch, tmp_path):
+    """Outside dev mode, loaded files are recorded in cascade order."""
+    monkeypatch.setattr(Path, "home", lambda: tmp_path)
+    monkeypatch.delenv("PYTEST_CURRENT_TEST", raising=False)
+    monkeypatch.delenv("FILEQUEEZE_DEV_MODE", raising=False)
+
+    user_config = tmp_path / ".config" / "filesqueeze" / "config.toml"
+    user_config.parent.mkdir(parents=True)
+    user_config.write_text("[ffmpeg]\ncrf = 25\n")
+    project_config = tmp_path / "filesqueeze.toml"
+    project_config.write_text("[ffmpeg]\ncrf = 23\n")
+    monkeypatch.chdir(tmp_path)
+
+    config = Config()
+
+    assert config.sources == [user_config, project_config]
+    assert config.user_config_path == user_config
+    assert config.project_config_path == project_config
+    # Project config wins in the merge
+    assert config.get("ffmpeg.crf") == 23
+
+
+def test_config_sources_empty_when_no_files_found(monkeypatch, tmp_path):
+    """No config files anywhere: sources is empty but defaults still flow."""
+    monkeypatch.setattr(Path, "home", lambda: tmp_path)
+    monkeypatch.delenv("PYTEST_CURRENT_TEST", raising=False)
+    monkeypatch.delenv("FILEQUEEZE_DEV_MODE", raising=False)
+    monkeypatch.chdir(tmp_path)
+
+    config = Config()
+
+    assert config.sources == []
+    assert config.user_config_path == tmp_path / ".config" / "filesqueeze" / "config.toml"
+    assert config.project_config_path == tmp_path / "filesqueeze.toml"
+    assert config.get("ffmpeg.crf") == 28
+
+
 def test_config_get_with_default():
     """Test config.get() with default values."""
     config = Config()

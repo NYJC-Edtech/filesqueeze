@@ -57,6 +57,25 @@ def trace_function(func: Callable) -> Callable:
         except Exception as e:
             duration_ms = int((time.time() - start_time) * 1000)
 
+            # Expected, actionable failures (e.g. missing ffmpeg) get a single
+            # parseable line; their message already carries the stable
+            # "binary_not_found:" prefix. Unexpected failures keep the full
+            # traceback for debugging.
+            from .binaries import BinaryNotFoundError
+
+            if isinstance(e, BinaryNotFoundError):
+                logger.error(
+                    str(e),
+                    extra={
+                        "function": func_name,
+                        "event": "exception",
+                        "duration_ms": duration_ms,
+                        "exception_type": type(e).__name__,
+                        "exception_message": str(e),
+                    },
+                )
+                raise
+
             # Log exception
             logger.error(
                 f"Function failed: {func_name}",
@@ -119,6 +138,21 @@ def trace_function_async(func: Callable) -> Callable:
 
         except Exception as e:
             duration_ms = int((time.time() - start_time) * 1000)
+
+            from .binaries import BinaryNotFoundError
+
+            if isinstance(e, BinaryNotFoundError):
+                logger.error(
+                    str(e),
+                    extra={
+                        "function": func_name,
+                        "event": "exception",
+                        "duration_ms": duration_ms,
+                        "exception_type": type(e).__name__,
+                        "exception_message": str(e),
+                    },
+                )
+                raise
 
             # Log exception
             logger.error(

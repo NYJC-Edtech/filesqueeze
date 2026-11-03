@@ -277,6 +277,16 @@ Write-Status "Generating configuration file..."
 $ConfigPath = "$env:USERPROFILE\\.config\\filesqueeze\\config.toml"
 $ConfigExists = Test-Path $ConfigPath
 
+# Empty stub config: effective settings stay with the bundled defaults of the
+# installed version. Copying the full default.toml into the user config would
+# shadow later default changes (e.g. newly supported formats). Users who want
+# a fully populated config with detected binaries run: filesqueeze init-config
+$StubConfigLines = @(
+    '# FileSqueeze user config - settings here override the bundled defaults.'
+    '# Intentionally empty: anything not set falls back to the installed defaults.'
+    '# Generate a fully populated config with: filesqueeze init-config --force'
+)
+
 try {
     New-Item -ItemType Directory -Path (Split-Path $ConfigPath) -Force | Out-Null
 
@@ -300,8 +310,8 @@ try {
             }
         }
     } else {
-        # No existing config - create new one
-        filesqueeze init-config --output $ConfigPath --user-config --force
+        # No existing config - create the empty stub
+        Set-Content -Path $ConfigPath -Value $StubConfigLines -Encoding Ascii
         Write-Host "  Configuration created: $ConfigPath" -ForegroundColor Gray
     }
 } catch {

@@ -187,3 +187,58 @@ class TestFullFlow:
         assert "Saved to:" in dialog._result_detail.cget("text")
         outputs = list(tmp_path.glob("compressed_photo.*"))
         assert outputs, "expected a compressed_* output next to the source"
+
+
+class _StubStateProvider:
+    """Minimal StateProvider returning a fixed ServiceState snapshot."""
+
+    def __init__(self, input_dir: Path, output_dir: Path):
+        from filesqueeze.service import ServiceState
+
+        self._state = ServiceState(running=True, input_dir=input_dir, output_dir=output_dir)
+
+    def get_state(self):
+        return self._state
+
+
+class TestStatusWindowConfigRow:
+    """The Configuration frame in the top cluster shows the detected config."""
+
+    def _build(self, config):
+        from filesqueeze.gui import StatusWindow
+
+        provider = _StubStateProvider(Path("C:/FileSqueeze/upload"), Path("C:/FileSqueeze/compressed"))
+        window = None
+        for _ in range(3):
+            try:
+                window = StatusWindow(provider, refresh_interval=None, config=config)
+                break
+            except tk.TclError as e:
+                message = str(e)
+                if "init.tcl" not in message and "tk.tcl" not in message:
+                    pytest.skip(f"no display available for tkinter: {e}")
+                time.sleep(0.2)
+        if window is None:
+            pytest.skip("tkinter failed to initialize after retries (init.tcl/tk.tcl flake)")
+        return window
+
+    def test_shows_detected_config_file(self, tmp_path):
+        from filesqueeze.config import Config
+
+        cfg = tmp_path / "filesqueeze.toml"
+        cfg.write_text("[gui]\nrefresh_interval_ms = 1000\n", encoding="utf-8")
+
+        window = self._build(Config(config_path=str(cfg)))
+        try:
+            assert str(cfg) in window.config_value.cget("text")
+        finally:
+            window.root.destroy()
+
+    def test_shows_none_detected_without_config_sources(self):
+        from filesqueeze.config import Config
+
+        window = self._build(Config({}))
+        try:
+            assert "None detected" in window.config_value.cget("text")
+        finally:
+            window.root.destroy()

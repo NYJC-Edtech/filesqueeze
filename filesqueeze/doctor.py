@@ -6,9 +6,11 @@ Checks installation status, dependencies, and configuration.
 
 import sys
 from pathlib import Path
+from typing import ClassVar
 
 from .config import Config
-from .system.binaries import BinaryFinder as BinaryDetector
+from .constants import ConfigKeys
+from .system.binaries import BinaryFinder, BinaryNotFoundError
 
 
 class Colors:
@@ -108,12 +110,32 @@ class Colors:
 Colors.enable()
 
 
+def _failure_reason(exc: Exception) -> str:
+    """Extract the parenthesized reason from a ``binary_not_found`` message.
+
+    Keeps doctor output readable: the message already carries a stable
+    ``binary_not_found: <name> (<reason>; searched: <where>)`` format.
+    """
+    msg = str(exc)
+    start = msg.find("(")
+    if start != -1 and msg.endswith(")"):
+        return msg[start + 1 : -1]
+    return msg
+
+
 class Doctor:
     """Diagnostic tool for FileSqueeze installation."""
 
-    def __init__(self):
-        """Initialize the doctor."""
-        self.detector = BinaryDetector()
+    def __init__(self, config: Config | None = None):
+        """Initialize the doctor.
+
+        Args:
+            config: Optional Config; when None, one is built from the normal
+                cascade in ``run_all_checks`` so binary and config checks see
+                exactly what the app would load (including ``ffmpeg.path``).
+        """
+        self.config = config
+        self.detector = BinaryFinder(config)
         self.issues = []
         self.warnings = []
         self.passed = []
@@ -174,8 +196,19 @@ class Doctor:
             self.warnings.append(f"[WARN] {name} not installed")
             return False
 
+    # binary_type → config key holding an explicit path (checked before auto-detect)
+    _CONFIG_KEYS: ClassVar[dict[str, str]] = {
+        "ffmpeg": ConfigKeys.FFMPEG_PATH,
+        "ghostscript": ConfigKeys.DOCUMENT_GHOSTSCRIPT_PATH,
+        "tesseract": ConfigKeys.OCR_TESSERACT_PATH,
+    }
+
     def check_binary(self, binary_type: str, binary_name: str, optional: bool = False) -> bool:
-        """Check if a binary tool is installed.
+        """Check if a binary tool is available.
+
+        Uses the config-aware finder: a path set in config (e.g. ``[ffmpeg]
+        path``) is honored and validated, exactly like at compression time.
+        Auto-detection (PATH + common locations) is the fallback.
 
         Args:
             binary_type: Type of binary ('ffmpeg', 'ghostscript', 'tesseract').
@@ -185,25 +218,30 @@ class Doctor:
         Returns:
             True if binary is found, False otherwise.
         """
-        if binary_type == "ffmpeg":
-            path, msg = self.detector.find_ffmpeg()
-        elif binary_type == "ghostscript":
-            path, msg = self.detector.find_ghostscript()
-        elif binary_type == "tesseract":
-            path, msg = self.detector.find_tesseract()
-        else:
+        getter = {
+            "ffmpeg": self.detector.get_ffmpeg_path,
+            "ghostscript": self.detector.get_ghostscript_path,
+            "tesseract": self.detector.get_tesseract_path,
+        }.get(binary_type)
+        if getter is None:
             self.warnings.append(f"[?] Unknown binary type: {binary_type}")
             return False
 
-        if path:
-            self.passed.append(f"[OK] {binary_name} found: {path}")
-            return True
-        else:
+        try:
+            path = getter()
+        except BinaryNotFoundError as e:
+            reason = _failure_reason(e)
             if optional:
-                self.warnings.append(f"[WARN] {binary_name} not found ({msg})")
+                self.warnings.append(f"[WARN] {binary_name} not found ({reason})")
             else:
-                self.issues.append(f"[FAIL] {binary_name} not found ({msg})")
+                self.issues.append(f"[FAIL] {binary_name} not found ({reason})")
             return False
+
+        config_key = self._CONFIG_KEYS.get(binary_type)
+        from_config = bool(self.config and config_key and self.config.get(config_key))
+        origin = "from config" if from_config else "auto-detected"
+        self.passed.append(f"[OK] {binary_name} ({origin}): {path}")
+        return True
 
     def check_features(self, config: Config | None = None) -> bool:
         """Check availability of optional features.
@@ -233,23 +271,34 @@ class Doctor:
         return all_enabled
 
     def check_config_file(self) -> bool:
-        """Check if configuration file exists.
+        """Check which configuration files were detected and loaded.
+
+        Reports from the live Config's source tracking (``Config.sources``),
+        so what doctor shows matches what FileSqueeze actually merged.
 
         Returns:
-            True if config file exists, False otherwise.
+            True if at least one config file was loaded, False otherwise.
         """
+        if self.config is not None:
+            for source in self.config.sources:
+                self.passed.append(f"[OK] Configuration loaded: {source}")
+            if not self.config.sources:
+                self.warnings.append("[WARN] No configuration file loaded (using built-in defaults)")
+            return bool(self.config.sources)
+
+        # Config failed to build (e.g. parse error) — show what exists on disk
         config_paths = [
             Path.cwd() / "filesqueeze.toml",
             Path.home() / ".config" / "filesqueeze" / "config.toml",
         ]
-
+        found_any = False
         for config_path in config_paths:
             if config_path.exists():
-                self.passed.append(f"[OK] Configuration file found: {config_path}")
-                return True
-
-        self.warnings.append("[WARN] No configuration file found (will use defaults)")
-        return False
+                self.warnings.append(f"[WARN] Configuration file exists but failed to load: {config_path}")
+                found_any = True
+        if not found_any:
+            self.warnings.append("[WARN] No configuration file found (will use defaults)")
+        return found_any
 
     def check_directories(self, config: Config) -> bool:
         """Check if configured directories exist.
@@ -381,24 +430,29 @@ class Doctor:
         self.check_module("PIL", "Pillow")
         self.check_module("pillow_heif", "pillow-heif (HEIC support)")
 
-        # Check external binaries
+        # Load config (respecting the cascade) so binary/config checks see
+        # what the app would actually use — including configured binary paths.
+        if self.config is None:
+            try:
+                self.config = Config()
+                self.detector = BinaryFinder(self.config)
+            except Exception as e:
+                self.issues.append(f"[FAIL] Configuration error: {e}")
+
+        # Check external binaries (config-aware: honors ffmpeg.path etc.)
         self.check_binary("ffmpeg", "FFmpeg")
         self.check_binary("ghostscript", "Ghostscript")
         self.check_binary("tesseract", "Tesseract OCR (optional)", optional=True)
 
         # Check configuration
-        has_config = self.check_config_file()
-        config: Config | None = None
+        has_config = self.config is not None
+        self.check_config_file()
 
-        if has_config:
-            try:
-                config = Config()
-                self.check_directories(config)
-            except Exception as e:
-                self.issues.append(f"[FAIL] Configuration error: {e}")
+        if self.config is not None:
+            self.check_directories(self.config)
 
         # Check feature availability (platform + config)
-        self.check_features(config if has_config else None)
+        self.check_features(self.config if has_config else None)
 
         # Check permissions
         self.check_permissions()
@@ -451,9 +505,10 @@ class Doctor:
 
             # Missing FFmpeg
             if any("FFmpeg" in issue for issue in self.issues):
-                print("• Install FFmpeg:")
-                print("  Windows: choco install ffmpeg")
-                print("  Linux: sudo apt-get install ffmpeg")
+                print("• Install FFmpeg, or point FileSqueeze at an existing copy:")
+                print("  - set [ffmpeg] path in ~/.config/filesqueeze/config.toml")
+                print("    to the full path of ffmpeg.exe (the file itself, not its folder)")
+                print("  - or run: python -m filesqueeze init-config --force (auto-detects binaries)")
 
             # Missing Ghostscript
             if any("Ghostscript" in issue for issue in self.issues):

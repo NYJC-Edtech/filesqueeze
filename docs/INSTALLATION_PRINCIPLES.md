@@ -201,6 +201,13 @@ Before releasing installation scripts, test:
    service-stop block once stopped nothing this way. Define helpers before first use.
 7. **Uninstaller removes settings the installer doesn't restore**: Any state the uninstaller
    clears (Startup shortcuts, config) must be captured first and re-offered by the installer
+8. **User config must not shadow bundled defaults**: The installer creates an *empty stub*
+   config (comments only) when none exists — effective settings keep coming from the
+   installed version's `default.toml`, so later default changes (e.g. newly supported
+   formats) still apply. Copying the full `default.toml` into the user config would
+   freeze the old defaults in place. `filesqueeze init-config --force` generates a
+   fully populated config with detected binaries when the user explicitly asks for it.
+   Both installers prompt before overwriting an existing config.
 
 ## Maintenance
 

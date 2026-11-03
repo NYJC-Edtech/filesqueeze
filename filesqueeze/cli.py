@@ -14,15 +14,13 @@ def user_config_path() -> Path:
 def default_config_output() -> Path:
     """Where ``init-config`` writes when ``--output`` is not given.
 
-    A dev checkout gets ``./filesqueeze.toml`` (the project config for that
-    checkout, and what the test suite expects). An installed copy defaults
-    to the user config — the only location the app reads no matter which
-    directory it starts from.
+    Always the user config — the only location the app reads no matter which
+    directory it starts from. A source-zip "install" (e.g. an extracted
+    release folder in Downloads) looks exactly like a dev checkout to
+    ``is_dev_checkout()``, so keying the default off that check sent real
+    users' configs to a forgotten ``./filesqueeze.toml``. Developers who
+    want a project config should pass ``--output ./filesqueeze.toml``.
     """
-    from filesqueeze.update_check import is_dev_checkout
-
-    if is_dev_checkout():
-        return Path.cwd() / "filesqueeze.toml"
     return user_config_path()
 
 
@@ -37,12 +35,9 @@ def cmd_init_config(args: argparse.Namespace) -> None:
     else:
         output_path = default_config_output()
 
-    # SAFEGUARD: Prevent accidental overwrite of user config location
-    # The user config is ~/.config/filesqueeze/config.toml and should only be
-    # edited manually by the user, not overwritten by init-config. The guard
-    # applies when --output explicitly points at it; the installed-copy
-    # default above targets it deliberately, and an existing file there is
-    # still protected by the --force check below.
+    # SAFEGUARD: Prevent accidental overwrite of the user config location via
+    # --output. The default (no --output) targets the user config deliberately;
+    # an existing file there is still protected by the --force check below.
     is_user_config = output_path == user_config_path()
 
     if is_user_config and not args.user_config and args.output:
@@ -51,11 +46,8 @@ def cmd_init_config(args: argparse.Namespace) -> None:
         print("The user config file at ~/.config/filesqueeze/config.toml contains your")
         print("personal settings and should not be overwritten with defaults.")
         print()
-        print("To create a project config instead (recommended):")
-        print("  - Run init-config without --output (creates ./filesqueeze.toml in a dev")
-        print("    checkout; in an installed copy it targets the user config, and an")
-        print("    existing file there still requires --force)")
-        print("  - Or specify: --output /path/to/project/filesqueeze.toml")
+        print("To create a project config instead:")
+        print("  - Specify: --output /path/to/project/filesqueeze.toml")
         print()
         print("If you REALLY want to reset your user config to defaults, use:")
         print("  python -m filesqueeze init-config --output ~/.config/filesqueeze/config.toml --user-config --force")

@@ -16,6 +16,18 @@ from filesqueeze.constants import ConfigKeys
 if TYPE_CHECKING:
     from filesqueeze.config import Config
 
+
+class BinaryNotFoundError(RuntimeError):
+    """A required external binary (ffmpeg/ffprobe/ghostscript/tesseract) could not be located.
+
+    Deliberately raised instead of a bare RuntimeError so callers can distinguish
+    "binary missing" (expected, actionable) from unexpected failures, and so the
+    logging decorator can emit a single parseable line instead of a traceback.
+
+    Message format (stable, greppable): ``binary_not_found: <name> (<reason>; searched: <where>)``
+    """
+
+
 # Global binary finder instance (None until registered)
 _binary_finder: Optional["BinaryFinder"] = None
 # Lock for thread-safe registration
@@ -160,7 +172,9 @@ class BinaryFinder:
                 self._cached_paths["ffprobe"] = "ffprobe"
                 return "ffprobe"
 
-            raise RuntimeError("ffprobe not found. Please install FFmpeg or configure ffmpeg_path in config.")
+            raise BinaryNotFoundError(
+                "binary_not_found: ffprobe (not found next to ffmpeg or on PATH; set [ffmpeg] path to the ffmpeg.exe location)"
+            )
 
         return self._cached_paths["ffprobe"]
 
@@ -216,13 +230,25 @@ class BinaryFinder:
             if self.config:
                 config_path = self.config.get(config_key)
                 if config_path:
-                    self._cached_paths[binary_name] = Path(config_path)
+                    resolved = Path(config_path)
+                    # A bare command name (no separators) is resolved via PATH at
+                    # subprocess time; anything that looks like a path must exist
+                    # as a file — a folder here (e.g. "C:/ffmpeg/bin") would fail
+                    # opaquely inside subprocess later.
+                    if "/" in config_path or "\\" in config_path:
+                        if not resolved.is_file():
+                            raise BinaryNotFoundError(
+                                f"binary_not_found: {binary_name} "
+                                f"(configured {config_key} '{config_path}' does not exist "
+                                f"or is not a file; point it at the executable itself)"
+                            )
+                    self._cached_paths[binary_name] = resolved
                     return self._cached_paths[binary_name]
 
             # Auto-detect
             path, msg = finder_method()
             if path is None:
-                raise RuntimeError(f"{binary_name} not found: {msg}")
+                raise BinaryNotFoundError(f"binary_not_found: {binary_name} ({msg}; searched: PATH, common locations)")
             self._cached_paths[binary_name] = Path(path)
 
         return self._cached_paths[binary_name]
