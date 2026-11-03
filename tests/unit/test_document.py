@@ -58,8 +58,8 @@ class TestDocumentCompression:
         infile = tmp_path / "test.jpg"
         infile.write_bytes(b"\xff\xd8\xff\xe0\x00\x10JFIF")  # Minimal JPEG header
 
-        # Should raise RuntimeError when ffprobe is not found
-        with pytest.raises(RuntimeError, match="ffprobe not found"):
+        # Should raise a parseable RuntimeError when ffprobe is not found
+        with pytest.raises(RuntimeError, match="binary_not_found: ffprobe"):
             get_image_size(str(infile))
 
 
