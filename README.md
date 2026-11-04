@@ -98,7 +98,7 @@ bash install.sh
 **What the installer does** (Windows):
 - ✅ Checks Python 3.11+ installation
 - ✅ Builds FileSqueeze from the checkout and installs it system-wide with pip
-- ✅ Generates `~/.config/filesqueeze/config.toml` (preserves an existing config; prompts and backs up before overwriting)
+- ✅ Creates `~/.config/filesqueeze/config.toml` as an empty stub when none exists — effective settings keep coming from the installed version's bundled defaults; prompts before overwriting an existing config
 - ✅ Creates Start Menu shortcuts (service, Compress dialog, uninstaller) and a right-click **Send To → FileSqueeze** entry
 - ✅ Creates default input/output directories and offers auto-start on login
 - ✅ Offers [external-dependency setup](#external-dependency-setup): detect FFmpeg/Ghostscript/Tesseract and optionally install portable builds into your binaries folder
