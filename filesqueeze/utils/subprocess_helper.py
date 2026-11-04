@@ -33,6 +33,41 @@ class SubprocessTimeout(SubprocessError):
     pass
 
 
+class ExecutableNotFoundError(SubprocessError):
+    """Raised when a tool's executable itself cannot be launched.
+
+    Spawn failures (e.g. ``FileNotFoundError: [WinError 2]``) arrive from
+    subprocess without the offending filename, so this error restates the
+    executable path in its message and carries it on ``path`` for dialogs
+    and support reports.
+    """
+
+    def __init__(self, message: str, path: str):
+        super().__init__(message)
+        self.path = path
+
+
+def launch_error(tool_name: str, exe: str, os_error: OSError) -> ExecutableNotFoundError:
+    """Build an ExecutableNotFoundError from an OSError raised while spawning.
+
+    Args:
+        tool_name: Name of the tool (for the error message).
+        exe: Executable path or command that could not be launched.
+        os_error: The OSError raised by subprocess.
+
+    Returns:
+        ExecutableNotFoundError whose message names the missing path.
+    """
+    reason = os_error.strerror or str(os_error)
+    winerror = getattr(os_error, "winerror", None)
+    detail = f"{reason} (WinError {winerror})" if winerror is not None else reason
+    return ExecutableNotFoundError(
+        f"{tool_name} could not be launched: '{exe}' — {detail}. "
+        "Check that the configured binary path points at the executable itself.",
+        path=str(exe),
+    )
+
+
 def run_subprocess(
     cmd: list[str],
     timeout: int,
@@ -84,24 +119,23 @@ def run_subprocess(
 
     try:
         result = subprocess.run(cmd, **subprocess_kwargs)
-
-        # Handle non-zero exit codes
-        if check and result.returncode != 0:
-            error_msg = f"{tool_name} failed with return code {result.returncode}: {input_file}"
-
-            # Add stderr if available
-            if hasattr(result, "stderr") and result.stderr:
-                stderr_text = (
-                    result.stderr if isinstance(result.stderr, str) else result.stderr.decode("utf-8", errors="replace")
-                )
-                error_msg += f"\nstderr: {stderr_text.strip()}"
-
-            raise SubprocessError(error_msg, return_code=result.returncode)
-
-        return result.stdout if (capture_output and text_mode) else result
-
     except subprocess.TimeoutExpired:
         raise SubprocessTimeout(f"{tool_name} timeout processing: {input_file}") from None
+    except OSError as e:
+        raise launch_error(tool_name, cmd[0], e) from e
+
+    # Handle non-zero exit codes
+    if check and result.returncode != 0:
+        error_msg = f"{tool_name} failed with return code {result.returncode}: {input_file}"
+
+        # Add stderr if available
+        if hasattr(result, "stderr") and result.stderr:
+            stderr_text = result.stderr if isinstance(result.stderr, str) else result.stderr.decode("utf-8", errors="replace")
+            error_msg += f"\nstderr: {stderr_text.strip()}"
+
+        raise SubprocessError(error_msg, return_code=result.returncode)
+
+    return result.stdout if (capture_output and text_mode) else result
 
 
 def run_subprocess_with_progress(
@@ -157,7 +191,10 @@ def run_subprocess_with_progress(
     errfile = tempfile.TemporaryFile(mode="w+", encoding="utf-8", errors="replace")
     try:
         popen_kwargs["stderr"] = errfile
-        proc = subprocess.Popen(cmd, **popen_kwargs)
+        try:
+            proc = subprocess.Popen(cmd, **popen_kwargs)
+        except OSError as e:
+            raise launch_error(tool_name, cmd[0], e) from e
 
         def _kill_on_timeout() -> None:
             nonlocal timed_out

@@ -18,6 +18,7 @@ from filesqueeze.system import get_binary_finder
 from filesqueeze.utils.subprocess_helper import (
     SubprocessError,
     SubprocessTimeout,
+    launch_error,
     run_subprocess,
     run_subprocess_with_progress,
     verify_output_file,
@@ -115,6 +116,8 @@ def width_height(infile: str, ffmpeg_path: str = "") -> tuple[int, int] | None:
             raise RuntimeError(f"ffprobe timeout analyzing video: {infile}") from None
         except subprocess.CalledProcessError as e:
             raise RuntimeError(f"ffprobe failed with return code {e.returncode}: {infile}") from None
+        except OSError as e:
+            raise launch_error("ffprobe", ffprobe, e) from e
 
         if data and "x" in data:
             # Handle trailing 'x' in ffprobe output (e.g., "1920x1080x")
@@ -163,6 +166,8 @@ def duration(infile: str, ffmpeg_path: str = "") -> float | None:
             raise RuntimeError(f"ffprobe timeout analyzing video: {infile}") from None
         except subprocess.CalledProcessError as e:
             raise RuntimeError(f"ffprobe failed with return code {e.returncode}: {infile}") from None
+        except OSError as e:
+            raise launch_error("ffprobe", ffprobe, e) from e
 
         return float(data) if data else None
 

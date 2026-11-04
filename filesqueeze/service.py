@@ -4,12 +4,14 @@ Service mode for watching directories and compressing files.
 """
 
 import logging
+import platform
 import sys
 import threading
 import time
+import traceback
 import typing
 from dataclasses import dataclass, field
-from datetime import timedelta
+from datetime import datetime, timedelta
 from pathlib import Path
 
 from watchdog.events import FileSystemEventHandler
@@ -19,6 +21,7 @@ from .config import Config
 from .constants import FileExtensions
 from .logger import setup_logging  # This is the actual Logger.setup, not a wrapper
 from .transcription import log_stcc_status
+from .update_check import get_current_version
 from .utils.google_drive import (
     cleanup_temp_file,
     create_temp_copy,
@@ -28,12 +31,68 @@ from .utils.google_drive import (
 
 
 @dataclass(frozen=True)
+class ErrorDetails:
+    """Diagnostics for a failed job: a short summary and a copy-paste report.
+
+    The report bundles environment info (version, platform, time, file) with
+    the error and traceback so a user can paste it back for remote debugging.
+    """
+
+    summary: str  # "ErrorType: message"
+    report: str  # Multi-line environment + error + traceback block
+
+
+@dataclass(frozen=True)
 class ProcessedFile:
     """Information about a processed file."""
 
     filename: str
     timestamp: str  # ISO format timestamp
     success: bool
+    error_details: ErrorDetails | None = None  # Populated when success is False
+
+
+def build_error_report(filepath: str, exc: Exception | None = None, summary: str | None = None) -> ErrorDetails:
+    """Build dialog/copy-paste diagnostics for a failed job.
+
+    Call from an ``except`` block (pass ``exc``), or pass ``summary`` when a
+    job failed without raising (e.g. no output file produced), so the report
+    renders the frames that led to the failure.
+
+    Args:
+        filepath: Full path of the file that failed to process.
+        exc: The caught exception, when there is one.
+        summary: One-line failure description for the no-exception case.
+
+    Returns:
+        ErrorDetails with the summary and a report suitable for support.
+    """
+    if summary is None:
+        if exc is None:
+            raise ValueError("build_error_report needs an exception or a summary")
+        summary = f"{type(exc).__name__}: {exc}"
+
+    if exc is not None:
+        tb = traceback.format_exc().rstrip()
+    else:
+        tb = "(no traceback — the job failed without raising an exception)"
+
+    version = get_current_version() or "unknown"
+    report = "\n".join(
+        [
+            "FileSqueeze error report",
+            f"Version:  {version}",
+            f"Platform: {platform.platform()} | Python {platform.python_version()}",
+            f"Time:     {datetime.now().isoformat(timespec='seconds')}",
+            f"File:     {filepath}",
+            "",
+            f"Error: {summary}",
+            "",
+            "Traceback:",
+            tb,
+        ]
+    )
+    return ErrorDetails(summary=summary, report=report)
 
 
 @dataclass(frozen=True)
@@ -443,13 +502,22 @@ class CompressionHandler(FileSystemEventHandler):
                 else:
                     self.logger.error(f"Output file not created: {final_result or output_path}")
                     # Add to processed files as failed
-                    self._watcher._add_processed_file(filepath.name, success=False)
+                    self._watcher._add_processed_file(
+                        filepath.name,
+                        success=False,
+                        error_details=build_error_report(
+                            str(filepath), summary=f"Output file not created: {final_result or output_path}"
+                        ),
+                    )
 
             except Exception as e:
                 self.logger.error(f"Failed to compress {filepath.name}: {e}", exc_info=True)
                 # Keep original file in place (as per requirements)
-                # Add to processed files as failed
-                self._watcher._add_processed_file(filepath.name, success=False)
+                # Capture diagnostics for the GUI's error-details dialog while
+                # the exception is active (traceback frames still available)
+                self._watcher._add_processed_file(
+                    filepath.name, success=False, error_details=build_error_report(str(filepath), e)
+                )
                 return  # Stop processing - don't continue to success path
 
         finally:
@@ -1070,18 +1138,22 @@ class DirectoryWatcher(StateProvider):
         # Initialize retention manager
         self._retention_manager = RetentionManager(self.config, self.output_dir, self.logger)
 
-    def _add_processed_file(self, filename: str, success: bool):
+    def _add_processed_file(self, filename: str, success: bool, error_details: ErrorDetails | None = None):
         """Add a processed file to the tracking list (thread-safe).
 
         Args:
             filename: Name of the processed file.
             success: True if processing succeeded, False if failed.
+            error_details: Diagnostics for the GUI error-details dialog (failures only).
         """
-        from datetime import datetime
-
         with self._state_lock:
             # Create ProcessedFile with timestamp
-            processed_file = ProcessedFile(filename=filename, timestamp=datetime.now().isoformat(), success=success)
+            processed_file = ProcessedFile(
+                filename=filename,
+                timestamp=datetime.now().isoformat(),
+                success=success,
+                error_details=error_details,
+            )
 
             # Add to list
             self._processed_files.append(processed_file)
