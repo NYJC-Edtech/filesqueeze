@@ -509,6 +509,14 @@ renamed with a `_1`, `_2`, ... suffix.
 
 #### Standalone Mode (Compress a File dialog)
 
+The tray opens the dialog as its own process (`compress --gui`), so a stalled
+file-picker can never take the service down — closing the dialog never requires
+restarting FileSqueeze. Both Browse pickers also seed their start location only
+from local internal drives (a remembered local folder, else the user's Documents
+folder, else the dialog default): cloud mounts such as Google Drive shared drives
+and removable USB drives stall the native picker before it paints, so they are
+never used as the starting folder.
+
 ```bash
 poetry run python -m filesqueeze compress --gui                # empty dialog
 poetry run python -m filesqueeze compress --gui video.mp4     # pre-selected
