@@ -19,6 +19,20 @@ import pytest
 pytest.importorskip("tkinter", reason="tkinter not available")
 
 
+def _tray():
+    """Import filesqueeze.tray, skipping cleanly when pystray has no backend.
+
+    On headless Linux pystray's import raises an Xlib display-connection
+    error (not an ImportError), which importorskip would not catch.
+    """
+    try:
+        import filesqueeze.tray as tray_mod
+
+        return tray_mod
+    except Exception as e:  # any backend failure means "no tray here"
+        pytest.skip(f"tray module unavailable (pystray backend): {e}")
+
+
 class TestDriveIsLocalFixed:
     def test_home_drive_is_local_on_windows(self):
         if os.name != "nt":
@@ -107,6 +121,7 @@ class TestTraySpawnsDialogProcess:
     def service(self, tmp_path):
         import ctypes
 
+        _tray()  # skips cleanly when pystray has no backend (headless CI)
         from filesqueeze.config import Config
         from filesqueeze.tray import TrayService
 
@@ -124,7 +139,7 @@ class TestTraySpawnsDialogProcess:
             svc._mutex = None
 
     def test_spawns_dialog_as_separate_process(self, service, monkeypatch):
-        import filesqueeze.tray as tray_mod
+        tray_mod = _tray()
 
         calls: list[tuple[list[str], int]] = []
 
@@ -155,7 +170,7 @@ class TestTraySpawnsDialogProcess:
         assert service._compress_dialog is not None
 
     def test_second_click_while_alive_does_not_respawn(self, service, monkeypatch):
-        import filesqueeze.tray as tray_mod
+        tray_mod = _tray()
 
         calls: list[list[str]] = []
 
@@ -176,7 +191,7 @@ class TestTraySpawnsDialogProcess:
         assert len(calls) == 1
 
     def test_click_after_exit_spawns_again(self, service, monkeypatch):
-        import filesqueeze.tray as tray_mod
+        tray_mod = _tray()
 
         calls: list[list[str]] = []
 
@@ -197,7 +212,7 @@ class TestTraySpawnsDialogProcess:
         assert len(calls) == 2
 
     def test_spawn_failure_is_contained(self, service, monkeypatch):
-        import filesqueeze.tray as tray_mod
+        tray_mod = _tray()
 
         def failing_popen(cmd, creationflags=0):
             raise OSError("no interpreter")
@@ -243,7 +258,7 @@ class TestTraySpawnsDialogProcess:
 
     def test_task_gate_ignores_dialog_process(self, service, monkeypatch):
         """A busy dialog process survives the update handoff by design."""
-        import filesqueeze.tray as tray_mod
+        tray_mod = _tray()
 
         monkeypatch.setattr(
             tray_mod.subprocess,
