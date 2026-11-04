@@ -35,6 +35,8 @@ class TestDriveIsLocalFixed:
         assert drive_is_local_fixed(r"\\server\share\folder") is False
 
     def test_relative_path_is_not_local(self):
+        if os.name != "nt":
+            pytest.skip("drive types are a Windows concept")
         from filesqueeze.gui_compress import drive_is_local_fixed
 
         assert drive_is_local_fixed("just-a-name.mp4") is False
@@ -211,8 +213,11 @@ class TestTraySpawnsDialogProcess:
 
         Regression: GetLastError() after CreateMutexW could read a stale 183
         left by an earlier failed CreateDirectory (mkdir exist_ok) and reject
-        a fresh instance as a second one.
+        a fresh instance as a second one. Windows-only: other platforms never
+        create the mutex.
         """
+        if os.name != "nt":
+            pytest.skip("single-instance mutex is Windows-only")
         import ctypes
 
         from filesqueeze.config import Config
