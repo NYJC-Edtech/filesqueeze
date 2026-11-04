@@ -22,6 +22,10 @@ The doctor command provides specific fix suggestions for any issues found.
 
 When a compression failure is caused by a missing binary, the log carries a single parseable line instead of a traceback — grep it for `binary_not_found:` (`binary_not_found: <name> (<reason>; searched: <where>)`).
 
+When a binary path resolves but cannot be launched, the error names the path instead of a bare `WinError 2`: `<Tool> could not be launched: '<path>' — <reason>. Check that the configured binary path points at the executable itself.`
+
+Failed jobs also show an inline **Error details** button in the status window's Processed Files list. The dialog displays the captured diagnostics, and **Copy details** puts a support-ready report (version, platform, file, error, traceback) on the clipboard — paste it when reporting an issue.
+
 ## Common Issues
 
 ### Python Not Found

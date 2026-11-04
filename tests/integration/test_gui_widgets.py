@@ -192,10 +192,12 @@ class TestFullFlow:
 class _StubStateProvider:
     """Minimal StateProvider returning a fixed ServiceState snapshot."""
 
-    def __init__(self, input_dir: Path, output_dir: Path):
+    def __init__(self, input_dir: Path, output_dir: Path, processed_files=None):
         from filesqueeze.service import ServiceState
 
-        self._state = ServiceState(running=True, input_dir=input_dir, output_dir=output_dir)
+        self._state = ServiceState(
+            running=True, input_dir=input_dir, output_dir=output_dir, processed_files=processed_files or []
+        )
 
     def get_state(self):
         return self._state
@@ -240,5 +242,142 @@ class TestStatusWindowConfigRow:
         window = self._build(Config({}))
         try:
             assert "None detected" in window.config_value.cget("text")
+        finally:
+            window.root.destroy()
+
+
+class TestProcessedFilesErrorDetails:
+    """Failed processed-file rows carry an inline error-details button."""
+
+    _DETAILS_REPORT = (
+        "FileSqueeze error report\n"
+        "Version:  0.9.10\n"
+        "Platform: Windows-11 | Python 3.13\n"
+        "Time:     2026-11-04T09:25:15\n"
+        "File:     C:\\FileSqueeze\\upload\\NY041 Camera 1.MP4\n"
+        "\n"
+        "Error: RuntimeError: File processing failed: NY041 Camera 1.MP4\n"
+        "\n"
+        "Traceback:\n"
+        '  File "service.py", in _process_file\n'
+        "RuntimeError: File processing failed: NY041 Camera 1.MP4"
+    )
+
+    def _build(self, processed_files):
+        from filesqueeze.config import Config
+        from filesqueeze.gui import StatusWindow
+
+        provider = _StubStateProvider(
+            Path("C:/FileSqueeze/upload"), Path("C:/FileSqueeze/compressed"), processed_files=processed_files
+        )
+        window = None
+        for _ in range(3):
+            try:
+                window = StatusWindow(provider, refresh_interval=None, config=Config({}))
+                break
+            except tk.TclError as e:
+                message = str(e)
+                if "init.tcl" not in message and "tk.tcl" not in message:
+                    pytest.skip(f"no display available for tkinter: {e}")
+                time.sleep(0.2)
+        if window is None:
+            pytest.skip("tkinter failed to initialize after retries (init.tcl/tk.tcl flake)")
+        return window
+
+    def _failed_record(self):
+        from filesqueeze.service import ErrorDetails, ProcessedFile
+
+        details = ErrorDetails(summary="RuntimeError: File processing failed", report=self._DETAILS_REPORT)
+        return [
+            ProcessedFile(filename="good.mp4", timestamp="2026-11-04T09:00:00", success=True),
+            ProcessedFile(
+                filename="bad.mp4",
+                timestamp="2026-11-04T09:25:15",
+                success=False,
+                error_details=details,
+            ),
+        ]
+
+    def _find_dialog(self, root):
+        from tkinter import Toplevel
+
+        dialogs = [child for child in root.winfo_children() if isinstance(child, Toplevel)]
+        assert dialogs, "expected the error-details dialog to open"
+        return dialogs[-1]
+
+    def _dialog_report_text(self, dialog):
+        from tkinter import Text
+
+        # ScrolledText wraps an inner Frame, so the Text is not a direct child
+        def walk(widget):
+            for child in widget.winfo_children():
+                if isinstance(child, Text):
+                    return child
+                found = walk(child)
+                if found is not None:
+                    return found
+            return None
+
+        report = walk(dialog)
+        assert report is not None, "expected a report Text widget in the dialog"
+        return report.get("1.0", "end").rstrip("\n")
+
+    def test_failed_row_gets_inline_error_details_button(self):
+        window = self._build(self._failed_record())
+        try:
+            assert len(window._processed_error_buttons) == 1
+            assert window._processed_error_buttons[0].cget("text") == "Error details"
+        finally:
+            window.root.destroy()
+
+    def test_successful_row_gets_no_button(self):
+        from filesqueeze.service import ProcessedFile
+
+        window = self._build([ProcessedFile(filename="ok.mp4", timestamp="2026-11-04T09:00:00", success=True)])
+        try:
+            assert window._processed_error_buttons == []
+        finally:
+            window.root.destroy()
+
+    def test_failed_row_without_details_gets_no_button(self):
+        from filesqueeze.service import ProcessedFile
+
+        record = ProcessedFile(filename="old.mp4", timestamp="2026-11-03T08:00:00", success=False)
+        window = self._build([record])
+        try:
+            assert window._processed_error_buttons == []
+        finally:
+            window.root.destroy()
+
+    def test_button_opens_dialog_with_report(self):
+        window = self._build(self._failed_record())
+        try:
+            window._processed_error_buttons[0].invoke()
+            dialog = self._find_dialog(window.root)
+            assert "bad.mp4" in dialog.title()
+            assert self._dialog_report_text(dialog) == self._DETAILS_REPORT
+        finally:
+            window.root.destroy()
+
+    def test_copy_details_puts_report_on_clipboard(self):
+        window = self._build(self._failed_record())
+        try:
+            window._processed_error_buttons[0].invoke()
+            dialog = self._find_dialog(window.root)
+            dialog._copy_button.invoke()
+            assert dialog._copy_button.cget("text") == "Copied ✓"
+            try:
+                assert dialog.clipboard_get() == self._DETAILS_REPORT
+            except tk.TclError:
+                pass  # headless clipboard unavailable; button feedback already verified
+        finally:
+            window.root.destroy()
+
+    def test_unchanged_state_skips_rebuild(self):
+        window = self._build(self._failed_record())
+        try:
+            button_before = window._processed_error_buttons[0]
+            window.update_display()  # Same snapshot: the button must not be rebuilt
+            assert window._processed_error_buttons[0] is button_before
         finally:
             window.root.destroy()

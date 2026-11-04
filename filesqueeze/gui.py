@@ -9,7 +9,7 @@ from pathlib import Path
 from tkinter import scrolledtext, ttk
 from typing import TYPE_CHECKING, Callable
 
-from .service import ServiceState, StateProvider
+from .service import ErrorDetails, ServiceState, StateProvider
 from .update_banner import AboutTab
 from .update_check import UpdateInfo
 from .updater import UpdateController
@@ -70,6 +70,8 @@ class StatusWindow:
         self.refresh_interval = refresh_interval
         self._auto_refresh_job = None
         self._logs_first_load = True  # Track first log load for auto-scroll
+        self._processed_signature: str | None = None  # Skips redundant processed-list rebuilds
+        self._processed_error_buttons: list[ttk.Button] = []  # Embedded per-failed-job buttons
         self._update_info = update_info
         self._on_update_applied = on_update_applied
         self._on_update_found = on_update_found
@@ -394,9 +396,30 @@ class StatusWindow:
     def _update_processed_files(self, state: ServiceState):
         """Update processed files list with timestamps.
 
+        Failed jobs get an inline "Error details" button that opens a dialog
+        with the captured diagnostics and a copy-to-clipboard action.
+
         Args:
             state: Current service state.
         """
+        # The list is rebuilt from scratch, which also destroys the embedded
+        # error buttons — skip the whole rebuild when nothing changed
+        signature = "|".join(
+            f"{processed_file.timestamp}|{processed_file.success}|{processed_file.filename}"
+            for processed_file in state.processed_files
+        )
+        if signature == self._processed_signature:
+            return
+        self._processed_signature = signature
+
+        # Drop references to buttons destroyed with the previous rebuild
+        for button in self._processed_error_buttons:
+            try:
+                button.destroy()
+            except tk.TclError:
+                pass
+        self._processed_error_buttons = []
+
         self.processed_text.config(state=tk.NORMAL)
         self.processed_text.delete(1.0, tk.END)
 
@@ -416,12 +439,36 @@ class StatusWindow:
                 status_icon = "✓" if processed_file.success else "✗"
 
                 # Insert line with timestamp and filename
-                self.processed_text.insert(tk.END, f"{timestamp_str} {status_icon} {processed_file.filename}\n")
+                self.processed_text.insert(tk.END, f"{timestamp_str} {status_icon} {processed_file.filename}")
+
+                # Failed jobs get an inline button beside the filename
+                if not processed_file.success and processed_file.error_details:
+                    button = ttk.Button(
+                        self.processed_text,
+                        text="Error details",
+                        width=13,
+                        command=lambda d=processed_file.error_details, n=processed_file.filename: self._show_error_details(
+                            n, d
+                        ),
+                    )
+                    self.processed_text.window_create(tk.END, window=button)
+                    self._processed_error_buttons.append(button)
+
+                self.processed_text.insert(tk.END, "\n")
 
             # Auto-scroll to bottom (newest)
             self.processed_text.see(tk.END)
 
         self.processed_text.config(state=tk.DISABLED)
+
+    def _show_error_details(self, filename: str, details: ErrorDetails) -> None:
+        """Open the error-details dialog for a failed job.
+
+        Args:
+            filename: Name of the failed file (dialog title).
+            details: Captured diagnostics to display and copy.
+        """
+        ErrorDetailsDialog(self.root, filename, details)
 
     def _update_logs(self):
         """Update logs tab with last 1000 lines from log file.
@@ -526,6 +573,67 @@ class StatusWindow:
         """Close the window and cleanup resources."""
         self.stop_auto_refresh()
         self.root.destroy()
+
+
+class ErrorDetailsDialog(tk.Toplevel):
+    """Dialog showing a failed job's diagnostics with a copy-to-clipboard button.
+
+    The body renders the full report (environment info, error, traceback)
+    from ErrorDetails; "Copy details" puts the same report on the clipboard
+    so users can paste it back for remote debugging.
+    """
+
+    def __init__(self, master: tk.Misc, filename: str, details: ErrorDetails):
+        """Create the dialog.
+
+        Args:
+            master: Parent widget (the status window's root).
+            filename: Name of the failed file (shown in the title).
+            details: Captured diagnostics to display and copy.
+        """
+        super().__init__(master)
+        self.title(f"Error details — {filename}")
+        self.transient(master.winfo_toplevel())
+        self.geometry("760x520")
+        self.minsize(560, 360)
+
+        frame = ttk.Frame(self, padding="10")
+        frame.pack(fill=tk.BOTH, expand=True)
+        frame.columnconfigure(0, weight=1)
+        frame.rowconfigure(1, weight=1)
+
+        summary_label = ttk.Label(frame, text=details.summary, wraplength=700, justify=tk.LEFT, font=("Helvetica", 10, "bold"))
+        summary_label.grid(row=0, column=0, sticky=(tk.W, tk.E), pady=(0, 8))
+
+        report_text = scrolledtext.ScrolledText(
+            frame, wrap=tk.WORD, state=tk.NORMAL, font=("Consolas", 9), width=90, height=20
+        )
+        report_text.grid(row=1, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+        report_text.insert(tk.END, details.report)
+        report_text.config(state=tk.DISABLED)
+
+        buttons = ttk.Frame(frame)
+        buttons.grid(row=2, column=0, sticky=tk.E, pady=(8, 0))
+        self._copy_button = ttk.Button(buttons, text="Copy details", command=lambda: self._copy_report(details.report))
+        self._copy_button.pack(side=tk.LEFT, padx=(0, 8))
+        ttk.Button(buttons, text="Close", command=self.destroy).pack(side=tk.LEFT)
+
+        self.bind("<Escape>", lambda event: self.destroy())
+        self.grab_set()
+        self.focus_set()
+
+    def _copy_report(self, report: str) -> None:
+        """Copy the report to the clipboard and acknowledge on the button."""
+        self.clipboard_clear()
+        self.clipboard_append(report)
+        self.update_idletasks()
+        self._copy_button.config(text="Copied ✓")
+        self.after(1500, self._restore_copy_label)
+
+    def _restore_copy_label(self) -> None:
+        """Restore the copy button label (no-op if the dialog is gone)."""
+        if self.winfo_exists():
+            self._copy_button.config(text="Copy details")
 
 
 def show_status_window(state_provider: StateProvider, refresh_interval: int = 2000) -> StatusWindow:

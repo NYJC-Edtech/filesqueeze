@@ -13,6 +13,7 @@ Utility package for compressing videos, audio, PDFs, and images using FFmpeg, Gh
 - **Smart PDF Detection**: Automatically detects scanned vs generated PDFs
 - **Optional Video Transcription**: with `[transcription] enabled = true`, compressed videos get `.srt`/`.vtt` caption sidecars (SRT embedded as toggleable soft subtitles for MP4) via the bundled stcc package — default off, English audio only
 - **Live Encode Progress**: the status window shows a text percentage next to the file being processed during video/audio compression
+- **Error Details for Failed Jobs**: failed rows in the status window's Processed Files list get an inline **Error details** button; the dialog shows the captured diagnostics and **Copy details** puts a support-ready report (version, platform, file, error, traceback) on the clipboard; launch failures name the exact executable path that could not be found
 - **Watch Mode**: Real-time directory monitoring with automatic file processing
 - **Standalone Mode**: Compress a single file to a chosen destination via a dialog (`compress --gui`, tray menu, or right-click → Send To)
 - **Service Mode**: Background service with system tray icon (Windows)
@@ -677,7 +678,7 @@ FileSqueeze guarantees these behaviors:
 
 ### Service Launch Behavior
 
-When launched from the Start Menu or command line, the tray icon appears immediately and the status window opens automatically — showing service state, input/output directories, processing statistics, and the file currently being processed (with a live percentage for video/audio encodes) — so users get immediate visual confirmation that the service is running.
+When launched from the Start Menu or command line, the tray icon appears immediately and the status window opens automatically — showing service state, input/output directories, processing statistics, the file currently being processed (with a live percentage for video/audio encodes), and a Processed Files list where failed jobs carry an inline **Error details** button — so users get immediate visual confirmation that the service is running.
 
 ### Single Instance Enforcement
 
