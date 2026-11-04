@@ -381,3 +381,82 @@ class TestProcessedFilesErrorDetails:
             assert window._processed_error_buttons[0] is button_before
         finally:
             window.root.destroy()
+
+
+class TestBrowseInitialdirGating:
+    """Browse pickers only seed their start location from safe (local) folders.
+
+    Regression guard for the 2026-11-04 Browse hang: a cloud/removable
+    initialdir wedges the native dialog before it paints (see
+    gui_compress.drive_is_local_fixed). The fake gate treats only paths
+    under tmp_path as local, standing in for "local fixed drive".
+    """
+
+    @pytest.fixture
+    def gated_dialog(self, dialog, monkeypatch, tmp_path):
+        from filesqueeze import gui_compress
+
+        gate = {"local_prefix": str(tmp_path)}
+        monkeypatch.setattr(
+            gui_compress, "drive_is_local_fixed", lambda p: bool(p) and str(p).startswith(gate["local_prefix"])
+        )
+        monkeypatch.setattr(gui_compress, "documents_folder", lambda: "C:/Users/x/Documents")
+        monkeypatch.setattr(gui_compress, "load_last_compress_dir", lambda: None)
+        captured: dict = {}
+        monkeypatch.setattr(gui_compress.filedialog, "askdirectory", lambda **kw: captured.update(kw) or "")
+        monkeypatch.setattr(gui_compress.filedialog, "askopenfilename", lambda **kw: captured.update(kw) or "")
+        return dialog, captured, gate
+
+    def test_destination_uses_local_last_dir(self, gated_dialog, tmp_path):
+        dlg, captured, _gate = gated_dialog
+
+        dlg._dest_dir_var.set(str(tmp_path / "last"))
+        dlg._browse_dest_btn.invoke()
+
+        assert captured["initialdir"] == str(tmp_path / "last")
+
+    def test_destination_falls_back_to_documents_for_cloud_dir(self, gated_dialog):
+        dlg, captured, _gate = gated_dialog
+
+        dlg._dest_dir_var.set("G:/cloud/last")
+        dlg._browse_dest_btn.invoke()
+
+        # The configured output dir (dev-mode dirs) also fails the fake gate,
+        # so the Documents fallback wins
+        assert captured["initialdir"] == "C:/Users/x/Documents"
+
+    def test_destination_omits_initialdir_when_nothing_safe(self, gated_dialog, monkeypatch):
+        from filesqueeze import gui_compress
+
+        dlg, captured, _gate = gated_dialog
+        monkeypatch.setattr(gui_compress, "documents_folder", lambda: None)
+        dlg._dest_dir_var.set("G:/cloud/last")
+
+        dlg._browse_dest_btn.invoke()
+
+        assert "initialdir" not in captured
+
+    def test_file_browse_prefers_selected_file_folder(self, gated_dialog, tmp_path):
+        dlg, captured, _gate = gated_dialog
+
+        dlg._file_var.set(str(tmp_path / "movie.mp4"))
+        dlg._browse_file_btn.invoke()
+
+        assert captured["initialdir"] == str(tmp_path)
+
+    def test_file_browse_falls_back_to_documents(self, gated_dialog):
+        dlg, captured, _gate = gated_dialog
+
+        dlg._browse_file_btn.invoke()
+
+        assert captured["initialdir"] == "C:/Users/x/Documents"
+
+    def test_file_browse_skips_cloud_last_dir(self, gated_dialog, monkeypatch):
+        from filesqueeze import gui_compress
+
+        dlg, captured, _gate = gated_dialog
+        monkeypatch.setattr(gui_compress, "load_last_compress_dir", lambda: "G:/cloud/last")
+
+        dlg._browse_file_btn.invoke()
+
+        assert captured["initialdir"] == "C:/Users/x/Documents"

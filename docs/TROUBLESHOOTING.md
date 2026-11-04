@@ -26,6 +26,17 @@ When a binary path resolves but cannot be launched, the error names the path ins
 
 Failed jobs also show an inline **Error details** button in the status window's Processed Files list. The dialog displays the captured diagnostics, and **Copy details** puts a support-ready report (version, platform, file, error, traceback) on the clipboard — paste it when reporting an issue.
 
+### The Compress a File dialog freezes on Browse
+
+Native Windows pickers block while enumerating the folder they start in. If that
+folder lives on a cloud mount (Google Drive shared drive, OneDrive) whose sync
+client is stalled, or on an unplugged removable drive, the picker never paints
+and the window ghosts as "(Not Responding)". FileSqueeze avoids this two ways:
+the Browse buttons only seed their start location from local internal drives
+(remembered local folder → Documents folder → the dialog default), and the tray
+runs the dialog as its own process — if a picker ever does stall, closing the
+dialog leaves the service untouched.
+
 ## Common Issues
 
 ### Python Not Found

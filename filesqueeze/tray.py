@@ -3,6 +3,7 @@
 System tray icon for FileSqueeze service control.
 """
 
+import subprocess
 import sys
 import threading
 from pathlib import Path
@@ -52,24 +53,25 @@ class TrayService:
 
         register_logger(self.logger)
 
-        # Enforce single instance on Windows
-        if sys.platform == "win32":
-            self._ensure_single_instance()
-
-        # Create watcher
-        self.watcher = DirectoryWatcher(input_dir, output_dir, self.config)
-
         # Tray icon state
         self.icon = None
         self.running = False
         self._last_click_time = 0
         self._click_count = 0
         self._status_window = None  # Track the status window instance
-        self._compress_dialog = None  # Track the standalone compress dialog instance
+        self._compress_dialog = None  # Popen of the standalone compress dialog (own process)
         self._mutex = None  # Windows named mutex for single-instance enforcement
         self._update_info: UpdateInfo | None = None  # Newer release found at startup, if any
         self._manual_check_running = False  # A user-requested check is in flight
         self._update_waiting_dialog = None  # Buttonless "will update after tasks" notice
+
+        # Create watcher
+        self.watcher = DirectoryWatcher(input_dir, output_dir, self.config)
+
+        # Enforce single instance on Windows — after the attribute block above
+        # so the acquired mutex handle is not overwritten back to None
+        if sys.platform == "win32":
+            self._ensure_single_instance()
         # Shared download/apply controller: the tray menu, status window and
         # compress dialog all show the same in-flight update through it. The
         # task gate holds the handoff while any task is running — the app must
@@ -95,7 +97,6 @@ class TrayService:
         """
         import ctypes
         import os
-        from ctypes import wintypes
 
         # Check if running in development/testing mode
         is_development = (
@@ -109,26 +110,23 @@ class TrayService:
         else:
             mutex_name = "Global\\FileSqueeze_SingleInstanceMutex"
 
-        self._mutex = ctypes.windll.kernel32.CreateMutexW(None, True, mutex_name)
+        # use_last_error captures the error of THIS CreateMutexW call. A
+        # plain GetLastError() afterwards can read a stale error left by an
+        # earlier, unrelated Win32 call on the same thread (e.g.
+        # mkdir(exist_ok=True) leaves ERROR_ALREADY_EXISTS behind), which
+        # rejected fresh launches as a "second instance".
+        kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+        self._mutex = kernel32.CreateMutexW(None, True, mutex_name)
 
         if self._mutex == 0:
             # Failed to create mutex at all
-            # Need to call GetLastError directly, not via ctypes.get_last_error()
-            kernel32 = ctypes.windll.kernel32
-            kernel32.GetLastError.restype = wintypes.DWORD
-            error = kernel32.GetLastError()
-            self.logger.error(f"Failed to create mutex: Error {error}")
+            self.logger.error(f"Failed to create mutex: Error {ctypes.get_last_error()}")
             return
 
-        # Check if mutex already existed
-        # CreateMutexW sets GetLastError() to ERROR_ALREADY_EXISTS (183) if mutex existed
-        # Note: Must call GetLastError directly, ctypes.get_last_error() doesn't work here
+        # Check if mutex already existed: when it did, CreateMutexW's captured
+        # error is ERROR_ALREADY_EXISTS (183)
         ERROR_ALREADY_EXISTS = 183
-        kernel32 = ctypes.windll.kernel32
-        kernel32.GetLastError.restype = wintypes.DWORD
-        last_error = kernel32.GetLastError()
-
-        if last_error == ERROR_ALREADY_EXISTS:
+        if ctypes.get_last_error() == ERROR_ALREADY_EXISTS:
             # Mutex already exists - another instance is running
             self.logger.warning("Another FileSqueeze instance is already running. Only one instance is allowed at a time.")
             raise RuntimeError(
@@ -315,43 +313,27 @@ class TrayService:
             icon: Tray icon instance.
             item: Menu item instance.
         """
-        if self._compress_dialog is not None:
-            self.logger.debug("Compress dialog already open, bringing to foreground")
-            try:
-                self._compress_dialog.root.after(0, self._bring_to_foreground, self._compress_dialog.root)
-            except Exception as e:
-                self.logger.error(f"Failed to bring compress dialog to foreground: {e}", exc_info=True)
+        if self._compress_dialog is not None and self._compress_dialog.poll() is None:
+            self.logger.debug("Compress dialog already open (separate process)")
             return
 
         self.logger.info("Opening compress dialog")
 
-        # Launch the dialog in a separate thread so the tray icon stays responsive
-        dialog_thread = threading.Thread(target=self._show_compress_dialog, daemon=True)
-        dialog_thread.start()
-
-    def _show_compress_dialog(self):
-        """Show the standalone compress dialog.
-
-        This runs in a separate thread to avoid blocking the tray icon.
-        """
+        # Run the dialog as its own process (the compress --gui entry point,
+        # on that process's main thread): a hung native file dialog then
+        # wedges only the dialog process — the tray and status windows stay
+        # alive and the dialog closes without restarting the service.
+        # Updates stay on the service side (tray menu / About tab): an update
+        # applied inside this process would relaunch the dialog, not the
+        # service (build_relaunch_command follows sys.argv).
+        creationflags = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
         try:
-            from .gui_compress import CompressDialog
-
-            # Store the dialog BEFORE show() blocks on mainloop(), so the
-            # singleton check works while the dialog is open
-            self._compress_dialog = CompressDialog(
-                config=self.config,
-                update_info=self._update_info,
-                update_controller=self._update_controller,
-                on_update_applied=self._quit_for_update,
+            self._compress_dialog = subprocess.Popen(
+                [sys.executable, "-P", "-m", "filesqueeze", "compress", "--gui", "--no-update-check"],
+                creationflags=creationflags,
             )
-            self._compress_dialog.show()
-
-            # After the dialog closes, allow a new one to be opened
-            self._compress_dialog = None
-
-        except Exception as e:
-            self.logger.error(f"Failed to show compress dialog: {e}", exc_info=True)
+        except OSError:
+            self.logger.error("Failed to launch compress dialog process", exc_info=True)
             self._compress_dialog = None
 
     def _update_menu_text(self, item: object = None) -> str:
@@ -406,14 +388,14 @@ class TrayService:
         self.stop()
 
     def _has_running_tasks(self) -> bool:
-        """Whether any task is mid-flight and must not be interrupted by quitting.
+        """Whether any service-side task is mid-flight and must not be interrupted by quitting.
 
-        Two task sources: a compress dialog's worker, and the watcher's file
-        currently being processed. Polled by the update controller's task gate
-        once per second while it holds the handoff.
+        The watcher's file currently being processed is the only such task:
+        the compress dialog runs as a separate process, so it survives the
+        quit→install→relaunch handoff regardless of what it is doing. Polled
+        by the update controller's task gate once per second while it holds
+        the handoff.
         """
-        if self._compress_dialog is not None and self._compress_dialog.is_compressing:
-            return True
         try:
             return bool(self.watcher.get_state().processing_files)
         except Exception:

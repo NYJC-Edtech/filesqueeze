@@ -18,6 +18,7 @@ This module deliberately avoids ``print()`` so it also works under
 ``pythonw.exe`` (no console attached, e.g. Start Menu / Send To launches).
 """
 
+import ctypes
 import logging
 import os
 import subprocess
@@ -100,6 +101,54 @@ def save_last_compress_dir(directory: str, state_path: Path | None = None) -> No
             tomli_w.dump({STATE_SECTION: {STATE_KEY: directory}}, f)
     except Exception:
         logger.warning("Could not save compress-dialog state to %s", state_file, exc_info=True)
+
+
+_DRIVE_FIXED = 3  # GetDriveTypeW: local internal disk
+
+
+def drive_is_local_fixed(path: str | Path) -> bool:
+    """True when *path* sits on a local internal drive.
+
+    Decided via GetDriveTypeW on the drive ROOT alone: that API answers from
+    the mount table without touching the path, so it cannot block even when
+    a cloud provider (Google Drive, OneDrive) is stalled. Removable USB
+    drives, mapped/UNC network paths and cloud mounts must not seed the
+    native folder picker: a stalled provider wedges IFileDialog during
+    initial-folder enumeration and the owning window ghosts as
+    "(Not Responding)". Non-Windows platforms have no drive types, so every
+    path counts as local.
+    """
+    if os.name != "nt":
+        return True
+    try:
+        root = Path(path).anchor
+    except (OSError, ValueError):
+        return False
+    if not root or root.startswith("\\\\"):  # relative path / UNC share
+        return False
+    return int(ctypes.windll.kernel32.GetDriveTypeW(root)) == _DRIVE_FIXED
+
+
+def documents_folder() -> str | None:
+    """The user's Documents folder, when it sits on a local internal drive."""
+    documents = Path.home() / "Documents"
+    if documents.is_dir() and drive_is_local_fixed(str(documents)):
+        return str(documents)
+    return None
+
+
+def safe_initialdir(*candidates: str | None) -> str | None:
+    """Pick a folder that is safe to seed the native file dialog's start location.
+
+    Returns the first candidate on a local internal drive (a remembered prior
+    folder, the configured output dir, ...), falling back to the user's
+    Documents folder when it is local, and to None — the dialog then uses its
+    own default — when nothing qualifies.
+    """
+    for candidate in candidates:
+        if candidate and drive_is_local_fixed(candidate):
+            return candidate
+    return documents_folder()
 
 
 def _open_folder(path: Path) -> None:
@@ -383,15 +432,40 @@ class CompressDialog:
     # ------------------------------------------------------------- actions
 
     def _on_browse_file(self) -> None:
-        """Open a file picker and select the chosen file."""
-        chosen = filedialog.askopenfilename(parent=self.root, title="Choose a file to compress", filetypes=build_filetypes())
+        """Open a file picker and select the chosen file.
+
+        The picker's start location is gated to a local internal drive (the
+        selected file's folder, else the remembered destination folder, else
+        Documents, else the dialog default): a cloud/removable folder stalls
+        the dialog before it paints (see drive_is_local_fixed).
+        """
+        current = self._file_var.get().strip()
+        initial_dir = safe_initialdir(
+            str(Path(current).parent) if current else None,
+            load_last_compress_dir(),
+        )
+        kwargs = {"parent": self.root, "title": "Choose a file to compress", "filetypes": build_filetypes()}
+        if initial_dir:
+            kwargs["initialdir"] = initial_dir
+        chosen = filedialog.askopenfilename(**kwargs)
         if chosen:
             self._file_var.set(chosen)
 
     def _on_browse_destination(self) -> None:
-        """Open a folder picker for the destination."""
-        initial_dir = self._dest_dir_var.get().strip() or str(self.config.output_dir)
-        chosen = filedialog.askdirectory(parent=self.root, title="Choose destination folder", initialdir=initial_dir)
+        """Open a folder picker for the destination.
+
+        Same gating as _on_browse_file: the remembered folder and the
+        configured output dir only seed the picker when they sit on a local
+        internal drive; otherwise Documents, else the dialog default.
+        """
+        initial_dir = safe_initialdir(
+            self._dest_dir_var.get().strip() or None,
+            str(self.config.output_dir),
+        )
+        kwargs = {"parent": self.root, "title": "Choose destination folder"}
+        if initial_dir:
+            kwargs["initialdir"] = initial_dir
+        chosen = filedialog.askdirectory(**kwargs)
         if chosen:
             self._dest_dir_var.set(chosen)
             self._dest_var.set("custom")

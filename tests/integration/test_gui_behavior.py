@@ -202,22 +202,27 @@ class TestTrayCompressMenuItem:
         assert "_on_compress_file" in start_source, "Compress menu item must be wired to _on_compress_file"
 
     def test_compress_handler_opens_dialog_with_singleton_pattern(self):
-        """The handler must open a CompressDialog with the status-window singleton pattern."""
+        """The handler must spawn the dialog as a process, gated on the previous one.
+
+        Process isolation: a hung native file dialog then wedges only the
+        dialog process — never the tray/status windows — and closes without
+        restarting the service.
+        """
         import inspect
 
         from filesqueeze.tray import TrayService
 
         handler_source = inspect.getsource(TrayService._on_compress_file)
-        show_source = inspect.getsource(TrayService._show_compress_dialog)
 
-        # Singleton check before creating a new dialog
-        assert "_compress_dialog is not None" in handler_source, (
-            "_on_compress_file must check for an existing dialog (singleton enforcement)"
+        # Singleton check before spawning a new dialog process
+        assert "poll() is None" in handler_source, (
+            "_on_compress_file must check whether the previous dialog process is still alive"
         )
-        # Dialog opens off the tray thread
-        assert "threading.Thread" in handler_source, "_on_compress_file must not block the tray thread"
-        # The dialog actually created is the standalone CompressDialog
-        assert "CompressDialog" in show_source, "_show_compress_dialog must create a CompressDialog"
+        # The dialog actually spawned is the standalone compress --gui entry point
+        assert "compress" in handler_source and "--gui" in handler_source, (
+            "_on_compress_file must spawn python -m filesqueeze compress --gui"
+        )
+        assert "subprocess.Popen" in handler_source, "_on_compress_file must not build the dialog in-process"
 
 
 class TestTrayUpdateMenuItem:
@@ -273,15 +278,20 @@ class TestTrayUpdateMenuItem:
         assert "wait_for_tasks=self._has_running_tasks" in source, "Controller must gate on the tray's task check"
         assert "on_waiting=self._on_update_waiting" in source, "Entering the wait must trigger the buttonless notice"
 
-    def test_task_gate_covers_dialog_compressions_and_watched_files(self):
-        """Both task sources block the update: dialog worker and watcher processing."""
+    def test_task_gate_covers_watched_files_but_not_the_dialog_process(self):
+        """The gate covers the watcher's file; the dialog process survives by design.
+
+        The dialog is its own process since the process-isolation change: it
+        keeps compressing across the quit→install→relaunch handoff, so it is
+        deliberately NOT a task source anymore.
+        """
         import inspect
 
         from filesqueeze.tray import TrayService
 
         source = inspect.getsource(TrayService._has_running_tasks)
-        assert "is_compressing" in source, "A running dialog compression is a task"
         assert "processing_files" in source, "A watched file mid-processing is a task"
+        assert "is_compressing" not in source, "The dialog process survives the handoff and must not gate it"
 
     def test_update_now_does_not_refuse_when_tasks_are_running(self):
         """Deferral replaced the old refusal: no task check in the click handler itself.
@@ -387,19 +397,24 @@ class TestTrayUpdateMenuItem:
         assert "_on_update_found" in run_source, "Manual check must store found updates via _on_update_found"
 
     def test_windows_created_by_tray_receive_update_info_and_controller(self):
-        """StatusWindow and CompressDialog opened from the tray get the check result,
-        the shared controller, and the quit hook.
+        """StatusWindow opened from the tray gets the check result, the shared
+        controller, and the quit hook; the dialog process stays update-free.
 
         Regression test for the review finding: without ``on_update_applied``,
         the windows' banners ran with restart=False, whose updater waits for
         the tray process to exit — which never happens — so pip never ran.
+        The compress dialog now runs as its own process (see
+        TestTrayCompressMenuItem): an update applied there would relaunch the
+        dialog, not the service (build_relaunch_command follows sys.argv), so
+        the tray spawns it with --no-update-check and updates stay on the
+        service side.
         """
         import inspect
 
         from filesqueeze.tray import TrayService
 
         status_source = inspect.getsource(TrayService._show_status_window)
-        dialog_source = inspect.getsource(TrayService._show_compress_dialog)
+        dialog_source = inspect.getsource(TrayService._on_compress_file)
 
         assert "update_info=self._update_info" in status_source, "StatusWindow must receive the update check result"
         assert "update_controller=self._update_controller" in status_source, "StatusWindow must share the controller"
@@ -407,9 +422,7 @@ class TestTrayUpdateMenuItem:
         assert "on_update_found=self._on_update_found" in status_source, (
             "Manual checks in the StatusWindow must arm the tray's update menu item"
         )
-        assert "update_info=self._update_info" in dialog_source, "CompressDialog must receive the update check result"
-        assert "update_controller=self._update_controller" in dialog_source, "CompressDialog must share the controller"
-        assert "on_update_applied=self._quit_for_update" in dialog_source, "CompressDialog updates must quit so pip can run"
+        assert "--no-update-check" in dialog_source, "Tray-spawned dialogs must not run their own update flow"
 
 
 def _bare_tray_service(update_info, controller=None):

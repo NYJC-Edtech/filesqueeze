@@ -197,7 +197,10 @@ def cmd_compress_gui(args: argparse.Namespace) -> None:
     initial_file = Path(args.input) if args.input else None
     # No prints from here on: this path also runs under pythonw.exe (Start
     # Menu / Send To shortcuts), where stdout is not attached.
-    run_compress_dialog(config=config, initial_file=initial_file)
+    # The tray passes --no-update-check: an update applied inside this
+    # process would relaunch the dialog, not the service, so tray-spawned
+    # dialogs leave updates to the service (tray menu / About tab).
+    run_compress_dialog(config=config, initial_file=initial_file, check_updates=not args.no_update_check)
 
 
 def cmd_compress(args: argparse.Namespace) -> None:
@@ -626,6 +629,11 @@ Examples:
     compress_parser.add_argument("input", nargs="?", help="Input file to compress (optional with --gui)")
     compress_parser.add_argument(
         "--gui", action="store_true", help="Open the 'Compress a File' dialog instead of running in the terminal"
+    )
+    compress_parser.add_argument(
+        "--no-update-check",
+        action="store_true",
+        help="Skip the dialog's update check (used by the tray service, which runs its own)",
     )
     compress_parser.add_argument(
         "--output", "-o", help="Output file path (default: compressed_<input>.<ext> next to the input)"
