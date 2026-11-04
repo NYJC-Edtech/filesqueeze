@@ -13,12 +13,14 @@ poetry run python -m filesqueeze doctor
 This will check:
 - Python version
 - Required Python modules
-- External binaries (FFmpeg, Ghostscript, Tesseract)
-- Configuration files
+- External binaries (FFmpeg, Ghostscript, Tesseract) — resolved exactly like at compression time, so configured paths are honored and validated, and each `[OK]` line says whether the binary came from your config or auto-detection
+- Configuration files (reports which config files were loaded)
 - Directory permissions
 - Auto-start configuration (Windows)
 
 The doctor command provides specific fix suggestions for any issues found.
+
+When a compression failure is caused by a missing binary, the log carries a single parseable line instead of a traceback — grep it for `binary_not_found:` (`binary_not_found: <name> (<reason>; searched: <where>)`).
 
 ## Common Issues
 

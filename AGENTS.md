@@ -25,6 +25,7 @@ filesqueeze/
 ├── service.py           # Background service with directory watching
 ├── cli.py               # Command-line interface
 ├── config.py            # Configuration management
+├── doctor.py            # Config-aware diagnostics (doctor command)
 ├── scanner.py           # File scanner for batch processing
 ├── ocr.py               # OCR processing for PDFs
 ├── gui.py               # GUI status window
